@@ -31,6 +31,19 @@ export interface CreditCard {
   creditLimit: number;
   billingCycle: string;
   color: string;
+  totalAmountDue?: number;
+  minimumAmountDue?: number;
+  paymentDueDate?: string;
+  autoCreated?: boolean;
+}
+
+export interface MonthlyUsage {
+  cardId: string;
+  month: string;        // "YYYY-MM" derived from statement_period.to
+  totalDebits: number;
+  totalCredits: number;
+  net: number;
+  statementId: string;
 }
 
 export interface Transaction {
@@ -42,6 +55,7 @@ export interface Transaction {
   category_color: string;
   category_icon: string;
   type: 'debit' | 'credit';
+  cardId?: string;
 }
 
 export interface CategorySummary {
@@ -82,15 +96,19 @@ interface AppState {
   statements: Record<string, StatementData[]>;
   activeCardId: string | null;
   manualTransactions: Transaction[];
+  monthlyUsage: MonthlyUsage[];
 
   addCard: (card: CreditCard) => void;
   removeCard: (id: string) => void;
+  updateCard: (id: string, updates: Partial<CreditCard>) => void;
   setActiveCard: (id: string | null) => void;
   addStatement: (cardId: string, statement: StatementData) => void;
   clearStatements: (cardId: string) => void;
   addTransaction: (txn: Transaction) => void;
+  addTransactions: (txns: Transaction[]) => void;
   removeTransaction: (id: string) => void;
   clearManualTransactions: () => void;
+  addMonthlyUsage: (usage: MonthlyUsage) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -100,6 +118,7 @@ export const useStore = create<AppState>()(
       statements: {},
       activeCardId: null,
       manualTransactions: [],
+      monthlyUsage: [],
 
       addCard: (card) =>
         set((state) => ({
@@ -119,8 +138,14 @@ export const useStore = create<AppState>()(
               state.activeCardId === id
                 ? cards[0]?.id ?? null
                 : state.activeCardId,
+            monthlyUsage: state.monthlyUsage.filter((u) => u.cardId !== id),
           };
         }),
+
+      updateCard: (id, updates) =>
+        set((state) => ({
+          cards: state.cards.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+        })),
 
       setActiveCard: (id) => set({ activeCardId: id }),
 
@@ -145,6 +170,11 @@ export const useStore = create<AppState>()(
           manualTransactions: [txn, ...state.manualTransactions],
         })),
 
+      addTransactions: (txns) =>
+        set((state) => ({
+          manualTransactions: [...txns, ...state.manualTransactions],
+        })),
+
       removeTransaction: (id) =>
         set((state) => ({
           manualTransactions: state.manualTransactions.filter((t) => t.id !== id),
@@ -152,6 +182,16 @@ export const useStore = create<AppState>()(
 
       clearManualTransactions: () =>
         set({ manualTransactions: [] }),
+
+      addMonthlyUsage: (usage) =>
+        set((state) => ({
+          monthlyUsage: [
+            ...state.monthlyUsage.filter(
+              (u) => !(u.cardId === usage.cardId && u.month === usage.month)
+            ),
+            usage,
+          ],
+        })),
     }),
     {
       name: 'cardlytics-storage',

@@ -9,10 +9,12 @@ import logging
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from typing import Optional
+
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from parser import parse_pdf
+from parser import PDFEncryptedError, parse_pdf
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -41,7 +43,10 @@ async def health():
 
 
 @app.post("/parse-statement/json")
-async def parse_statement(file: UploadFile = File(...)):
+async def parse_statement(
+    file: UploadFile = File(...),
+    password: Optional[str] = Form(None),
+):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
@@ -54,7 +59,18 @@ async def parse_statement(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Empty file uploaded.")
 
     try:
-        result = parse_pdf(file_bytes)
+        result = parse_pdf(file_bytes, password=password)
+    except PDFEncryptedError as e:
+        error_code = str(e)
+        message = (
+            "This PDF is password-protected. Please provide the password."
+            if error_code == "password_required"
+            else "The password you entered is incorrect. Please try again."
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={"error_code": error_code, "message": message},
+        )
     except ValueError as e:
         logger.error("Validation error parsing '%s': %s", file.filename, e)
         raise HTTPException(status_code=422, detail=str(e))

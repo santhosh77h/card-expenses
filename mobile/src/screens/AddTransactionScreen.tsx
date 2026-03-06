@@ -12,13 +12,13 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius, fontSize } from '../theme';
-import { useStore } from '../store';
+import { useStore, CreditCard } from '../store';
 import { categorizeTransaction } from '../utils/api';
 import { Badge, PrimaryButton } from '../components/ui';
 
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
-  const { addTransaction } = useStore();
+  const { cards, addTransaction } = useStore();
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -27,6 +27,9 @@ export default function AddTransactionScreen() {
     return d.toISOString().split('T')[0];
   });
   const [type, setType] = useState<'debit' | 'credit'>('debit');
+  const [selectedCardId, setSelectedCardId] = useState<string | undefined>(
+    cards[0]?.id
+  );
 
   const categoryInfo = useMemo(
     () => categorizeTransaction(description),
@@ -46,6 +49,7 @@ export default function AddTransactionScreen() {
       category_color: categoryInfo.category_color,
       category_icon: categoryInfo.category_icon,
       type,
+      cardId: selectedCardId,
     });
     navigation.goBack();
   }
@@ -111,6 +115,45 @@ export default function AddTransactionScreen() {
           value={date}
           onChangeText={setDate}
         />
+
+        {/* Card selector */}
+        {cards.length > 0 && (
+          <>
+            <Text style={styles.label}>Card</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: spacing.sm }}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.cardChip,
+                  !selectedCardId && styles.cardChipActive,
+                ]}
+                onPress={() => setSelectedCardId(undefined)}
+              >
+                <Text style={[styles.cardChipText, !selectedCardId && styles.cardChipTextActive]}>
+                  None
+                </Text>
+              </TouchableOpacity>
+              {cards.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[
+                    styles.cardChip,
+                    selectedCardId === c.id && styles.cardChipActive,
+                  ]}
+                  onPress={() => setSelectedCardId(c.id)}
+                >
+                  <View style={[styles.cardChipDot, { backgroundColor: c.color }]} />
+                  <Text style={[styles.cardChipText, selectedCardId === c.id && styles.cardChipTextActive]}>
+                    {c.nickname} (*{c.last4})
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {/* Type toggle */}
         <Text style={styles.label}>Type</Text>
@@ -245,5 +288,34 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.md,
     fontWeight: '700',
+  },
+  cardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+    gap: 6,
+  },
+  cardChipActive: {
+    backgroundColor: colors.accent + '20',
+    borderColor: colors.accent,
+  },
+  cardChipText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  cardChipTextActive: {
+    color: colors.accent,
+  },
+  cardChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

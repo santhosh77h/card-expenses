@@ -12,7 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { colors, spacing, borderRadius, fontSize, formatINR } from '../theme';
-import { useStore, Transaction } from '../store';
+import { useStore, Transaction, CreditCard } from '../store';
 import { Card, StatRow, Badge, EmptyState, PrimaryButton } from '../components/ui';
 import type { RootStackParamList, TabParamList } from '../navigation';
 
@@ -23,7 +23,13 @@ type NavProp = CompositeNavigationProp<
 
 export default function TransactionsScreen() {
   const navigation = useNavigation<NavProp>();
-  const { manualTransactions, removeTransaction } = useStore();
+  const { cards, manualTransactions, removeTransaction } = useStore();
+
+  const cardMap = React.useMemo(() => {
+    const map: Record<string, CreditCard> = {};
+    for (const c of cards) map[c.id] = c;
+    return map;
+  }, [cards]);
 
   const totalDebits = manualTransactions
     .filter((t) => t.type === 'debit')
@@ -32,7 +38,9 @@ export default function TransactionsScreen() {
     .filter((t) => t.type === 'credit')
     .reduce((s, t) => s + t.amount, 0);
 
-  const renderItem = ({ item }: { item: Transaction }) => (
+  const renderItem = ({ item }: { item: Transaction }) => {
+    const txnCard = item.cardId ? cardMap[item.cardId] : undefined;
+    return (
     <View style={styles.row}>
       <View style={[styles.dot, { backgroundColor: item.category_color }]} />
       <View style={styles.rowContent}>
@@ -42,6 +50,12 @@ export default function TransactionsScreen() {
         <View style={styles.rowMeta}>
           <Text style={styles.rowDate}>{item.date}</Text>
           <Badge text={item.category} color={item.category_color} />
+          {txnCard && (
+            <View style={styles.cardTag}>
+              <View style={[styles.cardTagDot, { backgroundColor: txnCard.color }]} />
+              <Text style={styles.cardTagText}>{txnCard.nickname}</Text>
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.rowRight}>
@@ -63,7 +77,8 @@ export default function TransactionsScreen() {
         </TouchableOpacity>
       </View>
     </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -183,5 +198,19 @@ const styles = StyleSheet.create({
   trashBtn: {
     marginTop: 6,
     padding: 2,
+  },
+  cardTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cardTagDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  cardTagText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
   },
 });

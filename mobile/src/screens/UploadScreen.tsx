@@ -7,27 +7,60 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius, fontSize } from '../theme';
-import { useStore, StatementData } from '../store';
-import { parseStatement, parseDemoStatement } from '../utils/api';
+import { useStore, StatementData, CreditCard } from '../store';
+import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { Badge, Card, PrimaryButton } from '../components/ui';
+import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
+
+const BANK_TO_ISSUER: Record<string, string> = {
+  hdfc: 'HDFC Bank', icici: 'ICICI Bank', sbi: 'SBI Card',
+  axis: 'Axis Bank', chase: 'Chase', amex: 'American Express',
+  citi: 'Citi', generic: 'Other', demo: 'Other',
+};
+const CARD_COLORS = ['#1E3A5F','#2D1B69','#1B4332','#4A1942','#1C1C1C','#0F3460','#3C1518','#1A535C'];
+
+function pickUnusedColor(existingCards: CreditCard[]): string {
+  const used = new Set(existingCards.map((c) => c.color));
+  return CARD_COLORS.find((c) => !used.has(c)) || CARD_COLORS[0];
+}
+
+function normalizeNetwork(network: string | null): string {
+  if (!network) return 'Visa';
+  const lower = network.toLowerCase();
+  if (lower.includes('master')) return 'Mastercard';
+  if (lower.includes('amex') || lower.includes('american')) return 'American Express';
+  if (lower.includes('rupay')) return 'RuPay';
+  return 'Visa';
+}
 
 type UploadState = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
 
 export default function UploadScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { cards, activeCardId, addStatement } = useStore();
+  const { cards, activeCardId, addStatement, addCard, updateCard, addMonthlyUsage } = useStore();
   const [state, setState] = useState<UploadState>('idle');
   const [error, setError] = useState<string>('');
   const [selectedCardId, setSelectedCardId] = useState<string>(
     activeCardId || cards[0]?.id || ''
   );
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [pendingFile, setPendingFile] = useState<{ uri: string; name: string } | null>(null);
+  const [resolvedCard, setResolvedCard] = useState<CreditCard | null>(null);
+  const [resolvedAutoCreated, setResolvedAutoCreated] = useState(false);
+  const [lastNavParams, setLastNavParams] = useState<{ statementId: string; cardId: string } | null>(null);
 
   const handlePick = async () => {
     try {
@@ -47,8 +80,18 @@ export default function UploadScreen() {
         const parsed = await parseStatement(file.uri, file.name);
         saveAndNavigate(parsed);
       } catch (err: any) {
+        const errorCode = err?.response?.data?.detail?.error_code;
+        if (errorCode === 'password_required' || errorCode === 'incorrect_password') {
+          setPendingFile({ uri: file.uri, name: file.name });
+          setPasswordError(errorCode === 'incorrect_password' ? 'Incorrect password. Please try again.' : '');
+          setPassword('');
+          setPasswordModalVisible(true);
+          setState('idle');
+          return;
+        }
+        const detail = err?.response?.data?.detail;
         const msg =
-          err?.response?.data?.detail ||
+          (typeof detail === 'string' ? detail : detail?.message) ||
           err?.message ||
           'Failed to parse statement.';
         setState('error');
@@ -58,6 +101,46 @@ export default function UploadScreen() {
       setState('error');
       setError('Could not open file picker.');
     }
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!pendingFile || !password.trim()) return;
+    setPasswordModalVisible(false);
+    setState('parsing');
+    setError('');
+    try {
+      const parsed = await parseStatement(pendingFile.uri, pendingFile.name, password);
+      setPendingFile(null);
+      setPassword('');
+      setPasswordError('');
+      saveAndNavigate(parsed);
+    } catch (err: any) {
+      const errorCode = err?.response?.data?.detail?.error_code;
+      if (errorCode === 'incorrect_password') {
+        setPasswordError('Incorrect password. Please try again.');
+        setPassword('');
+        setPasswordModalVisible(true);
+        setState('idle');
+      } else {
+        setPendingFile(null);
+        setPassword('');
+        setPasswordError('');
+        const detail = err?.response?.data?.detail;
+        const msg =
+          (typeof detail === 'string' ? detail : detail?.message) ||
+          err?.message ||
+          'Failed to parse statement.';
+        setState('error');
+        setError(msg);
+      }
+    }
+  };
+
+  const handlePasswordCancel = () => {
+    setPasswordModalVisible(false);
+    setPendingFile(null);
+    setPassword('');
+    setPasswordError('');
   };
 
   const handleDemo = () => {
@@ -77,30 +160,102 @@ export default function UploadScreen() {
   };
 
   const saveAndNavigate = (parsed: any) => {
-    const cardId = selectedCardId || 'demo';
+    const cardInfo: CardInfo | null = parsed.card_info ?? null;
+    const bankDetected: string = parsed.bank_detected || 'generic';
+    const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+
+    // --- Resolve card ---
+    let cardId: string;
+    let wasAutoCreated = false;
+    let matched: CreditCard | undefined;
+
+    if (cardInfo?.card_last4) {
+      // Try to find existing card by last4 + issuer
+      const existing = cards.find(
+        (c) =>
+          c.last4 === cardInfo.card_last4 &&
+          c.issuer.toLowerCase() === issuerName.toLowerCase()
+      );
+
+      if (existing) {
+        cardId = existing.id;
+        matched = existing;
+        // Update metadata from latest statement
+        const updates: Partial<CreditCard> = {};
+        if (cardInfo.credit_limit != null) updates.creditLimit = cardInfo.credit_limit;
+        if (cardInfo.total_amount_due != null) updates.totalAmountDue = cardInfo.total_amount_due;
+        if (cardInfo.minimum_amount_due != null) updates.minimumAmountDue = cardInfo.minimum_amount_due;
+        if (cardInfo.payment_due_date) updates.paymentDueDate = cardInfo.payment_due_date;
+        if (Object.keys(updates).length > 0) updateCard(cardId, updates);
+      } else {
+        // Auto-create new card
+        cardId = `auto-${Date.now()}`;
+        wasAutoCreated = true;
+        const network = normalizeNetwork(cardInfo.card_network);
+        const newCard: CreditCard = {
+          id: cardId,
+          nickname: `${issuerName} •${cardInfo.card_last4}`,
+          last4: cardInfo.card_last4,
+          issuer: issuerName,
+          network,
+          creditLimit: cardInfo.credit_limit ?? 0,
+          billingCycle: '1',
+          color: pickUnusedColor(cards),
+          totalAmountDue: cardInfo.total_amount_due ?? undefined,
+          minimumAmountDue: cardInfo.minimum_amount_due ?? undefined,
+          paymentDueDate: cardInfo.payment_due_date ?? undefined,
+          autoCreated: true,
+        };
+        addCard(newCard);
+        matched = newCard;
+      }
+    } else {
+      // Fallback to manual selection
+      cardId = selectedCardId || 'demo';
+      matched = cards.find((c) => c.id === cardId);
+    }
+
+    const statementId = Date.now().toString();
     const statement: StatementData = {
-      id: Date.now().toString(),
+      id: statementId,
       cardId,
       parsedAt: new Date().toISOString(),
       transactions: parsed.transactions,
       summary: parsed.summary,
       csv: parsed.csv,
-      bankDetected: parsed.bank_detected,
+      bankDetected: bankDetected,
     };
 
     addStatement(cardId, statement);
+
+    // --- Track monthly usage ---
+    const periodTo = parsed.summary?.statement_period?.to;
+    if (periodTo) {
+      const month = periodTo.substring(0, 7); // "YYYY-MM"
+      const totalDebits = parsed.transactions
+        .filter((t: any) => t.type === 'debit')
+        .reduce((s: number, t: any) => s + t.amount, 0);
+      const totalCredits = parsed.transactions
+        .filter((t: any) => t.type === 'credit')
+        .reduce((s: number, t: any) => s + t.amount, 0);
+      addMonthlyUsage({
+        cardId,
+        month,
+        totalDebits: Math.round(totalDebits * 100) / 100,
+        totalCredits: Math.round(totalCredits * 100) / 100,
+        net: Math.round((totalDebits - totalCredits) * 100) / 100,
+        statementId,
+      });
+    }
+
+    setResolvedCard(matched ?? null);
+    setResolvedAutoCreated(wasAutoCreated);
+    setLastNavParams({ statementId: statement.id, cardId });
     setState('done');
-
-    navigation.navigate('Analysis', {
-      statementId: statement.id,
-      cardId,
-    });
-
-    // Reset after navigation
-    setTimeout(() => setState('idle'), 500);
   };
 
   return (
+    <>
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>Upload Statement</Text>
@@ -182,6 +337,9 @@ export default function UploadScreen() {
               <Text style={[styles.uploadTitle, { color: colors.accent }]}>
                 Done!
               </Text>
+              <Text style={styles.uploadSubtitle}>
+                Tap below to continue
+              </Text>
             </>
           )}
           {state === 'error' && (
@@ -199,6 +357,53 @@ export default function UploadScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Resolved card + actions after successful parse */}
+      {state === 'done' && resolvedCard && lastNavParams && (
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
+          <Card>
+            <View style={styles.detectedHeader}>
+              <Feather
+                name={resolvedAutoCreated ? 'plus-circle' : 'check-circle'}
+                size={16}
+                color={colors.accent}
+              />
+              <Text style={styles.detectedLabel}>
+                {resolvedAutoCreated ? 'Card Auto-Created' : 'Card Detected'}
+              </Text>
+            </View>
+            <View style={{ alignItems: 'center', marginTop: spacing.md }}>
+              <CreditCardView card={resolvedCard} compact />
+            </View>
+            <View style={styles.doneButtons}>
+              <TouchableOpacity
+                style={styles.doneBtn}
+                onPress={() => {
+                  setResolvedCard(null);
+                  setLastNavParams(null);
+                  setState('idle');
+                  navigation.navigate('Analysis', lastNavParams);
+                }}
+              >
+                <Feather name="bar-chart-2" size={16} color={colors.accent} />
+                <Text style={styles.doneBtnText}>View Analysis</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.doneBtn}
+                onPress={() => {
+                  setResolvedCard(null);
+                  setLastNavParams(null);
+                  setState('idle');
+                  (navigation as any).navigate('Cards');
+                }}
+              >
+                <Feather name="credit-card" size={16} color={colors.accent} />
+                <Text style={styles.doneBtnText}>View Card</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        </View>
+      )}
+
       {/* Demo button */}
       <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
         <PrimaryButton
@@ -206,7 +411,7 @@ export default function UploadScreen() {
           icon="play"
           variant="outline"
           onPress={handleDemo}
-          disabled={state === 'uploading' || state === 'parsing'}
+          disabled={state === 'uploading' || state === 'parsing' || state === 'done'}
         />
       </View>
 
@@ -228,6 +433,54 @@ export default function UploadScreen() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+
+    <Modal
+      visible={passwordModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={handlePasswordCancel}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
+        <View style={styles.modalCard}>
+          <Feather name="lock" size={36} color={colors.accent} style={{ alignSelf: 'center' }} />
+          <Text style={styles.modalTitle}>Password Required</Text>
+          <Text style={styles.modalSubtitle}>
+            This PDF is password-protected. Common passwords are your date of birth, PAN number, or card last 4 digits.
+          </Text>
+          {!!passwordError && (
+            <Text style={styles.modalError}>{passwordError}</Text>
+          )}
+          <TextInput
+            style={styles.modalInput}
+            placeholder="Enter PDF password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            autoFocus
+            value={password}
+            onChangeText={setPassword}
+            onSubmitEditing={handlePasswordSubmit}
+            returnKeyType="done"
+          />
+          <View style={styles.modalButtons}>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={handlePasswordCancel}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalUnlockBtn, !password.trim() && { opacity: 0.5 }]}
+              onPress={handlePasswordSubmit}
+              disabled={!password.trim()}
+            >
+              <Feather name="unlock" size={16} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={styles.modalUnlockText}>Unlock</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+    </>
   );
 }
 
@@ -300,6 +553,38 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     lineHeight: 18,
   },
+  detectedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  detectedLabel: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  doneButtons: {
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  doneBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surfaceElevated,
+  },
+  doneBtnText: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
   privacyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -314,5 +599,82 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     marginTop: spacing.xs,
     lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: fontSize.xl,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  modalSubtitle: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: 18,
+  },
+  modalError: {
+    color: colors.debit,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    fontWeight: '600',
+  },
+  modalInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+  },
+  modalUnlockBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalUnlockText: {
+    color: '#fff',
+    fontSize: fontSize.md,
+    fontWeight: '700',
   },
 });

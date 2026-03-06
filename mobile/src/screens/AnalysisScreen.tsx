@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Share,
   Platform,
+  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
@@ -15,7 +16,7 @@ import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { colors, spacing, borderRadius, fontSize, formatINR, categoryColors } from '../theme';
-import { useStore, Transaction } from '../store';
+import { useStore, Transaction, CreditCard } from '../store';
 import { Card, StatRow, AmountText, Badge, SectionHeader, ProgressBar } from '../components/ui';
 import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart';
 import type { RootStackParamList } from '../navigation';
@@ -25,7 +26,7 @@ type Tab = 'overview' | 'transactions' | 'categories';
 export default function AnalysisScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Analysis'>>();
   const { statementId, cardId } = route.params;
-  const { statements } = useStore();
+  const { statements, cards, addTransactions } = useStore();
 
   const statement = useMemo(() => {
     const cardStatements = statements[cardId] || [];
@@ -36,6 +37,7 @@ export default function AnalysisScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [searchQuery, setSearchQuery] = useState('');
+  const [imported, setImported] = useState(false);
 
   if (!statement) {
     return (
@@ -46,6 +48,22 @@ export default function AnalysisScreen() {
   }
 
   const { transactions, summary, csv } = statement;
+
+  const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId]);
+
+  const handleAddToTransactions = useCallback(() => {
+    const txnsWithIds = transactions.map((t, i) => ({
+      ...t,
+      id: `import-${Date.now()}-${i}`,
+      cardId,
+    }));
+    addTransactions(txnsWithIds);
+    setImported(true);
+    Alert.alert(
+      'Added Successfully',
+      `${transactions.length} transactions have been added to your Transactions list.`,
+    );
+  }, [transactions, addTransactions]);
 
   // Filtered & sorted transactions
   const filteredTxns = useMemo(() => {
@@ -125,6 +143,8 @@ export default function AnalysisScreen() {
             summary={summary}
             largestTxn={largestTxn}
             onExport={handleExportCSV}
+            onAddToTransactions={handleAddToTransactions}
+            imported={imported}
           />
         )}
         {activeTab === 'transactions' && (
@@ -137,6 +157,7 @@ export default function AnalysisScreen() {
             setSortBy={setSortBy}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            card={card}
           />
         )}
         {activeTab === 'categories' && (
@@ -156,10 +177,14 @@ function OverviewTab({
   summary,
   largestTxn,
   onExport,
+  onAddToTransactions,
+  imported,
 }: {
   summary: any;
   largestTxn: Transaction;
   onExport: () => void;
+  onAddToTransactions: () => void;
+  imported: boolean;
 }) {
   return (
     <View style={{ padding: spacing.lg }}>
@@ -204,7 +229,25 @@ function OverviewTab({
         </Card>
       )}
 
-      {/* Export button */}
+      {/* Action buttons */}
+      <TouchableOpacity
+        style={[
+          styles.addToTxnBtn,
+          imported && styles.addToTxnBtnDone,
+        ]}
+        onPress={onAddToTransactions}
+        disabled={imported}
+      >
+        <Feather
+          name={imported ? 'check-circle' : 'plus-circle'}
+          size={18}
+          color={imported ? colors.credit : '#fff'}
+        />
+        <Text style={[styles.addToTxnText, imported && styles.addToTxnTextDone]}>
+          {imported ? 'Added to Transactions' : 'Add to My Transactions'}
+        </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.exportBtn} onPress={onExport}>
         <Feather name="download" size={18} color={colors.accent} />
         <Text style={styles.exportBtnText}>Export CSV</Text>
@@ -226,6 +269,7 @@ function TransactionsTab({
   setSortBy,
   searchQuery,
   setSearchQuery,
+  card,
 }: {
   transactions: Transaction[];
   allCategories: string[];
@@ -235,6 +279,7 @@ function TransactionsTab({
   setSortBy: (s: 'date' | 'amount') => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
+  card?: CreditCard;
 }) {
   return (
     <View style={{ padding: spacing.lg }}>
@@ -317,6 +362,14 @@ function TransactionsTab({
             <View style={styles.txnMeta}>
               <Text style={styles.txnDate}>{txn.date}</Text>
               <Text style={styles.txnCategory}>{txn.category}</Text>
+              {card && (
+                <View style={styles.txnCardTag}>
+                  <View style={[styles.txnCardDot, { backgroundColor: card.color }]} />
+                  <Text style={styles.txnCardName}>
+                    {card.nickname}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
           <AmountText amount={txn.amount} type={txn.type} size="sm" />
@@ -461,6 +514,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  addToTxnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
+    marginTop: spacing.md,
+    backgroundColor: colors.accent,
+  },
+  addToTxnBtnDone: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.credit,
+  },
+  addToTxnText: {
+    color: '#fff',
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    marginLeft: spacing.sm,
+  },
+  addToTxnTextDone: {
+    color: colors.credit,
+  },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -572,6 +648,20 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
   },
   txnCategory: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+  },
+  txnCardTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  txnCardDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  txnCardName: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
   },

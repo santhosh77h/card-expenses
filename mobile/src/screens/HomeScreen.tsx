@@ -25,7 +25,7 @@ type NavProp = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
-  const { cards, statements, activeCardId, setActiveCard } = useStore();
+  const { cards, statements, activeCardId, setActiveCard, monthlyUsage } = useStore();
 
   // Compute total balance and utilization
   const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
@@ -141,6 +141,47 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
       />
+
+      {/* Monthly Usage */}
+      {monthlyUsage.length > 0 && (
+        <View style={{ marginTop: spacing.xl }}>
+          <SectionHeader title="Monthly Usage" />
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            {cards.map((card) => {
+              const latestUsage = monthlyUsage
+                .filter((u) => u.cardId === card.id)
+                .sort((a, b) => b.month.localeCompare(a.month))[0];
+              if (!latestUsage) return null;
+              const utilPct =
+                card.creditLimit > 0
+                  ? Math.min(latestUsage.totalDebits / card.creditLimit, 1)
+                  : 0;
+              return (
+                <Card key={card.id}>
+                  <View style={styles.usageRow}>
+                    <View style={[styles.usageDot, { backgroundColor: card.color }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.usageCardName}>{card.nickname}</Text>
+                      <Text style={styles.usageMonth}>{latestUsage.month}</Text>
+                    </View>
+                    <Text style={styles.usageAmount}>
+                      {formatINR(latestUsage.totalDebits)}
+                    </Text>
+                  </View>
+                  <View style={{ marginTop: spacing.sm }}>
+                    <ProgressBar progress={utilPct} color={card.color} height={4} />
+                  </View>
+                  {card.creditLimit > 0 && (
+                    <Text style={styles.usageLimit}>
+                      Limit: {formatINR(card.creditLimit)}
+                    </Text>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* Recent Statements */}
       <View style={{ marginTop: spacing.xl }}>
@@ -307,5 +348,36 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+  },
+  usageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  usageDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: spacing.md,
+  },
+  usageCardName: {
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+  },
+  usageMonth: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+  },
+  usageAmount: {
+    color: colors.debit,
+    fontSize: fontSize.md,
+    fontWeight: '700',
+  },
+  usageLimit: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: spacing.xs,
+    textAlign: 'right',
   },
 });

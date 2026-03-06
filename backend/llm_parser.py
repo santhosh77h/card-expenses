@@ -28,6 +28,15 @@ class LLMTransaction(BaseModel):
     category: str = Field(description="Spending category from the allowed list")
 
 
+class LLMCardInfo(BaseModel):
+    card_last4: Optional[str] = Field(default=None, description="Last 4 digits of the credit card number as printed on the statement")
+    card_network: Optional[str] = Field(default=None, description="Card network: Visa, Mastercard, American Express, or RuPay")
+    credit_limit: Optional[float] = Field(default=None, description="Total credit limit on the card, if printed")
+    total_amount_due: Optional[float] = Field(default=None, description="Total amount due / outstanding for this billing cycle")
+    minimum_amount_due: Optional[float] = Field(default=None, description="Minimum amount due for this billing cycle, if printed")
+    payment_due_date: Optional[str] = Field(default=None, description="Payment due date in YYYY-MM-DD format, if printed")
+
+
 class LLMExtractionResult(BaseModel):
     transactions: list[LLMTransaction]
     statement_period_from: Optional[str] = Field(
@@ -38,6 +47,7 @@ class LLMExtractionResult(BaseModel):
         default=None,
         description="Statement period end date in YYYY-MM-DD format, as printed on the document",
     )
+    card_info: LLMCardInfo = Field(default_factory=LLMCardInfo)
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +157,15 @@ Also extract the **statement period** from the document header/summary section:
 and leave statement_period_from as null.
 - If the period cannot be determined, leave both as null.
 
+Also extract **card metadata** from the statement header/summary section:
+- card_last4: Last 4 digits of the card number (look for "XXXX XXXX XXXX 1234" or "Card ending 1234" or "Card No: ...1234")
+- card_network: Card network (Visa, Mastercard, American Express, RuPay) — look for logos or text mentions
+- credit_limit: Total credit limit (look for "Credit Limit", "Total Credit Limit", "Cash + Credit Limit")
+- total_amount_due: Total outstanding/due (look for "Total Amount Due", "Total Due", "Statement Balance", "Total Outstanding")
+- minimum_amount_due: Minimum payment due (look for "Minimum Amount Due", "Min Due", "MAD")
+- payment_due_date: Payment due date in YYYY-MM-DD (look for "Due Date", "Payment Due Date", "Pay By")
+- If any field cannot be determined from the text, leave it as null.
+
 Skip headers, footers, totals, subtotals, summary rows, and non-transaction text.
 If no transactions are found, return an empty list.
 """
@@ -245,9 +264,19 @@ def llm_parse_transactions(
                 i + 1, tx["date"], tx["type"], tx["description"], tx["amount"], tx["category"],
             )
         logger.info("Statement period: %s", json.dumps(statement_period))
+
+        card_info = {
+            "card_last4": result.card_info.card_last4,
+            "card_network": result.card_info.card_network,
+            "credit_limit": result.card_info.credit_limit,
+            "total_amount_due": result.card_info.total_amount_due,
+            "minimum_amount_due": result.card_info.minimum_amount_due,
+            "payment_due_date": result.card_info.payment_due_date,
+        }
+        logger.info("Card info: %s", json.dumps(card_info))
         logger.info("=" * 60)
 
-        return {"transactions": transactions, "statement_period": statement_period}
+        return {"transactions": transactions, "statement_period": statement_period, "card_info": card_info}
 
     except Exception:
         logger.warning("LLM parsing failed — falling back to regex", exc_info=True)

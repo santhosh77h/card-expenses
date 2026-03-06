@@ -4,16 +4,27 @@ import { categoryColors } from '../theme';
 
 const API_URL = 'http://localhost:8000';
 
+export interface CardInfo {
+  card_last4: string | null;
+  card_network: string | null;
+  credit_limit: number | null;
+  total_amount_due: number | null;
+  minimum_amount_due: number | null;
+  payment_due_date: string | null;
+}
+
 interface ParseResult {
   transactions: Transaction[];
   summary: StatementSummary;
   csv: string;
   bank_detected: string;
+  card_info: CardInfo | null;
 }
 
 export async function parseStatement(
   fileUri: string,
-  fileName: string
+  fileName: string,
+  password?: string
 ): Promise<ParseResult> {
   const formData = new FormData();
   formData.append('file', {
@@ -21,6 +32,9 @@ export async function parseStatement(
     name: fileName,
     type: 'application/pdf',
   } as any);
+  if (password) {
+    formData.append('password', password);
+  }
 
   const response = await axios.post<ParseResult>(
     `${API_URL}/parse-statement/json`,
@@ -101,7 +115,20 @@ export function parseDemoStatement(): ParseResult {
 
   const csv = generateCSV(transactions);
 
-  return { transactions, summary, csv, bank_detected: 'demo' };
+  return {
+    transactions,
+    summary,
+    csv,
+    bank_detected: 'demo',
+    card_info: {
+      card_last4: '4321',
+      card_network: 'Visa',
+      credit_limit: 200000,
+      total_amount_due: 42759,
+      minimum_amount_due: 2138,
+      payment_due_date: '2024-02-15',
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

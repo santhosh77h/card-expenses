@@ -18,6 +18,25 @@ from categorizer import categorize
 logger = logging.getLogger(__name__)
 
 
+class PDFEncryptedError(Exception):
+    """Raised when PDF is encrypted and no/wrong password was provided."""
+    pass
+
+
+def check_pdf_encrypted(file_bytes: bytes) -> bool:
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(io.BytesIO(file_bytes))
+        if not reader.is_encrypted:
+            return False
+        # Some PDFs use empty-string owner password (print restrictions only)
+        if reader.decrypt("") > 0:
+            return False
+        return True
+    except Exception:
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Bank detection
 # ---------------------------------------------------------------------------
@@ -362,15 +381,17 @@ BANK_PARSERS = {
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def extract_text(file_bytes: bytes) -> str:
+def extract_text(file_bytes: bytes, password: Optional[str] = None) -> str:
     """Extract text from PDF using pdfplumber, fallback to PyPDF2."""
     text = ""
     try:
-        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        with pdfplumber.open(io.BytesIO(file_bytes), password=password) as pdf:
             for page in pdf.pages:
                 page_text = page.extract_text()
                 if page_text:
                     text += page_text + "\n"
+    except PDFEncryptedError:
+        raise
     except Exception:
         pass
 
@@ -378,10 +399,17 @@ def extract_text(file_bytes: bytes) -> str:
         try:
             from PyPDF2 import PdfReader
             reader = PdfReader(io.BytesIO(file_bytes))
+            if reader.is_encrypted:
+                if not password:
+                    raise PDFEncryptedError("password_required")
+                if reader.decrypt(password) == 0:
+                    raise PDFEncryptedError("incorrect_password")
             for page in reader.pages:
                 page_text = page.extract_text()
                 if page_text:
                     text += page_text + "\n"
+        except PDFEncryptedError:
+            raise
         except Exception:
             pass
 
@@ -429,13 +457,16 @@ def generate_csv(transactions: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def parse_pdf(file_bytes: bytes) -> dict:
+def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
     """
     Main entry point: parse a PDF credit card statement.
 
     Returns dict with keys: transactions, summary, csv, bank_detected
     """
-    text = extract_text(file_bytes)
+    if not password and check_pdf_encrypted(file_bytes):
+        raise PDFEncryptedError("password_required")
+
+    text = extract_text(file_bytes, password=password)
     if not text.strip():
         raise ValueError("Could not extract text from PDF. It may be scanned/image-based.")
 
@@ -444,12 +475,14 @@ def parse_pdf(file_bytes: bytes) -> dict:
     # --- Try LLM-based extraction first ---
     transactions = None
     llm_statement_period = None
+    llm_card_info = None
     try:
         from llm_parser import llm_parse_transactions
         llm_result = llm_parse_transactions(text, bank_hint=bank)
         if llm_result and llm_result.get("transactions"):
             transactions = llm_result["transactions"]
             llm_statement_period = llm_result.get("statement_period")
+            llm_card_info = llm_result.get("card_info")
             logger.info("Using LLM-extracted transactions (%d found)", len(transactions))
     except Exception:
         logger.debug("LLM parser unavailable — using regex fallback", exc_info=True)
@@ -494,4 +527,5 @@ def parse_pdf(file_bytes: bytes) -> dict:
         "summary": summary,
         "csv": csv,
         "bank_detected": bank,
+        "card_info": llm_card_info,
     }
