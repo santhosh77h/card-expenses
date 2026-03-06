@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+backend/venv/
+backend/.venv/
+
+# Environment variables
+.env
+
+# Node / React Native
+node_modules/
+mobile/node_modules/
+
+# Expo
+mobile/.expo/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

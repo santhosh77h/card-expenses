@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Cardlytics",
+    "slug": "cardlytics",
+    "version": "1.0.0",
+    "scheme": "cardlytics",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0E1A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cardlytics.app",
+      "backgroundColor": "#0A0E1A"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0E1A"
+      },
+      "package": "com.cardlytics.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "backgroundColor": "#0A0E1A"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-document-picker"
+    ]
+  }
+}
