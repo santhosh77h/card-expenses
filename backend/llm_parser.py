@@ -165,7 +165,16 @@ Also extract **card metadata** from the statement header/summary section:
 - total_amount_due: Total outstanding/due (look for "Total Amount Due", "Total Due", "Statement Balance", "Total Outstanding")
 - minimum_amount_due: Minimum payment due (look for "Minimum Amount Due", "Min Due", "MAD")
 - payment_due_date: Payment due date in YYYY-MM-DD (look for "Due Date", "Payment Due Date", "Pay By")
-- currency: ISO 4217 currency code (INR, USD, EUR, GBP). Detect from currency symbols (\u20B9/Rs. = INR, $ = USD, \u20AC = EUR, \u00A3 = GBP) or bank identity. Default to INR if unclear.
+- currency: **IMPORTANT** — Detect the ISO 4217 currency code used in this statement. \
+This is critical for multi-currency support. Analyze:
+  1. Currency symbols next to amounts: \u20B9 or "Rs." or "Rs " or "INR" → "INR", \
+"$" or "USD" → "USD", \u20AC or "EUR" → "EUR", \u00A3 or "GBP" → "GBP"
+  2. Bank identity: Indian banks (HDFC, ICICI, SBI, Axis, Kotak, Yes Bank, IndusInd, \
+RBL, Federal, IDFC) → "INR"; US banks (Chase, Citi, Bank of America, Wells Fargo, \
+Capital One, Discover) → "USD"; UK banks (Barclays, HSBC UK, NatWest, Lloyds) → "GBP"
+  3. Country/locale indicators in the statement header or footer
+  You MUST return one of: "INR", "USD", "EUR", "GBP". Default to "INR" only if \
+no other currency indicators are found.
 - If any field cannot be determined from the text, leave it as null.
 
 Skip headers, footers, totals, subtotals, summary rows, and non-transaction text.

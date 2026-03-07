@@ -552,11 +552,15 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
 
     csv = generate_csv(transactions)
 
+    # Prefer LLM-detected currency, fall back to regex-based detection
+    llm_currency = llm_card_info.get("currency") if llm_card_info else None
+    currency = llm_currency if llm_currency else detect_currency(text, bank)
+
     return {
         "transactions": transactions,
         "summary": summary,
         "csv": csv,
         "bank_detected": bank,
         "card_info": llm_card_info,
-        "currency_detected": detect_currency(text, bank),
+        "currency_detected": currency,
     }
