@@ -16,9 +16,10 @@ import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
-import { useStore, Transaction, CreditCard } from '../store';
+import { useStore, Transaction, CreditCard, TransactionEnrichment } from '../store';
 import { Card, StatRow, AmountText, Badge, SectionHeader, ProgressBar } from '../components/ui';
 import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart';
+import TransactionDetailModal from '../components/TransactionDetailModal';
 import type { RootStackParamList } from '../navigation';
 
 type Tab = 'overview' | 'transactions' | 'categories';
@@ -26,7 +27,7 @@ type Tab = 'overview' | 'transactions' | 'categories';
 export default function AnalysisScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Analysis'>>();
   const { statementId, cardId } = route.params;
-  const { statements, cards, addTransactions } = useStore();
+  const { statements, cards, importStatementTransactions, enrichments } = useStore();
 
   const statement = useMemo(() => {
     const cardStatements = statements[cardId] || [];
@@ -38,6 +39,7 @@ export default function AnalysisScreen() {
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [searchQuery, setSearchQuery] = useState('');
   const [imported, setImported] = useState(false);
+  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
 
   if (!statement) {
     return (
@@ -53,18 +55,13 @@ export default function AnalysisScreen() {
   const currency: CurrencyCode = card?.currency ?? 'INR';
 
   const handleAddToTransactions = useCallback(() => {
-    const txnsWithIds = transactions.map((t, i) => ({
-      ...t,
-      id: `import-${Date.now()}-${i}`,
-      cardId,
-    }));
-    addTransactions(txnsWithIds);
+    importStatementTransactions(statementId);
     setImported(true);
     Alert.alert(
       'Added Successfully',
       `${transactions.length} transactions have been added to your Transactions list.`,
     );
-  }, [transactions, addTransactions]);
+  }, [statementId, transactions.length, importStatementTransactions]);
 
   // Filtered & sorted transactions
   const filteredTxns = useMemo(() => {
@@ -86,6 +83,16 @@ export default function AnalysisScreen() {
     });
     return result;
   }, [transactions, categoryFilter, sortBy, searchQuery]);
+
+  const selectedIdx = selectedTxn
+    ? filteredTxns.findIndex((t) => t.id === selectedTxn.id)
+    : -1;
+  const handlePrev = selectedIdx > 0
+    ? () => setSelectedTxn(filteredTxns[selectedIdx - 1])
+    : undefined;
+  const handleNext = selectedIdx >= 0 && selectedIdx < filteredTxns.length - 1
+    ? () => setSelectedTxn(filteredTxns[selectedIdx + 1])
+    : undefined;
 
   const allCategories = useMemo(() => {
     const cats = new Set(transactions.map((t) => t.category));
@@ -161,6 +168,8 @@ export default function AnalysisScreen() {
             setSearchQuery={setSearchQuery}
             card={card}
             currency={currency}
+            enrichments={enrichments}
+            onSelectTransaction={setSelectedTxn}
           />
         )}
         {activeTab === 'categories' && (
@@ -168,6 +177,16 @@ export default function AnalysisScreen() {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <TransactionDetailModal
+        visible={!!selectedTxn}
+        transaction={selectedTxn}
+        onClose={() => setSelectedTxn(null)}
+        card={card}
+        isManual={false}
+        onPrev={handlePrev}
+        onNext={handleNext}
+      />
     </View>
   );
 }
@@ -275,6 +294,9 @@ function TransactionsTab({
   searchQuery,
   setSearchQuery,
   card,
+  currency,
+  enrichments,
+  onSelectTransaction,
 }: {
   transactions: Transaction[];
   allCategories: string[];
@@ -286,6 +308,8 @@ function TransactionsTab({
   setSearchQuery: (q: string) => void;
   card?: CreditCard;
   currency: CurrencyCode;
+  enrichments: Record<string, TransactionEnrichment>;
+  onSelectTransaction: (txn: Transaction) => void;
 }) {
   return (
     <View style={{ padding: spacing.lg }}>
@@ -353,8 +377,15 @@ function TransactionsTab({
       </View>
 
       {/* Transaction list */}
-      {transactions.map((txn, i) => (
-        <View key={`${txn.date}-${txn.description}-${i}`} style={styles.txnRow}>
+      {transactions.map((txn, i) => {
+        const enrichment = enrichments[txn.id];
+        return (
+        <TouchableOpacity
+          key={`${txn.date}-${txn.description}-${i}`}
+          style={styles.txnRow}
+          activeOpacity={0.7}
+          onPress={() => onSelectTransaction(txn)}
+        >
           <View
             style={[
               styles.txnCategoryDot,
@@ -378,9 +409,23 @@ function TransactionsTab({
               )}
             </View>
           </View>
-          <AmountText amount={txn.amount} type={txn.type} size="sm" currency={currency} />
-        </View>
-      ))}
+          <View style={{ alignItems: 'flex-end' }}>
+            <AmountText amount={txn.amount} type={txn.type} size="sm" currency={currency} />
+            <View style={styles.txnIndicators}>
+              {enrichment?.flagged && (
+                <Feather name="star" size={11} color={colors.warning} />
+              )}
+              {!!enrichment?.notes && (
+                <Feather name="message-square" size={11} color={colors.textMuted} />
+              )}
+              {!!enrichment?.receiptUri && (
+                <Feather name="paperclip" size={11} color={colors.textMuted} />
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -672,6 +717,11 @@ const styles = StyleSheet.create({
   txnCardName: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+  },
+  txnIndicators: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
   },
   // Categories
   catRow: {

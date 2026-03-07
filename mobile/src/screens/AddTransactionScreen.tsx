@@ -18,7 +18,7 @@ import { Badge, PrimaryButton } from '../components/ui';
 
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
-  const { cards, addTransaction } = useStore();
+  const { cards, addTransaction, updateEnrichment } = useStore();
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -30,6 +30,7 @@ export default function AddTransactionScreen() {
   const [selectedCardId, setSelectedCardId] = useState<string | undefined>(
     cards[0]?.id
   );
+  const [notes, setNotes] = useState('');
 
   const categoryInfo = useMemo(
     () => categorizeTransaction(description),
@@ -44,8 +45,9 @@ export default function AddTransactionScreen() {
 
   function handleSave() {
     if (!canSave) return;
+    const txnId = Date.now().toString();
     addTransaction({
-      id: Date.now().toString(),
+      id: txnId,
       date,
       description: description.trim(),
       amount: parseFloat(amount),
@@ -56,6 +58,9 @@ export default function AddTransactionScreen() {
       cardId: selectedCardId,
       currency: cardCurrency,
     });
+    if (notes.trim()) {
+      updateEnrichment(txnId, { notes: notes.trim() });
+    }
     navigation.goBack();
   }
 
@@ -208,6 +213,17 @@ export default function AddTransactionScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Notes (optional) */}
+        <Text style={styles.label}>Notes (optional)</Text>
+        <TextInput
+          style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
+          placeholder="Add a note..."
+          placeholderTextColor={colors.textMuted}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+        />
 
         {/* Save button */}
         <View style={{ marginTop: spacing.xxl }}>

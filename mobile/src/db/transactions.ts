@@ -1,0 +1,89 @@
+import { getDb } from './index';
+import type { Transaction } from '../store';
+
+export function insertTransaction(txn: Transaction): void {
+  const db = getDb();
+  db.executeSync(
+    `INSERT OR REPLACE INTO transactions
+      (id, date, description, amount, category, category_color, category_icon, type, cardId, currency, source, statementId, isImported, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NULL, 0, strftime('%s','now'))`,
+    [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, txn.cardId ?? null, txn.currency ?? null],
+  );
+}
+
+export function deleteTransaction(id: string): void {
+  getDb().executeSync('DELETE FROM transactions WHERE id = ?', [id]);
+}
+
+export function deleteAllManualTransactions(): string[] {
+  const db = getDb();
+  const result = db.executeSync(
+    `SELECT id FROM transactions WHERE source = 'manual'`,
+  );
+  const ids: string[] = result.rows.map((r) => r.id as string);
+  db.executeSync(`DELETE FROM transactions WHERE source = 'manual'`);
+  return ids;
+}
+
+export function getManualTransactions(): Transaction[] {
+  const db = getDb();
+  const result = db.executeSync(
+    `SELECT * FROM transactions WHERE source = 'manual' ORDER BY created_at DESC`,
+  );
+  return result.rows.map(rowToTransaction);
+}
+
+export function getVisibleTransactions(): Transaction[] {
+  const db = getDb();
+  const result = db.executeSync(
+    `SELECT * FROM transactions WHERE source = 'manual' OR isImported = 1 ORDER BY created_at DESC`,
+  );
+  return result.rows.map(rowToTransaction);
+}
+
+export function insertStatementTransactions(
+  statementId: string,
+  cardId: string,
+  txns: Transaction[],
+): void {
+  const db = getDb();
+  for (const txn of txns) {
+    db.executeSync(
+      `INSERT OR REPLACE INTO transactions
+        (id, date, description, amount, category, category_color, category_icon, type, cardId, currency, source, statementId, isImported, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'statement', ?, 0, strftime('%s','now'))`,
+      [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, cardId, txn.currency ?? null, statementId],
+    );
+  }
+}
+
+export function markStatementImported(statementId: string): void {
+  getDb().executeSync(
+    `UPDATE transactions SET isImported = 1 WHERE statementId = ?`,
+    [statementId],
+  );
+}
+
+export function getTransactionsByStatementId(stmtId: string): Transaction[] {
+  const db = getDb();
+  const result = db.executeSync(
+    `SELECT * FROM transactions WHERE statementId = ? ORDER BY date DESC`,
+    [stmtId],
+  );
+  return result.rows.map(rowToTransaction);
+}
+
+function rowToTransaction(row: Record<string, any>): Transaction {
+  return {
+    id: row.id,
+    date: row.date,
+    description: row.description,
+    amount: row.amount,
+    category: row.category,
+    category_color: row.category_color,
+    category_icon: row.category_icon,
+    type: row.type,
+    cardId: row.cardId ?? undefined,
+    currency: row.currency ?? undefined,
+  };
+}

@@ -1,0 +1,50 @@
+import { getDb } from './index';
+import { insertStatementTransactions, getTransactionsByStatementId } from './transactions';
+import type { StatementData } from '../store';
+import type { CurrencyCode } from '../theme';
+
+export function insertStatement(cardId: string, stmt: StatementData): void {
+  const db = getDb();
+  db.executeSync('BEGIN');
+  try {
+    db.executeSync(
+      `INSERT OR REPLACE INTO statements (id, cardId, parsedAt, summary, csv, bankDetected, currency)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [stmt.id, cardId, stmt.parsedAt, JSON.stringify(stmt.summary), stmt.csv, stmt.bankDetected, stmt.currency ?? null],
+    );
+    insertStatementTransactions(stmt.id, cardId, stmt.transactions);
+    db.executeSync('COMMIT');
+  } catch (e) {
+    db.executeSync('ROLLBACK');
+    throw e;
+  }
+}
+
+export function getAllStatements(): Record<string, StatementData[]> {
+  const db = getDb();
+  const result = db.executeSync(`SELECT * FROM statements ORDER BY parsedAt DESC`);
+
+  const grouped: Record<string, StatementData[]> = {};
+  for (const row of result.rows) {
+    const cardId = row.cardId as string;
+    if (!grouped[cardId]) grouped[cardId] = [];
+
+    const transactions = getTransactionsByStatementId(row.id as string);
+
+    grouped[cardId].push({
+      id: row.id as string,
+      cardId,
+      parsedAt: row.parsedAt as string,
+      transactions,
+      summary: JSON.parse(row.summary as string),
+      csv: row.csv as string,
+      bankDetected: row.bankDetected as string,
+      currency: (row.currency as CurrencyCode | null) ?? undefined,
+    });
+  }
+  return grouped;
+}
+
+export function deleteStatementsByCardId(cardId: string): void {
+  getDb().executeSync(`DELETE FROM statements WHERE cardId = ?`, [cardId]);
+}

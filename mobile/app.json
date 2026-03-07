@@ -33,7 +33,9 @@
     },
     "plugins": [
       "expo-font",
-      "expo-document-picker"
+      "expo-document-picker",
+      "expo-image-picker",
+      "expo-dev-client"
     ]
   }
 }
