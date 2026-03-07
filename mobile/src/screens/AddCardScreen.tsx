@@ -9,13 +9,18 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
+import { colors, spacing, borderRadius, fontSize, SUPPORTED_CURRENCIES, CURRENCY_CONFIG, CurrencyCode } from '../theme';
 import { useStore, CreditCard } from '../store';
 import { Card, PrimaryButton, SectionHeader } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 
 const ISSUERS = ['HDFC Bank', 'ICICI Bank', 'SBI Card', 'Axis Bank', 'Chase', 'American Express', 'Citi', 'Other'];
 const NETWORKS = ['Visa', 'Mastercard', 'American Express', 'RuPay'];
+
+const ISSUER_CURRENCY: Record<string, CurrencyCode> = {
+  'HDFC Bank': 'INR', 'ICICI Bank': 'INR', 'SBI Card': 'INR', 'Axis Bank': 'INR',
+  'Chase': 'USD', 'Citi': 'USD', 'American Express': 'INR', 'Other': 'INR',
+};
 const CARD_COLORS = [
   '#1E3A5F', '#2D1B69', '#1B4332', '#4A1942', '#1C1C1C',
   '#0F3460', '#3C1518', '#1A535C',
@@ -31,8 +36,10 @@ export default function AddCardScreen() {
   const [creditLimit, setCreditLimit] = useState('');
   const [billingCycle, setBillingCycle] = useState('');
   const [cardColor, setCardColor] = useState(CARD_COLORS[0]);
+  const [currency, setCurrency] = useState<CurrencyCode>('INR');
   const [showIssuerPicker, setShowIssuerPicker] = useState(false);
   const [showNetworkPicker, setShowNetworkPicker] = useState(false);
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   const previewCard: CreditCard = {
     id: 'preview',
@@ -43,6 +50,7 @@ export default function AddCardScreen() {
     creditLimit: parseFloat(creditLimit) || 100000,
     billingCycle: billingCycle || '1st of month',
     color: cardColor,
+    currency,
   };
 
   const handleSave = () => {
@@ -68,6 +76,7 @@ export default function AddCardScreen() {
       creditLimit: parseFloat(creditLimit),
       billingCycle: billingCycle || 'Not set',
       color: cardColor,
+      currency,
     };
 
     addCard(card);
@@ -120,7 +129,7 @@ export default function AddCardScreen() {
           {showIssuerPicker && (
             <View style={styles.pickerList}>
               {ISSUERS.map((i) => (
-                <TouchableOpacity key={i} style={[styles.pickerItem, issuer === i && styles.pickerItemActive]} onPress={() => { setIssuer(i); setShowIssuerPicker(false); }}>
+                <TouchableOpacity key={i} style={[styles.pickerItem, issuer === i && styles.pickerItemActive]} onPress={() => { setIssuer(i); setCurrency(ISSUER_CURRENCY[i] || 'INR'); setShowIssuerPicker(false); }}>
                   <Text style={[styles.pickerItemText, issuer === i && { color: colors.accent }]}>{i}</Text>
                 </TouchableOpacity>
               ))}
@@ -138,6 +147,24 @@ export default function AddCardScreen() {
               {NETWORKS.map((n) => (
                 <TouchableOpacity key={n} style={[styles.pickerItem, network === n && styles.pickerItemActive]} onPress={() => { setNetwork(n); setShowNetworkPicker(false); }}>
                   <Text style={[styles.pickerItemText, network === n && { color: colors.accent }]}>{n}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Currency picker */}
+          <Text style={styles.inputLabel}>Currency</Text>
+          <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}>
+            <Text style={styles.pickerText}>{CURRENCY_CONFIG[currency].symbol} {currency} — {CURRENCY_CONFIG[currency].label}</Text>
+            <Feather name={showCurrencyPicker ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+          {showCurrencyPicker && (
+            <View style={styles.pickerList}>
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <TouchableOpacity key={c} style={[styles.pickerItem, currency === c && styles.pickerItemActive]} onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}>
+                  <Text style={[styles.pickerItemText, currency === c && { color: colors.accent }]}>
+                    {CURRENCY_CONFIG[c].symbol} {c} — {CURRENCY_CONFIG[c].label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -182,7 +209,7 @@ export default function AddCardScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.existingCardName}>{card.nickname}</Text>
                 <Text style={styles.existingCardMeta}>
-                  {card.issuer} / {card.network} / ****{card.last4}
+                  {card.issuer} / {card.network} / ****{card.last4} / {card.currency ?? 'INR'}
                 </Text>
               </View>
               <TouchableOpacity

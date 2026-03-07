@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CurrencyCode } from '../theme';
 
 // ---------------------------------------------------------------------------
 // AsyncStorage adapter (works in Expo Go without native builds)
@@ -31,6 +32,7 @@ export interface CreditCard {
   creditLimit: number;
   billingCycle: string;
   color: string;
+  currency?: CurrencyCode;
   totalAmountDue?: number;
   minimumAmountDue?: number;
   paymentDueDate?: string;
@@ -44,6 +46,7 @@ export interface MonthlyUsage {
   totalCredits: number;
   net: number;
   statementId: string;
+  currency?: CurrencyCode;
 }
 
 export interface Transaction {
@@ -56,6 +59,7 @@ export interface Transaction {
   category_icon: string;
   type: 'debit' | 'credit';
   cardId?: string;
+  currency?: CurrencyCode;
 }
 
 export interface CategorySummary {
@@ -85,6 +89,7 @@ export interface StatementData {
   summary: StatementSummary;
   csv: string;
   bankDetected: string;
+  currency?: CurrencyCode;
 }
 
 // ---------------------------------------------------------------------------

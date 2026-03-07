@@ -10,7 +10,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, borderRadius, fontSize, formatINR } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
 import { useStore, StatementData } from '../store';
 import { Card, SectionHeader, ProgressBar, EmptyState, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
@@ -27,26 +27,32 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const { cards, statements, activeCardId, setActiveCard, monthlyUsage } = useStore();
 
-  // Compute total balance and utilization
-  const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
-
   // Get all statements across all cards
-  const allStatements: (StatementData & { cardNickname: string })[] = [];
+  const allStatements: (StatementData & { cardNickname: string; cardCurrency: CurrencyCode })[] = [];
   for (const card of cards) {
     const cardStatements = statements[card.id] || [];
     for (const stmt of cardStatements) {
-      allStatements.push({ ...stmt, cardNickname: card.nickname });
+      allStatements.push({ ...stmt, cardNickname: card.nickname, cardCurrency: card.currency ?? 'INR' });
     }
   }
   allStatements.sort(
     (a, b) => new Date(b.parsedAt).getTime() - new Date(a.parsedAt).getTime()
   );
 
-  const totalSpent = allStatements.reduce(
-    (s, st) => s + (st.summary?.net || 0),
-    0
-  );
-  const utilization = totalLimit > 0 ? totalSpent / totalLimit : 0;
+  // Group totals by currency
+  const currencyGroups: Record<string, { totalSpent: number; totalLimit: number }> = {};
+  for (const card of cards) {
+    const cur = card.currency ?? 'INR';
+    if (!currencyGroups[cur]) currencyGroups[cur] = { totalSpent: 0, totalLimit: 0 };
+    currencyGroups[cur].totalLimit += card.creditLimit;
+    const cardStmts = allStatements.filter((s) => s.cardId === card.id);
+    currencyGroups[cur].totalSpent += cardStmts.reduce((s, st) => s + (st.summary?.net || 0), 0);
+  }
+  const currencyKeys = Object.keys(currencyGroups) as CurrencyCode[];
+  const isSingleCurrency = currencyKeys.length <= 1;
+  const primaryCurrency = currencyKeys[0] ?? 'INR';
+  const primaryGroup = currencyGroups[primaryCurrency] ?? { totalSpent: 0, totalLimit: 0 };
+  const utilization = primaryGroup.totalLimit > 0 ? primaryGroup.totalSpent / primaryGroup.totalLimit : 0;
 
   if (cards.length === 0) {
     return (
@@ -90,32 +96,70 @@ export default function HomeScreen() {
       <View style={{ paddingHorizontal: spacing.lg }}>
         <Card>
           <Text style={styles.portfolioLabel}>Total Outstanding</Text>
-          <Text style={styles.portfolioAmount}>{formatINR(totalSpent)}</Text>
-
-          <View style={styles.utilizationRow}>
-            <Text style={styles.utilizationLabel}>Credit Utilization</Text>
-            <Text style={styles.utilizationPct}>
-              {(utilization * 100).toFixed(0)}%
+          {isSingleCurrency ? (
+            <Text style={styles.portfolioAmount}>
+              {formatCurrency(primaryGroup.totalSpent, primaryCurrency)}
             </Text>
-          </View>
-          <ProgressBar
-            progress={utilization}
-            color={
-              utilization > 0.6
-                ? colors.debit
-                : utilization > 0.3
-                ? colors.warning
-                : colors.accent
-            }
-            height={8}
-          />
-          {/* Threshold markers */}
-          <View style={styles.thresholds}>
-            <Text style={styles.thresholdText}>0%</Text>
-            <Text style={[styles.thresholdText, { left: '30%' }]}>30%</Text>
-            <Text style={[styles.thresholdText, { left: '60%' }]}>60%</Text>
-            <Text style={[styles.thresholdText, { textAlign: 'right' }]}>100%</Text>
-          </View>
+          ) : (
+            <View style={{ marginTop: spacing.sm }}>
+              {currencyKeys.map((cur) => (
+                <Text key={cur} style={styles.portfolioAmount}>
+                  {formatCurrency(currencyGroups[cur].totalSpent, cur)}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {isSingleCurrency && (
+            <>
+              <View style={styles.utilizationRow}>
+                <Text style={styles.utilizationLabel}>Credit Utilization</Text>
+                <Text style={styles.utilizationPct}>
+                  {(utilization * 100).toFixed(0)}%
+                </Text>
+              </View>
+              <ProgressBar
+                progress={utilization}
+                color={
+                  utilization > 0.6
+                    ? colors.debit
+                    : utilization > 0.3
+                    ? colors.warning
+                    : colors.accent
+                }
+                height={8}
+              />
+              {/* Threshold markers */}
+              <View style={styles.thresholds}>
+                <Text style={styles.thresholdText}>0%</Text>
+                <Text style={[styles.thresholdText, { left: '30%' }]}>30%</Text>
+                <Text style={[styles.thresholdText, { left: '60%' }]}>60%</Text>
+                <Text style={[styles.thresholdText, { textAlign: 'right' }]}>100%</Text>
+              </View>
+            </>
+          )}
+
+          {!isSingleCurrency && (
+            <View style={{ marginTop: spacing.md }}>
+              {currencyKeys.map((cur) => {
+                const grp = currencyGroups[cur];
+                const util = grp.totalLimit > 0 ? grp.totalSpent / grp.totalLimit : 0;
+                return (
+                  <View key={cur} style={{ marginBottom: spacing.sm }}>
+                    <View style={styles.utilizationRow}>
+                      <Text style={styles.utilizationLabel}>{cur} Utilization</Text>
+                      <Text style={styles.utilizationPct}>{(util * 100).toFixed(0)}%</Text>
+                    </View>
+                    <ProgressBar
+                      progress={util}
+                      color={util > 0.6 ? colors.debit : util > 0.3 ? colors.warning : colors.accent}
+                      height={6}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </Card>
       </View>
 
@@ -165,7 +209,7 @@ export default function HomeScreen() {
                       <Text style={styles.usageMonth}>{latestUsage.month}</Text>
                     </View>
                     <Text style={styles.usageAmount}>
-                      {formatINR(latestUsage.totalDebits)}
+                      {formatCurrency(latestUsage.totalDebits, card.currency ?? 'INR')}
                     </Text>
                   </View>
                   <View style={{ marginTop: spacing.sm }}>
@@ -173,7 +217,7 @@ export default function HomeScreen() {
                   </View>
                   {card.creditLimit > 0 && (
                     <Text style={styles.usageLimit}>
-                      Limit: {formatINR(card.creditLimit)}
+                      Limit: {formatCurrency(card.creditLimit, card.currency ?? 'INR')}
                     </Text>
                   )}
                 </Card>
@@ -218,7 +262,7 @@ export default function HomeScreen() {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.statementAmount}>
-                  {formatINR(stmt.summary.net)}
+                  {formatCurrency(stmt.summary.net, stmt.cardCurrency)}
                 </Text>
                 <Text style={styles.statementCount}>
                   {stmt.summary.total_transactions} txns

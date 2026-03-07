@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors, spacing, borderRadius, fontSize, formatINR, categoryColors } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -12,9 +12,10 @@ interface CategoryData {
 
 interface Props {
   categories: Record<string, { total: number; count: number }>;
+  currency?: CurrencyCode;
 }
 
-export function CategoryPieChart({ categories }: Props) {
+export function CategoryPieChart({ categories, currency }: Props) {
   const data = Object.entries(categories)
     .map(([name, val]) => ({ name, ...val }))
     .sort((a, b) => b.total - a.total);
@@ -60,7 +61,7 @@ export function CategoryPieChart({ categories }: Props) {
                 {item.name}
               </Text>
               <Text style={styles.legendValue}>
-                {formatINR(item.total)} ({pct}%)
+                {formatCurrency(item.total, currency ?? 'INR')} ({pct}%)
               </Text>
             </View>
           );
@@ -70,7 +71,7 @@ export function CategoryPieChart({ categories }: Props) {
   );
 }
 
-export function CategoryBarChart({ categories }: Props) {
+export function CategoryBarChart({ categories, currency }: Props) {
   const data = Object.entries(categories)
     .map(([name, val]) => ({ name, ...val }))
     .sort((a, b) => b.total - a.total)
@@ -99,7 +100,7 @@ export function CategoryBarChart({ categories }: Props) {
                 ]}
               />
             </View>
-            <Text style={styles.barAmount}>{formatINR(item.total)}</Text>
+            <Text style={styles.barAmount}>{formatCurrency(item.total, currency ?? 'INR')}</Text>
           </View>
         );
       })}

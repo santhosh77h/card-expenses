@@ -35,6 +35,7 @@ class LLMCardInfo(BaseModel):
     total_amount_due: Optional[float] = Field(default=None, description="Total amount due / outstanding for this billing cycle")
     minimum_amount_due: Optional[float] = Field(default=None, description="Minimum amount due for this billing cycle, if printed")
     payment_due_date: Optional[str] = Field(default=None, description="Payment due date in YYYY-MM-DD format, if printed")
+    currency: Optional[str] = Field(default=None, description="ISO 4217 currency code detected from the statement, e.g. INR, USD, EUR, GBP")
 
 
 class LLMExtractionResult(BaseModel):
@@ -164,6 +165,7 @@ Also extract **card metadata** from the statement header/summary section:
 - total_amount_due: Total outstanding/due (look for "Total Amount Due", "Total Due", "Statement Balance", "Total Outstanding")
 - minimum_amount_due: Minimum payment due (look for "Minimum Amount Due", "Min Due", "MAD")
 - payment_due_date: Payment due date in YYYY-MM-DD (look for "Due Date", "Payment Due Date", "Pay By")
+- currency: ISO 4217 currency code (INR, USD, EUR, GBP). Detect from currency symbols (\u20B9/Rs. = INR, $ = USD, \u20AC = EUR, \u00A3 = GBP) or bank identity. Default to INR if unclear.
 - If any field cannot be determined from the text, leave it as null.
 
 Skip headers, footers, totals, subtotals, summary rows, and non-transaction text.
@@ -272,6 +274,7 @@ def llm_parse_transactions(
             "total_amount_due": result.card_info.total_amount_due,
             "minimum_amount_due": result.card_info.minimum_amount_due,
             "payment_due_date": result.card_info.payment_due_date,
+            "currency": result.card_info.currency,
         }
         logger.info("Card info: %s", json.dumps(card_info))
         logger.info("=" * 60)

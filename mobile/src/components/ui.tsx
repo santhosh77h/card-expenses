@@ -8,7 +8,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatINR } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
 
 // ---------------------------------------------------------------------------
 // Card wrapper
@@ -98,17 +98,19 @@ export function AmountText({
   amount,
   type,
   size = 'md',
+  currency,
 }: {
   amount: number;
   type: 'debit' | 'credit';
   size?: 'sm' | 'md' | 'lg';
+  currency?: CurrencyCode;
 }) {
   const color = type === 'debit' ? colors.debit : colors.credit;
   const prefix = type === 'debit' ? '-' : '+';
   const sizeMap = { sm: fontSize.sm, md: fontSize.md, lg: fontSize.xl };
   return (
     <Text style={{ color, fontSize: sizeMap[size], fontWeight: '700' }}>
-      {prefix}{formatINR(amount)}
+      {prefix}{formatCurrency(amount, currency ?? 'INR')}
     </Text>
   );
 }

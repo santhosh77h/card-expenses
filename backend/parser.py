@@ -62,6 +62,36 @@ def detect_bank(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Currency detection
+# ---------------------------------------------------------------------------
+
+BANK_CURRENCIES: dict[str, str] = {
+    "hdfc": "INR", "icici": "INR", "sbi": "INR", "axis": "INR",
+    "chase": "USD", "citi": "USD", "amex": "USD",
+}
+
+
+def detect_currency(text: str, bank: str) -> str:
+    """Detect ISO 4217 currency code from statement text and bank identity."""
+    # Bank-level default takes priority for known banks
+    if bank in BANK_CURRENCIES:
+        return BANK_CURRENCIES[bank]
+
+    # Scan text for currency indicators
+    text_lower = text.lower()
+    if any(indicator in text_lower for indicator in ["rs.", "rs ", "inr", "\u20b9"]):
+        return "INR"
+    if any(indicator in text_lower for indicator in ["$", "usd"]):
+        return "USD"
+    if any(indicator in text_lower for indicator in ["\u20ac", "eur"]):
+        return "EUR"
+    if any(indicator in text_lower for indicator in ["\u00a3", "gbp"]):
+        return "GBP"
+
+    return "INR"
+
+
+# ---------------------------------------------------------------------------
 # Date parsing helpers
 # ---------------------------------------------------------------------------
 
@@ -528,4 +558,5 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
         "csv": csv,
         "bank_detected": bank,
         "card_info": llm_card_info,
+        "currency_detected": detect_currency(text, bank),
     }

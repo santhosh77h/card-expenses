@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { colors, spacing, borderRadius, fontSize, formatINR } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
 import { useStore, Transaction, CreditCard } from '../store';
 import { Card, StatRow, Badge, EmptyState, PrimaryButton } from '../components/ui';
 import type { RootStackParamList, TabParamList } from '../navigation';
@@ -31,12 +31,18 @@ export default function TransactionsScreen() {
     return map;
   }, [cards]);
 
-  const totalDebits = manualTransactions
-    .filter((t) => t.type === 'debit')
-    .reduce((s, t) => s + t.amount, 0);
-  const totalCredits = manualTransactions
-    .filter((t) => t.type === 'credit')
-    .reduce((s, t) => s + t.amount, 0);
+  // Group totals by currency
+  const totals = React.useMemo(() => {
+    const byCurrency: Record<string, { debits: number; credits: number }> = {};
+    for (const t of manualTransactions) {
+      const cur = t.currency ?? (t.cardId ? cardMap[t.cardId]?.currency : undefined) ?? 'INR';
+      if (!byCurrency[cur]) byCurrency[cur] = { debits: 0, credits: 0 };
+      if (t.type === 'debit') byCurrency[cur].debits += t.amount;
+      else byCurrency[cur].credits += t.amount;
+    }
+    return byCurrency;
+  }, [manualTransactions, cardMap]);
+  const totalCurrencies = Object.keys(totals) as CurrencyCode[];
 
   const renderItem = ({ item }: { item: Transaction }) => {
     const txnCard = item.cardId ? cardMap[item.cardId] : undefined;
@@ -66,7 +72,7 @@ export default function TransactionsScreen() {
           ]}
         >
           {item.type === 'debit' ? '-' : '+'}
-          {formatINR(item.amount)}
+          {formatCurrency(item.amount, item.currency ?? txnCard?.currency ?? 'INR')}
         </Text>
         <TouchableOpacity
           onPress={() => removeTransaction(item.id)}
@@ -114,16 +120,20 @@ export default function TransactionsScreen() {
                   label="Total Transactions"
                   value={String(manualTransactions.length)}
                 />
-                <StatRow
-                  label="Total Debits"
-                  value={formatINR(totalDebits)}
-                  valueColor={colors.debit}
-                />
-                <StatRow
-                  label="Total Credits"
-                  value={formatINR(totalCredits)}
-                  valueColor={colors.credit}
-                />
+                {totalCurrencies.map((cur) => (
+                  <React.Fragment key={cur}>
+                    <StatRow
+                      label={totalCurrencies.length > 1 ? `Debits (${cur})` : 'Total Debits'}
+                      value={formatCurrency(totals[cur].debits, cur)}
+                      valueColor={colors.debit}
+                    />
+                    <StatRow
+                      label={totalCurrencies.length > 1 ? `Credits (${cur})` : 'Total Credits'}
+                      value={formatCurrency(totals[cur].credits, cur)}
+                      valueColor={colors.credit}
+                    />
+                  </React.Fragment>
+                ))}
               </Card>
               <PrimaryButton
                 title="Add Transaction"

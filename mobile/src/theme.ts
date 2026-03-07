@@ -59,27 +59,64 @@ export const categoryColors: Record<string, string> = {
   Other: '#6B7280',
 };
 
+// ---------------------------------------------------------------------------
+// Multi-currency support
+// ---------------------------------------------------------------------------
+
+export type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP';
+
+export interface CurrencyConfig {
+  symbol: string;
+  label: string;
+  grouping: 'indian' | 'western';
+}
+
+export const CURRENCY_CONFIG: Record<CurrencyCode, CurrencyConfig> = {
+  INR: { symbol: '\u20B9', label: 'Indian Rupee', grouping: 'indian' },
+  USD: { symbol: '$', label: 'US Dollar', grouping: 'western' },
+  EUR: { symbol: '\u20AC', label: 'Euro', grouping: 'western' },
+  GBP: { symbol: '\u00A3', label: 'British Pound', grouping: 'western' },
+};
+
+export const SUPPORTED_CURRENCIES: CurrencyCode[] = ['INR', 'USD', 'EUR', 'GBP'];
+
 /**
- * Format amount in INR with Indian numbering system (lakhs/crores).
+ * Format amount with the correct currency symbol and grouping.
+ * INR uses Indian numbering (lakhs/crores), others use Western (thousands).
  */
-export function formatINR(amount: number): string {
+export function formatCurrency(amount: number, currency: CurrencyCode = 'INR'): string {
+  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.INR;
   const abs = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
 
   if (abs < 1000) {
-    return `${sign}\u20B9${abs.toFixed(2)}`;
+    return `${sign}${config.symbol}${abs.toFixed(2)}`;
   }
 
   const parts = abs.toFixed(2).split('.');
-  let intPart = parts[0];
+  const intPart = parts[0];
   const decimal = parts[1];
 
-  // Indian grouping: last 3 digits, then groups of 2
-  const lastThree = intPart.slice(-3);
-  const rest = intPart.slice(0, -3);
-  const formatted = rest
-    ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree
-    : lastThree;
+  let formatted: string;
+  if (config.grouping === 'indian') {
+    // Indian grouping: last 3 digits, then groups of 2
+    const lastThree = intPart.slice(-3);
+    const rest = intPart.slice(0, -3);
+    formatted = rest
+      ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + lastThree
+      : lastThree;
+  } else {
+    // Western grouping: groups of 3
+    formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
 
-  return `${sign}\u20B9${formatted}.${decimal}`;
+  return `${sign}${config.symbol}${formatted}.${decimal}`;
+}
+
+/**
+ * Format amount in INR with Indian numbering system (lakhs/crores).
+ * @deprecated Use formatCurrency(amount, 'INR') instead.
+ */
+export function formatINR(amount: number): string {
+  return formatCurrency(amount, 'INR');
 }

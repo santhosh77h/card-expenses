@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
+import { colors, spacing, borderRadius, fontSize, CURRENCY_CONFIG } from '../theme';
 import { useStore, CreditCard } from '../store';
 import { categorizeTransaction } from '../utils/api';
 import { Badge, PrimaryButton } from '../components/ui';
@@ -36,6 +36,10 @@ export default function AddTransactionScreen() {
     [description]
   );
 
+  const selectedCard = cards.find((c) => c.id === selectedCardId);
+  const cardCurrency = selectedCard?.currency ?? 'INR';
+  const currencySymbol = CURRENCY_CONFIG[cardCurrency].symbol;
+
   const canSave = description.trim().length > 0 && parseFloat(amount) > 0;
 
   function handleSave() {
@@ -50,6 +54,7 @@ export default function AddTransactionScreen() {
       category_icon: categoryInfo.category_icon,
       type,
       cardId: selectedCardId,
+      currency: cardCurrency,
     });
     navigation.goBack();
   }
@@ -96,10 +101,10 @@ export default function AddTransactionScreen() {
         )}
 
         {/* Amount */}
-        <Text style={styles.label}>Amount</Text>
+        <Text style={styles.label}>Amount ({currencySymbol} {cardCurrency})</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. 450"
+          placeholder={`e.g. ${currencySymbol}450`}
           placeholderTextColor={colors.textMuted}
           value={amount}
           onChangeText={setAmount}

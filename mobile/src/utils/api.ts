@@ -11,6 +11,7 @@ export interface CardInfo {
   total_amount_due: number | null;
   minimum_amount_due: number | null;
   payment_due_date: string | null;
+  currency?: string | null;
 }
 
 interface ParseResult {
@@ -19,6 +20,7 @@ interface ParseResult {
   csv: string;
   bank_detected: string;
   card_info: CardInfo | null;
+  currency_detected?: string;
 }
 
 export async function parseStatement(

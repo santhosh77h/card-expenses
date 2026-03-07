@@ -15,7 +15,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import { colors, spacing, borderRadius, fontSize, formatINR, categoryColors } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
 import { useStore, Transaction, CreditCard } from '../store';
 import { Card, StatRow, AmountText, Badge, SectionHeader, ProgressBar } from '../components/ui';
 import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart';
@@ -50,6 +50,7 @@ export default function AnalysisScreen() {
   const { transactions, summary, csv } = statement;
 
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId]);
+  const currency: CurrencyCode = card?.currency ?? 'INR';
 
   const handleAddToTransactions = useCallback(() => {
     const txnsWithIds = transactions.map((t, i) => ({
@@ -145,6 +146,7 @@ export default function AnalysisScreen() {
             onExport={handleExportCSV}
             onAddToTransactions={handleAddToTransactions}
             imported={imported}
+            currency={currency}
           />
         )}
         {activeTab === 'transactions' && (
@@ -158,10 +160,11 @@ export default function AnalysisScreen() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             card={card}
+            currency={currency}
           />
         )}
         {activeTab === 'categories' && (
-          <CategoriesTab categories={summary.categories} />
+          <CategoriesTab categories={summary.categories} currency={currency} />
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -179,28 +182,30 @@ function OverviewTab({
   onExport,
   onAddToTransactions,
   imported,
+  currency,
 }: {
   summary: any;
   largestTxn: Transaction;
   onExport: () => void;
   onAddToTransactions: () => void;
   imported: boolean;
+  currency: CurrencyCode;
 }) {
   return (
     <View style={{ padding: spacing.lg }}>
       {/* Hero net spend */}
       <Card>
         <Text style={styles.overviewLabel}>Net Spending</Text>
-        <Text style={styles.heroAmount}>{formatINR(summary.net)}</Text>
+        <Text style={styles.heroAmount}>{formatCurrency(summary.net, currency)}</Text>
         <View style={{ marginTop: spacing.lg }}>
           <StatRow
             label="Total Debits"
-            value={formatINR(summary.total_debits)}
+            value={formatCurrency(summary.total_debits, currency)}
             valueColor={colors.debit}
           />
           <StatRow
             label="Total Credits / Refunds"
-            value={formatINR(summary.total_credits)}
+            value={formatCurrency(summary.total_credits, currency)}
             valueColor={colors.credit}
           />
           <StatRow
@@ -224,7 +229,7 @@ function OverviewTab({
               text={largestTxn.category}
               color={categoryColors[largestTxn.category] || colors.textMuted}
             />
-            <AmountText amount={largestTxn.amount} type={largestTxn.type} size="lg" />
+            <AmountText amount={largestTxn.amount} type={largestTxn.type} size="lg" currency={currency} />
           </View>
         </Card>
       )}
@@ -280,6 +285,7 @@ function TransactionsTab({
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   card?: CreditCard;
+  currency: CurrencyCode;
 }) {
   return (
     <View style={{ padding: spacing.lg }}>
@@ -372,7 +378,7 @@ function TransactionsTab({
               )}
             </View>
           </View>
-          <AmountText amount={txn.amount} type={txn.type} size="sm" />
+          <AmountText amount={txn.amount} type={txn.type} size="sm" currency={currency} />
         </View>
       ))}
     </View>
@@ -385,8 +391,10 @@ function TransactionsTab({
 
 function CategoriesTab({
   categories,
+  currency,
 }: {
   categories: Record<string, { total: number; count: number }>;
+  currency: CurrencyCode;
 }) {
   const total = Object.values(categories).reduce((s, c) => s + c.total, 0);
   const sorted = Object.entries(categories).sort(
@@ -396,11 +404,11 @@ function CategoriesTab({
   return (
     <View style={{ padding: spacing.lg }}>
       <Card>
-        <CategoryPieChart categories={categories} />
+        <CategoryPieChart categories={categories} currency={currency} />
       </Card>
 
       <Card>
-        <CategoryBarChart categories={categories} />
+        <CategoryBarChart categories={categories} currency={currency} />
       </Card>
 
       {/* Category breakdown with progress bars */}
@@ -419,7 +427,7 @@ function CategoriesTab({
               <View style={{ flex: 1 }}>
                 <View style={styles.catHeader}>
                   <Text style={styles.catName}>{name}</Text>
-                  <Text style={styles.catAmount}>{formatINR(data.total)}</Text>
+                  <Text style={styles.catAmount}>{formatCurrency(data.total, currency)}</Text>
                 </View>
                 <ProgressBar
                   progress={pct}

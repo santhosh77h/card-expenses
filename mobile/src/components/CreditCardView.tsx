@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatINR } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency } from '../theme';
 import { CreditCard } from '../store';
 
 const NETWORK_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
@@ -35,16 +35,23 @@ export default function CreditCardView({ card, compact = false }: Props) {
       <View style={[styles.circle, styles.circle1]} />
       <View style={[styles.circle, styles.circle2]} />
 
-      {/* Top row: issuer + network */}
+      {/* Top row: issuer + currency badge + network */}
       <View style={styles.topRow}>
         <Text style={[styles.issuer, compact && { fontSize: fontSize.sm }]}>
           {card.issuer}
         </Text>
-        <Feather
-          name={NETWORK_ICONS[card.network] || 'credit-card'}
-          size={compact ? 20 : 24}
-          color="rgba(255,255,255,0.8)"
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {card.currency && card.currency !== 'INR' && (
+            <View style={styles.currencyBadge}>
+              <Text style={styles.currencyBadgeText}>{card.currency}</Text>
+            </View>
+          )}
+          <Feather
+            name={NETWORK_ICONS[card.network] || 'credit-card'}
+            size={compact ? 20 : 24}
+            color="rgba(255,255,255,0.8)"
+          />
+        </View>
       </View>
 
       {/* Card number (last 4) */}
@@ -68,7 +75,7 @@ export default function CreditCardView({ card, compact = false }: Props) {
         {!compact && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.label}>Credit Limit</Text>
-            <Text style={styles.limit}>{formatINR(card.creditLimit)}</Text>
+            <Text style={styles.limit}>{formatCurrency(card.creditLimit, card.currency ?? 'INR')}</Text>
           </View>
         )}
       </View>
@@ -151,5 +158,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: fontSize.md,
     fontWeight: '600',
+  },
+  currencyBadge: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  currencyBadgeText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

@@ -16,7 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
+import { colors, spacing, borderRadius, fontSize, CurrencyCode } from '../theme';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { Badge, Card, PrimaryButton } from '../components/ui';
@@ -163,6 +163,7 @@ export default function UploadScreen() {
     const cardInfo: CardInfo | null = parsed.card_info ?? null;
     const bankDetected: string = parsed.bank_detected || 'generic';
     const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+    const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
 
     // --- Resolve card ---
     let cardId: string;
@@ -205,6 +206,7 @@ export default function UploadScreen() {
           minimumAmountDue: cardInfo.minimum_amount_due ?? undefined,
           paymentDueDate: cardInfo.payment_due_date ?? undefined,
           autoCreated: true,
+          currency: detectedCurrency,
         };
         addCard(newCard);
         matched = newCard;
@@ -224,6 +226,7 @@ export default function UploadScreen() {
       summary: parsed.summary,
       csv: parsed.csv,
       bankDetected: bankDetected,
+      currency: detectedCurrency,
     };
 
     addStatement(cardId, statement);
