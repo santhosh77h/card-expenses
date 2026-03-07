@@ -16,12 +16,16 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { colors, spacing, borderRadius, fontSize, CurrencyCode } from '../theme';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
+import { ENTITLEMENT_ID } from '../utils/revenueCat';
 import { Badge, Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
+
+const FREE_TIER_UPLOAD_LIMIT = 3;
 
 const BANK_TO_ISSUER: Record<string, string> = {
   hdfc: 'HDFC Bank', icici: 'ICICI Bank', sbi: 'SBI Card',
@@ -48,7 +52,7 @@ type UploadState = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
 
 export default function UploadScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { cards, activeCardId, addStatement, addCard, updateCard, addMonthlyUsage } = useStore();
+  const { cards, activeCardId, addStatement, addCard, updateCard, addMonthlyUsage, isPremium, uploadsThisMonth, _refreshUploadCount } = useStore();
   const [state, setState] = useState<UploadState>('idle');
   const [error, setError] = useState<string>('');
   const [selectedCardId, setSelectedCardId] = useState<string>(
@@ -62,8 +66,23 @@ export default function UploadScreen() {
   const [resolvedAutoCreated, setResolvedAutoCreated] = useState(false);
   const [lastNavParams, setLastNavParams] = useState<{ statementId: string; cardId: string } | null>(null);
 
+  const checkUploadAllowed = async (): Promise<boolean> => {
+    if (isPremium) return true;
+    _refreshUploadCount();
+    const current = useStore.getState().uploadsThisMonth;
+    if (current < FREE_TIER_UPLOAD_LIMIT) return true;
+    // Show paywall
+    const result = await RevenueCatUI.presentPaywallIfNeeded({
+      requiredEntitlementIdentifier: ENTITLEMENT_ID,
+    });
+    return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
+  };
+
   const handlePick = async () => {
     try {
+      const allowed = await checkUploadAllowed();
+      if (!allowed) return;
+
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/pdf',
         copyToCacheDirectory: true,
@@ -269,6 +288,46 @@ export default function UploadScreen() {
       <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
         <Badge text="Your PDF is processed in memory and never stored" color={colors.accent} />
       </View>
+
+      {/* Free tier usage indicator */}
+      {!isPremium && (
+        <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
+          <Card>
+            <View style={styles.usageRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.usageTitle}>
+                  {Math.max(0, FREE_TIER_UPLOAD_LIMIT - uploadsThisMonth)} of {FREE_TIER_UPLOAD_LIMIT} uploads remaining
+                </Text>
+                <Text style={styles.usageSubtitle}>Resets monthly</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                onPress={async () => {
+                  try {
+                    await RevenueCatUI.presentPaywallIfNeeded({
+                      requiredEntitlementIdentifier: ENTITLEMENT_ID,
+                    });
+                  } catch {}
+                }}
+              >
+                <Feather name="zap" size={14} color="#fff" />
+                <Text style={styles.upgradeBtnText}>Upgrade</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.usageBarBg}>
+              <View
+                style={[
+                  styles.usageBarFill,
+                  {
+                    width: `${Math.min(100, (uploadsThisMonth / FREE_TIER_UPLOAD_LIMIT) * 100)}%`,
+                    backgroundColor: uploadsThisMonth >= FREE_TIER_UPLOAD_LIMIT ? colors.debit : colors.accent,
+                  },
+                ]}
+              />
+            </View>
+          </Card>
+        </View>
+      )}
 
       {/* Card selector */}
       {cards.length > 1 && (
@@ -602,6 +661,46 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     marginTop: spacing.xs,
     lineHeight: 18,
+  },
+  usageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  usageTitle: {
+    color: colors.textPrimary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+  usageSubtitle: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+  },
+  upgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.accent,
+  },
+  upgradeBtnText: {
+    color: '#fff',
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  usageBarBg: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    marginTop: spacing.md,
+    overflow: 'hidden' as const,
+  },
+  usageBarFill: {
+    height: '100%',
+    borderRadius: 2,
   },
   modalOverlay: {
     flex: 1,

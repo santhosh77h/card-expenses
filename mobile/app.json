@@ -18,14 +18,20 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cardlytics.app",
-      "backgroundColor": "#0A0E1A"
+      "backgroundColor": "#0A0E1A",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0E1A"
       },
-      "package": "com.cardlytics.app"
+      "package": "com.cardlytics.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -36,6 +42,12 @@
       "expo-document-picker",
       "expo-image-picker",
       "expo-dev-client"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "01f80520-dfae-453d-a23a-7c12fc7dcd87"
+      }
+    },
+    "owner": "santhosh7h"
   }
 }

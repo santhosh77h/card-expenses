@@ -6,14 +6,30 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Navigation from './src/navigation';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
+import { initRevenueCat, addSubscriptionListener } from './src/utils/revenueCat';
 
 export default function App() {
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
+    let removeListener: (() => void) | undefined;
+
     const boot = async () => {
       await initDatabase();
-      useStore.getState()._hydrateSqlite();
+      const state = useStore.getState();
+      state._hydrateSqlite();
+
+      try {
+        const isPremium = await initRevenueCat();
+        useStore.getState()._setIsPremium(isPremium);
+      } catch {
+        // RevenueCat failure is non-fatal — defaults to free tier
+      }
+
+      removeListener = addSubscriptionListener((isPremium) => {
+        useStore.getState()._setIsPremium(isPremium);
+      });
+
       setDbReady(true);
     };
 
@@ -25,6 +41,10 @@ export default function App() {
         unsub();
       });
     }
+
+    return () => {
+      removeListener?.();
+    };
   }, []);
 
   if (!dbReady) return null;

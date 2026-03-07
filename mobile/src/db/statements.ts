@@ -45,6 +45,15 @@ export function getAllStatements(): Record<string, StatementData[]> {
   return grouped;
 }
 
+export function getStatementCountSince(sinceIso: string): number {
+  const db = getDb();
+  const result = db.executeSync(
+    `SELECT COUNT(*) as cnt FROM statements WHERE parsedAt >= ?`,
+    [sinceIso],
+  );
+  return (result.rows[0]?.cnt as number) ?? 0;
+}
+
 export function deleteStatementsByCardId(cardId: string): void {
   getDb().executeSync(`DELETE FROM statements WHERE cardId = ?`, [cardId]);
 }

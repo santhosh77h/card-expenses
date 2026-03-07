@@ -118,6 +118,8 @@ interface AppState {
   manualTransactions: Transaction[];
   monthlyUsage: MonthlyUsage[];
   enrichments: Record<string, TransactionEnrichment>;
+  isPremium: boolean;
+  uploadsThisMonth: number;
 
   addCard: (card: CreditCard) => void;
   removeCard: (id: string) => void;
@@ -130,6 +132,8 @@ interface AppState {
   removeTransaction: (id: string) => void;
   clearManualTransactions: () => void;
   _hydrateSqlite: () => void;
+  _setIsPremium: (value: boolean) => void;
+  _refreshUploadCount: () => void;
   addMonthlyUsage: (usage: MonthlyUsage) => void;
   updateEnrichment: (txnId: string, patch: Partial<TransactionEnrichment>) => void;
   toggleFlag: (txnId: string) => void;
@@ -145,6 +149,8 @@ export const useStore = create<AppState>()(
       manualTransactions: [],
       monthlyUsage: [],
       enrichments: {},
+      isPremium: false,
+      uploadsThisMonth: 0,
 
       addCard: (card) =>
         set((state) => ({
@@ -179,11 +185,15 @@ export const useStore = create<AppState>()(
 
       addStatement: (cardId, statement) => {
         dbStmts.insertStatement(cardId, statement);
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const uploadsThisMonth = dbStmts.getStatementCountSince(firstOfMonth);
         set((state) => ({
           statements: {
             ...state.statements,
             [cardId]: [...(state.statements[cardId] || []), statement],
           },
+          uploadsThisMonth,
         }));
       },
 
@@ -292,12 +302,25 @@ export const useStore = create<AppState>()(
         });
       },
 
-      _hydrateSqlite: () => set({
-        manualTransactions: dbTxns.getVisibleTransactions(),
-        statements: dbStmts.getAllStatements(),
-        enrichments: dbEnrich.getAllEnrichments(),
-        monthlyUsage: dbUsage.getAllMonthlyUsage(),
-      }),
+      _hydrateSqlite: () => {
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        set({
+          manualTransactions: dbTxns.getVisibleTransactions(),
+          statements: dbStmts.getAllStatements(),
+          enrichments: dbEnrich.getAllEnrichments(),
+          monthlyUsage: dbUsage.getAllMonthlyUsage(),
+          uploadsThisMonth: dbStmts.getStatementCountSince(firstOfMonth),
+        });
+      },
+
+      _setIsPremium: (value) => set({ isPremium: value }),
+
+      _refreshUploadCount: () => {
+        const now = new Date();
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        set({ uploadsThisMonth: dbStmts.getStatementCountSince(firstOfMonth) });
+      },
     }),
     {
       name: 'cardlytics-storage',
