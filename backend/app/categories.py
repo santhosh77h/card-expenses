@@ -1,13 +1,12 @@
 """
-Transaction categorizer for Cardlytics expense statement parser.
+Single source of truth for spending categories.
 
-Uses keyword-based matching against transaction descriptions to assign
-one of 12 spending categories. Each category includes a display color
-and icon identifier for frontend rendering.
+Used by both the regex-based categorizer and the LLM parser.
+Provides keyword-based matching, metadata lookup, and the canonical
+list of allowed category names.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -18,8 +17,7 @@ class Category:
     keywords: tuple[str, ...]
 
 
-# Ordered list of categories. The first match wins, so more specific
-# categories (e.g. Groceries) should appear before broader ones (Shopping).
+# Ordered: first match wins. More specific categories before broader ones.
 CATEGORIES: list[Category] = [
     Category(
         name="Food & Dining",
@@ -135,50 +133,43 @@ CATEGORIES: list[Category] = [
     ),
 ]
 
-DEFAULT_CATEGORY: dict[str, str] = {
-    "name": "Other",
-    "color": "#6B7280",
-    "icon": "file-text",
+DEFAULT_CATEGORY = Category(
+    name="Other", color="#6B7280", icon="file-text", keywords=()
+)
+
+# Pre-built lookup used by the LLM parser to attach color/icon metadata.
+CATEGORY_META: dict[str, dict[str, str]] = {
+    c.name: {"color": c.color, "icon": c.icon}
+    for c in [*CATEGORIES, DEFAULT_CATEGORY]
 }
+
+ALLOWED_CATEGORIES = list(CATEGORY_META.keys())
 
 
 def categorize(description: str) -> dict[str, str]:
     """
-    Assign a spending category to a transaction based on its description.
+    Assign a spending category via case-insensitive keyword matching.
 
-    Performs case-insensitive keyword matching against the description.
-    Multi-word keywords are matched as substrings; single-word keywords
-    are matched as whole-word boundaries to reduce false positives on
-    very short keywords.
-
-    Args:
-        description: The transaction description text.
-
-    Returns:
-        A dict with keys ``name``, ``color``, and ``icon``.
+    Returns dict with keys: name, color, icon.
     """
     if not description:
-        return dict(DEFAULT_CATEGORY)
+        return _category_dict(DEFAULT_CATEGORY)
 
     desc_lower = description.lower()
-
     for category in CATEGORIES:
         for keyword in category.keywords:
             if keyword in desc_lower:
-                return {
-                    "name": category.name,
-                    "color": category.color,
-                    "icon": category.icon,
-                }
+                return _category_dict(category)
 
-    return dict(DEFAULT_CATEGORY)
+    return _category_dict(DEFAULT_CATEGORY)
 
 
 def get_all_categories() -> list[dict[str, str]]:
-    """Return metadata for every category, including the fallback."""
-    result = [
-        {"name": c.name, "color": c.color, "icon": c.icon}
-        for c in CATEGORIES
-    ]
-    result.append(dict(DEFAULT_CATEGORY))
+    """Return metadata for every category including the fallback."""
+    result = [_category_dict(c) for c in CATEGORIES]
+    result.append(_category_dict(DEFAULT_CATEGORY))
     return result
+
+
+def _category_dict(cat: Category) -> dict[str, str]:
+    return {"name": cat.name, "color": cat.color, "icon": cat.icon}

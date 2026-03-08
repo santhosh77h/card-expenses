@@ -1,39 +1,28 @@
 name: cardlytics
 
 services:
-  helicone:
-    image: helicone/helicone-all-in-one:latest
-    container_name: cardlytics-helicone
-    ports:
-      - "3000:3000"   # Web Dashboard
-      - "8585:8585"   # Jawn API + LLM Proxy
-    restart: unless-stopped
-    volumes:
-      - helicone_postgres:/var/lib/postgresql/data
-      - helicone_clickhouse:/var/lib/clickhouse
-      - helicone_minio:/data
-    environment:
-      SITE_URL: http://localhost:3000
-      BETTER_AUTH_URL: http://localhost:3000
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      NEXT_PUBLIC_HELICONE_JAWN_SERVICE: http://localhost:8585
-      S3_ENDPOINT: http://localhost:9080
-
   backend:
     build: ./backend
     container_name: cardlytics-backend
     ports:
       - "8000:8000"
     restart: unless-stopped
-    depends_on:
-      - helicone
     environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_JSON: ${LOG_JSON:-false}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      HELICONE_BASE_URL: http://helicone:8585
-      HELICONE_API_KEY: ${HELICONE_API_KEY:-}
-
-volumes:
-  helicone_postgres:
-  helicone_clickhouse:
-  helicone_minio:
+      OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-45.0}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

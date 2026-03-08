@@ -81,6 +81,8 @@ export default function UploadScreen() {
   };
 
   const checkDuplicate = (hash: string): boolean => {
+    if (__DEV__) return false;
+
     const existing = findByHash(hash);
     if (!existing) return false;
 
@@ -100,7 +102,7 @@ export default function UploadScreen() {
   };
 
   const checkUploadAllowed = async (): Promise<boolean> => {
-    if (isPremium) return true;
+    if (__DEV__ || isPremium) return true;
     _refreshUploadCount();
     const current = useStore.getState().uploadsThisMonth;
     if (current < FREE_TIER_UPLOAD_LIMIT) return true;
@@ -344,7 +346,7 @@ export default function UploadScreen() {
       </View>
 
       {/* Free tier usage indicator */}
-      {!isPremium && (
+      {!__DEV__ && !isPremium && (
         <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
           <Card>
             <View style={styles.usageRow}>
