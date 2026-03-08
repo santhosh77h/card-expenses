@@ -1,0 +1,11 @@
+[
+  "O",
+  "B-MERCHANT",
+  "I-MERCHANT",
+  "B-CATEGORY",
+  "I-CATEGORY",
+  "B-DATE",
+  "I-DATE",
+  "B-AMOUNT",
+  "I-AMOUNT"
+]

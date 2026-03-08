@@ -38,7 +38,8 @@
     "plugins": [
       "expo-font",
       "expo-document-picker",
-      "expo-image-picker"
+      "expo-image-picker",
+      ["react-native-fast-tflite", { "enableCoreMLDelegate": true }]
     ],
     "extra": {
       "eas": {

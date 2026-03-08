@@ -1,0 +1,11 @@
+[
+  "average_spend",
+  "category_spend",
+  "count_transactions",
+  "highest_transaction",
+  "list_transactions",
+  "lowest_transaction",
+  "monthly_summary",
+  "total_spent",
+  "transactions_on_date"
+]

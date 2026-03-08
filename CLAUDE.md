@@ -93,3 +93,7 @@ Supported: INR, USD, EUR, GBP. Each card/statement/transaction tracks currency. 
 - **Dark theme only**: Background `#0A0E1A`, accent `#00E5A0`
 - **Babel**: requires `react-native-reanimated/plugin` as last plugin
 - **Schema changes**: Any change to the SQLite schema (new table, new column, altered column, new index) **must** follow `MIGRATION_GUIDE.md`. Never modify existing migrations — only append new ones. Bump `LATEST_VERSION` in `schema.ts` and add a new numbered migration function.
+
+## Design principle
+- Before you respond, think about what i actually need, not just what i asked. Then give me the best 
+possible answer, and tell me what follow-up questions I should ask to go deeper.

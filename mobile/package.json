@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
-    "prebuild:clean": "expo prebuild --clean"
+    "prebuild:clean": "expo prebuild --clean",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
@@ -30,6 +31,7 @@
     "expo-status-bar": "~1.12.1",
     "react": "18.2.0",
     "react-native": "0.74.5",
+    "react-native-fast-tflite": "^2.0.0",
     "react-native-gesture-handler": "~2.16.1",
     "react-native-purchases": "^8.12.0",
     "react-native-purchases-ui": "^8.12.0",
@@ -45,6 +47,7 @@
     "@babel/core": "^7.24.0",
     "@types/crypto-js": "^4.2.2",
     "@types/react": "~18.2.79",
+    "patch-package": "^8.0.1",
     "typescript": "~5.3.3"
   }
 }
