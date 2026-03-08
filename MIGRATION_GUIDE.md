@@ -1,6 +1,6 @@
 # SQLite Migration Guide
 
-How schema migrations work in Cardlytics and how to safely evolve the database.
+How schema migrations work in Vector and how to safely evolve the database.
 
 ## How It Works
 

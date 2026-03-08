@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Cardlytics** — a privacy-first credit card statement parser. Expo React Native frontend + FastAPI backend that extracts transactions from PDF statements using LLM-powered parsing with regex fallback.
+**Vector** — a privacy-first credit card statement parser. *Your Money. Directed.* Expo React Native frontend + FastAPI backend that extracts transactions from PDF statements using LLM-powered parsing with regex fallback.
 
 ## Commands
 

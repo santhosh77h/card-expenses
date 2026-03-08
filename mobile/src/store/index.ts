@@ -347,7 +347,7 @@ export const useStore = create<AppState>()(
       },
     }),
     {
-      name: 'cardlytics-storage',
+      name: 'vector-storage',
       storage: createJSONStorage(() => asyncStorageAdapter),
       partialize: (state) => ({
         cards: state.cards,

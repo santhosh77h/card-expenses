@@ -11,7 +11,7 @@ export function getDb(): DB {
 export async function initDatabase(): Promise<void> {
   if (db) return;
 
-  db = open({ name: 'cardlytics.db' });
+  db = open({ name: 'vector.db' });
   db.executeSync('PRAGMA journal_mode = WAL');
   db.executeSync('PRAGMA foreign_keys = ON');
 

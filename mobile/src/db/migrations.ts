@@ -56,7 +56,7 @@ export async function migrateFromAsyncStorage(db: DB): Promise<void> {
     return;
   }
 
-  const raw = await AsyncStorage.getItem('cardlytics-storage');
+  const raw = await AsyncStorage.getItem('vector-storage');
   if (!raw) {
     db.executeSync(`INSERT OR REPLACE INTO meta (key, value) VALUES ('asyncstorage_migrated', 'true')`);
     return;
@@ -148,5 +148,5 @@ export async function migrateFromAsyncStorage(db: DB): Promise<void> {
     },
     version: parsed.version,
   };
-  await AsyncStorage.setItem('cardlytics-storage', JSON.stringify(trimmed));
+  await AsyncStorage.setItem('vector-storage', JSON.stringify(trimmed));
 }

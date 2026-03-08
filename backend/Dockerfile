@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-RUN groupadd -r cardlytics && useradd -r -g cardlytics cardlytics
+RUN groupadd -r vector && useradd -r -g vector vector
 
 WORKDIR /app
 
@@ -9,9 +9,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN chown -R cardlytics:cardlytics /app
+RUN chown -R vector:vector /app
 
-USER cardlytics
+USER vector
 
 EXPOSE 8000
 

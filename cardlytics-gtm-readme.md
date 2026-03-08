@@ -1,17 +1,17 @@
-# 📋 Cardlytics — GTM README
-> **Use this file with Claude to build, extend, ship, and market Cardlytics.**
+# 📋 Vector — GTM README
+> **Use this file with Claude to build, extend, ship, and market Vector.**
 > Share this document at the start of any Claude session for full context.
 
 ---
 
-## 1. What Is Cardlytics?
+## 1. What Is Vector?
 
-**Cardlytics** is a privacy-first, cross-platform expense tracker that parses credit card PDF statements, assigns AI-powered spending categories, visualizes transactions, and exports data as CSV — all without storing any user financial data on the server.
+**Vector** is a privacy-first, cross-platform expense tracker that parses credit card PDF statements, assigns AI-powered spending categories, visualizes transactions, and exports data as CSV — all without storing any user financial data on the server.
 
 | Dimension | Detail |
 |---|---|
 | **Product type** | Mobile app (React Native) + Python API |
-| **Core promise** | "Your statement. Your data. Your device." |
+| **Core promise** | "Your Money. Directed." |
 | **Key differentiator** | Zero financial data storage — PDF parsed in memory, discarded immediately |
 | **Primary user** | Urban professionals, 25–40, managing 2–4 credit cards |
 | **Monetization** | Freemium: free core + Pro ($2.99/mo) for multi-card history, export, insights |
@@ -102,7 +102,7 @@ Server logs    → no financial data logged
 ## 5. Project File Structure
 
 ```
-cardlytics/
+vector/
 ├── README.md                          ← this file
 ├── backend/
 │   ├── main.py                        ← FastAPI routes (/parse-statement/json)
@@ -257,7 +257,7 @@ Returns `{ "status": "ok", "privacy": "no-data-stored" }`
 
 | App | CC Tracking | Statement Import | Privacy | Free Tier | Platform |
 |---|---|---|---|---|---|
-| **Cardlytics** | ✅ Full | ✅ PDF parse | ✅ Zero storage | ✅ Core free | iOS + Android + Web |
+| **Vector** | ✅ Full | ✅ PDF parse | ✅ Zero storage | ✅ Core free | iOS + Android |
 | Cashew | ❌ None | ❌ None | ✅ Local-first | ✅ Full free | Android + iOS |
 | YNAB | ⚠️ Basic | ❌ None | ❌ Cloud stored | ❌ $109/yr | All |
 | Wallet (BudgetBakers) | ⚠️ Limit only | ❌ None | ❌ Cloud stored | ⚠️ Limited | All |
@@ -365,25 +365,25 @@ Returns `{ "status": "ok", "privacy": "no-data-stored" }`
 Copy and paste this entire README into a Claude conversation to:
 
 ### Build new features
-> *"Using the Cardlytics README context, build a multi-month trend chart screen that shows spending per category over the last 3 statement periods."*
+> *"Using the Vector README context, build a multi-month trend chart screen that shows spending per category over the last 3 statement periods."*
 
 ### Fix bugs
-> *"Using the Cardlytics README context, the PDF parser is not detecting transactions for Kotak Bank statements. Add a Kotak-specific parser to parser.py."*
+> *"Using the Vector README context, the PDF parser is not detecting transactions for Kotak Bank statements. Add a Kotak-specific parser to parser.py."*
 
 ### Write marketing copy
-> *"Using the Cardlytics README context, write a Product Hunt launch post, tagline, and 3 bullet points that emphasize privacy and ease of use."*
+> *"Using the Vector README context, write a Product Hunt launch post, tagline, and 3 bullet points that emphasize privacy and ease of use."*
 
 ### Add a new screen
-> *"Using the Cardlytics README context, create a BudgetScreen.tsx that lets users set monthly budget limits per category and shows progress bars."*
+> *"Using the Vector README context, create a BudgetScreen.tsx that lets users set monthly budget limits per category and shows progress bars."*
 
 ### Write the privacy policy
-> *"Using the Cardlytics README context, write a privacy policy suitable for App Store submission."*
+> *"Using the Vector README context, write a privacy policy suitable for App Store submission."*
 
 ### Generate test data
-> *"Using the Cardlytics README context, generate 50 realistic test transactions that cover all 12 categories for an HDFC Regalia statement."*
+> *"Using the Vector README context, generate 50 realistic test transactions that cover all 12 categories for an HDFC Regalia statement."*
 
 ### Extend the categorizer
-> *"Using the Cardlytics README context, add 20 more keywords to the Groceries and Food & Dining categories in categorizer.py, focused on Indian D2C brands."*
+> *"Using the Vector README context, add 20 more keywords to the Groceries and Food & Dining categories in categorizer.py, focused on Indian D2C brands."*
 
 ---
 
@@ -397,7 +397,7 @@ LOG_LEVEL=INFO
 # No database URL — intentional
 
 # Mobile (app.config.js or .env)
-EXPO_PUBLIC_API_URL=https://api.cardlytics.app
+EXPO_PUBLIC_API_URL=https://api.vector.app
 EXPO_PUBLIC_API_URL_DEV=http://localhost:8000
 ```
 
@@ -441,8 +441,8 @@ railway up
 ### Backend (Docker / any VPS)
 ```bash
 cd backend
-docker build -t cardlytics-api .
-docker run -p 8000:8000 cardlytics-api
+docker build -t vector-api .
+docker run -p 8000:8000 vector-api
 ```
 
 ### Mobile (Expo EAS Build)
@@ -460,12 +460,12 @@ eas build --platform all --profile production
 
 | | |
 |---|---|
-| **Project name** | Cardlytics |
+| **Project name** | Vector |
 | **Version** | 1.0.0 (MVP) |
 | **License** | MIT |
 | **Primary language** | TypeScript (mobile), Python (backend) |
 | **Target stores** | Apple App Store, Google Play Store |
-| **Web demo** | cardlytics-mvp.html (single-file, shareable) |
+| **Web demo** | vector-mvp.html (single-file, shareable) |
 
 ---
 

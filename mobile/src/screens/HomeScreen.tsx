@@ -58,8 +58,8 @@ export default function HomeScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Cardlytics</Text>
-          <Text style={styles.subtitle}>Your statement. Your data. Your device.</Text>
+          <Text style={styles.title}>Vector</Text>
+          <Text style={styles.subtitle}>Your Money. Directed.</Text>
         </View>
         <EmptyState
           icon="credit-card"
@@ -88,8 +88,8 @@ export default function HomeScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Cardlytics</Text>
-        <Text style={styles.subtitle}>Your statement. Your data. Your device.</Text>
+        <Text style={styles.title}>Vector</Text>
+        <Text style={styles.subtitle}>Your Money. Directed.</Text>
       </View>
 
       {/* Portfolio Card */}

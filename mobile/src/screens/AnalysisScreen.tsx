@@ -115,7 +115,7 @@ export default function AnalysisScreen() {
         await Share.share({ message: csv, title: 'Statement Export' });
         return;
       }
-      const path = `${FileSystem.cacheDirectory}cardlytics-export.csv`;
+      const path = `${FileSystem.cacheDirectory}vector-export.csv`;
       await FileSystem.writeAsStringAsync(path, csv);
       await Sharing.shareAsync(path, {
         mimeType: 'text/csv',

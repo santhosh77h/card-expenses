@@ -1,5 +1,5 @@
 """
-Cardlytics API — privacy-first credit card statement parser.
+Vector API — privacy-first credit card statement parser.
 
 All PDF processing happens in-memory. No financial data is ever stored.
 """
@@ -50,7 +50,7 @@ def create_app() -> FastAPI:
     _configure_logging()
 
     app = FastAPI(
-        title="Cardlytics API",
+        title="Vector API",
         description="Privacy-first credit card statement parser. No data stored.",
         version="1.0.0",
         docs_url="/docs" if not settings.is_production else None,

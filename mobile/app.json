@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Cardlytics",
-    "slug": "cardlytics",
+    "name": "Vector",
+    "slug": "vector",
     "version": "1.0.0",
-    "scheme": "cardlytics",
+    "scheme": "vector",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

@@ -214,7 +214,7 @@ export default function UploadScreen() {
 
     const demoHash = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
-      'cardlytics-demo-statement-v1',
+      'vector-demo-statement-v1',
     );
     if (checkDuplicate(demoHash)) return;
 

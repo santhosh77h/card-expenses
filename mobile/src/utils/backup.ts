@@ -27,7 +27,7 @@ export interface BackupSummary {
 
 export interface BackupData {
   version: number;
-  appName: 'cardlytics';
+  appName: 'vector';
   exportedAt: string;
   summary: BackupSummary;
   data: {
@@ -45,7 +45,7 @@ export interface BackupData {
 // Envelope for encrypted backups — keeps appName visible so we can identify
 // the file without decrypting, and the summary so we can show a preview.
 export interface EncryptedBackup {
-  appName: 'cardlytics';
+  appName: 'vector';
   encrypted: true;
   summary: BackupSummary;
   exportedAt: string;
@@ -77,11 +77,11 @@ export function validateBackup(json: any): { valid: true; data: BackupData } | {
   if (!json || typeof json !== 'object') {
     return { valid: false, error: 'The selected file is not valid JSON.' };
   }
-  if (json.appName !== 'cardlytics') {
-    return { valid: false, error: 'This file is not a Cardlytics backup.' };
+  if (json.appName !== 'vector') {
+    return { valid: false, error: 'This file is not a Vector backup.' };
   }
   if (typeof json.version !== 'number' || json.version > 1) {
-    return { valid: false, error: 'This backup was created by a newer version of the app. Please update Cardlytics.' };
+    return { valid: false, error: 'This backup was created by a newer version of the app. Please update Vector.' };
   }
   if (!json.data || typeof json.data !== 'object') {
     return { valid: false, error: 'Backup file is missing data.' };
@@ -94,7 +94,7 @@ export function validateBackup(json: any): { valid: true; data: BackupData } | {
 }
 
 export function isEncryptedBackup(json: any): json is EncryptedBackup {
-  return json && json.appName === 'cardlytics' && json.encrypted === true && typeof json.payload === 'string';
+  return json && json.appName === 'vector' && json.encrypted === true && typeof json.payload === 'string';
 }
 
 export function decryptBackup(encrypted: EncryptedBackup, password: string): BackupData {
@@ -147,7 +147,7 @@ export async function exportBackup(password: string): Promise<void> {
 
   const backup: BackupData = {
     version: 1,
-    appName: 'cardlytics',
+    appName: 'vector',
     exportedAt: new Date().toISOString(),
     summary: {
       cardCount: cards.length,
@@ -170,11 +170,11 @@ export async function exportBackup(password: string): Promise<void> {
 
   const now = new Date();
   const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-  const filename = `cardlytics-backup-${ts}.json`;
+  const filename = `vector-backup-${ts}.json`;
   const filePath = `${FileSystem.cacheDirectory}${filename}`;
 
   const envelope: EncryptedBackup = {
-    appName: 'cardlytics',
+    appName: 'vector',
     encrypted: true,
     summary: backup.summary,
     exportedAt: backup.exportedAt,
@@ -185,7 +185,7 @@ export async function exportBackup(password: string): Promise<void> {
   await FileSystem.writeAsStringAsync(filePath, fileContent);
   await Sharing.shareAsync(filePath, {
     mimeType: 'application/json',
-    dialogTitle: 'Export Cardlytics Backup',
+    dialogTitle: 'Export Vector Backup',
     UTI: 'public.json',
   });
 }
@@ -215,10 +215,10 @@ export async function importBackup(): Promise<EncryptedBackup | null> {
   }
 
   if (!isEncryptedBackup(parsed)) {
-    if (parsed && parsed.appName === 'cardlytics') {
+    if (parsed && parsed.appName === 'vector') {
       throw new Error('This backup is not encrypted and cannot be imported. Please re-export with a password.');
     }
-    throw new Error('This file is not a Cardlytics backup.');
+    throw new Error('This file is not a Vector backup.');
   }
 
   return parsed;
@@ -310,7 +310,7 @@ export function restoreBackup(backup: BackupData): void {
     state: { cards, activeCardId },
     version: 0,
   });
-  AsyncStorage.setItem('cardlytics-storage', persistPayload);
+  AsyncStorage.setItem('vector-storage', persistPayload);
 
   // Rehydrate Zustand
   useStore.setState({ cards, activeCardId });
