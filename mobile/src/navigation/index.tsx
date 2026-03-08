@@ -7,7 +7,7 @@ import { colors } from '../theme';
 import HomeScreen from '../screens/HomeScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import UploadScreen from '../screens/UploadScreen';
-import AddCardScreen from '../screens/AddCardScreen';
+import CardsScreen from '../screens/CardsScreen';
 import AnalysisScreen from '../screens/AnalysisScreen';
 import AddTransactionScreen from '../screens/AddTransactionScreen';
 
@@ -69,7 +69,7 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Transactions" component={TransactionsScreen} />
       <Tab.Screen name="Upload" component={UploadScreen} />
-      <Tab.Screen name="Cards" component={AddCardScreen} />
+      <Tab.Screen name="Cards" component={CardsScreen} />
     </Tab.Navigator>
   );
 }

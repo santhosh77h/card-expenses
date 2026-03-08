@@ -120,3 +120,20 @@ export function formatCurrency(amount: number, currency: CurrencyCode = 'INR'): 
 export function formatINR(amount: number): string {
   return formatCurrency(amount, 'INR');
 }
+
+// ---------------------------------------------------------------------------
+// Chart palette — 10 high-contrast colors for multi-series charts on dark bg
+// ---------------------------------------------------------------------------
+
+export const chartPalette = [
+  '#5B8DEF', // blue
+  '#FF6B8A', // rose
+  '#36D7B7', // teal
+  '#A78BFA', // purple
+  '#FB923C', // orange
+  '#22D3EE', // cyan
+  '#FBBF24', // amber
+  '#F472B6', // hot pink
+  '#34D399', // emerald
+  '#C084FC', // violet
+];

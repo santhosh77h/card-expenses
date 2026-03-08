@@ -29,6 +29,16 @@ export function findByHash(hash: string): FileHashRecord | null {
   };
 }
 
+export function getAllFileHashes(): FileHashRecord[] {
+  const result = getDb().executeSync(`SELECT * FROM file_hashes`);
+  return result.rows.map((row) => ({
+    hash: row.hash as string,
+    statementId: row.statementId as string,
+    cardId: row.cardId as string,
+    createdAt: row.createdAt as string,
+  }));
+}
+
 export function deleteFileHashesByStatementId(statementId: string): void {
   getDb().executeSync(`DELETE FROM file_hashes WHERE statementId = ?`, [statementId]);
 }

@@ -1,3 +1,4 @@
+import './src/utils/cryptoPolyfill';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
