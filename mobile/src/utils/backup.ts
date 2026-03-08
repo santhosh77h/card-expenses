@@ -35,6 +35,7 @@ export interface BackupData {
     activeCardId: string | null;
     statements: Record<string, StatementData[]>;
     manualTransactions: Transaction[];
+    importedStatementIds: string[];
     enrichments: Record<string, TransactionEnrichment>;
     monthlyUsage: MonthlyUsage[];
     fileHashes: FileHashRecord[];
@@ -116,12 +117,19 @@ export function decryptBackup(encrypted: EncryptedBackup, password: string): Bac
 // ---------------------------------------------------------------------------
 
 export async function exportBackup(password: string): Promise<void> {
+  const db = getDb();
   const { cards, activeCardId } = useStore.getState();
   const statements = dbStmts.getAllStatements();
   const manualTransactions = dbTxns.getManualTransactions();
   const enrichments = dbEnrich.getAllEnrichments();
   const monthlyUsage = dbUsage.getAllMonthlyUsage();
   const fileHashes = dbFileHashes.getAllFileHashes();
+
+  // Track which statements had their transactions imported to the transaction list
+  const importedResult = db.executeSync(
+    `SELECT DISTINCT statementId FROM transactions WHERE source = 'statement' AND isImported = 1 AND statementId IS NOT NULL`,
+  );
+  const importedStatementIds = importedResult.rows.map((r) => r.statementId as string);
 
   // Strip receiptUri from enrichments (local paths aren't transferable)
   const cleanedEnrichments: Record<string, TransactionEnrichment> = {};
@@ -153,6 +161,7 @@ export async function exportBackup(password: string): Promise<void> {
       activeCardId,
       statements,
       manualTransactions,
+      importedStatementIds,
       enrichments: cleanedEnrichments,
       monthlyUsage,
       fileHashes,
@@ -221,7 +230,8 @@ export async function importBackup(): Promise<EncryptedBackup | null> {
 
 export function restoreBackup(backup: BackupData): void {
   const db = getDb();
-  const { cards, activeCardId, statements, manualTransactions, enrichments, monthlyUsage, fileHashes } = backup.data;
+  const { cards, activeCardId, statements, manualTransactions, importedStatementIds, enrichments, monthlyUsage, fileHashes } = backup.data;
+  const importedSet = new Set(importedStatementIds ?? []);
 
   db.executeSync('BEGIN');
   try {
@@ -240,12 +250,13 @@ export function restoreBackup(backup: BackupData): void {
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [stmt.id, cardId, stmt.parsedAt, JSON.stringify(stmt.summary), stmt.csv, stmt.bankDetected, stmt.currency ?? null],
         );
+        const imported = importedSet.has(stmt.id) ? 1 : 0;
         for (const txn of stmt.transactions) {
           db.executeSync(
             `INSERT OR REPLACE INTO transactions
               (id, date, description, amount, category, category_color, category_icon, type, cardId, currency, source, statementId, isImported, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'statement', ?, 0, strftime('%s','now'))`,
-            [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, cardId, txn.currency ?? null, stmt.id],
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'statement', ?, ?, strftime('%s','now'))`,
+            [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, cardId, txn.currency ?? null, stmt.id, imported],
           );
         }
       }
