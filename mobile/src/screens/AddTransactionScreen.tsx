@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,9 @@ export default function AddTransactionScreen() {
     cards[0]?.id
   );
   const [notes, setNotes] = useState('');
+  const amountRef = useRef<TextInput>(null);
+  const dateRef = useRef<TextInput>(null);
+  const notesRef = useRef<TextInput>(null);
 
   const categoryInfo = useMemo(
     () => categorizeTransaction(description),
@@ -82,6 +85,8 @@ export default function AddTransactionScreen() {
           value={description}
           onChangeText={setDescription}
           autoFocus
+          returnKeyType="next"
+          onSubmitEditing={() => amountRef.current?.focus()}
         />
 
         {/* Live category preview */}
@@ -108,22 +113,28 @@ export default function AddTransactionScreen() {
         {/* Amount */}
         <Text style={styles.label}>Amount ({currencySymbol} {cardCurrency})</Text>
         <TextInput
+          ref={amountRef}
           style={styles.input}
           placeholder={`e.g. ${currencySymbol}450`}
           placeholderTextColor={colors.textMuted}
           value={amount}
           onChangeText={setAmount}
           keyboardType="decimal-pad"
+          returnKeyType="next"
+          onSubmitEditing={() => dateRef.current?.focus()}
         />
 
         {/* Date */}
         <Text style={styles.label}>Date</Text>
         <TextInput
+          ref={dateRef}
           style={styles.input}
           placeholder="YYYY-MM-DD"
           placeholderTextColor={colors.textMuted}
           value={date}
           onChangeText={setDate}
+          returnKeyType="next"
+          onSubmitEditing={() => notesRef.current?.focus()}
         />
 
         {/* Card selector */}
@@ -217,12 +228,14 @@ export default function AddTransactionScreen() {
         {/* Notes (optional) */}
         <Text style={styles.label}>Notes (optional)</Text>
         <TextInput
+          ref={notesRef}
           style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
           placeholder="Add a note..."
           placeholderTextColor={colors.textMuted}
           value={notes}
           onChangeText={setNotes}
           multiline
+          returnKeyType="done"
         />
 
         {/* Save button */}

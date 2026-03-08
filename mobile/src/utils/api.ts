@@ -47,13 +47,8 @@ export async function parseStatement(
     }
   );
 
-  // Backend doesn't send id — generate one per transaction
   const data = response.data;
-  data.transactions = data.transactions.map((t, i) => ({
-    ...t,
-    id: t.id || `api-${Date.now()}-${i}`,
-  }));
-  return data;
+  return validateParseResult(data);
 }
 
 // ---------------------------------------------------------------------------
@@ -62,30 +57,30 @@ export async function parseStatement(
 
 export function parseDemoStatement(): ParseResult {
   const transactions: Transaction[] = [
-    { id: 'demo-1', date: '2024-01-03', description: 'Swiggy Order #48291', amount: 456.0, category: 'Food & Dining', category_color: '#FF6B6B', category_icon: 'fork-knife', type: 'debit' },
-    { id: 'demo-2', date: '2024-01-05', description: 'Zomato Gold - Barbeque Nation', amount: 1850.0, category: 'Food & Dining', category_color: '#FF6B6B', category_icon: 'fork-knife', type: 'debit' },
-    { id: 'demo-3', date: '2024-01-06', description: 'Starbucks Reserve MG Road', amount: 680.0, category: 'Food & Dining', category_color: '#FF6B6B', category_icon: 'fork-knife', type: 'debit' },
-    { id: 'demo-4', date: '2024-01-04', description: 'BigBasket Monthly Groceries', amount: 3240.0, category: 'Groceries', category_color: '#4ADE80', category_icon: 'shopping-cart', type: 'debit' },
-    { id: 'demo-5', date: '2024-01-12', description: 'Blinkit Instant Delivery', amount: 589.0, category: 'Groceries', category_color: '#4ADE80', category_icon: 'shopping-cart', type: 'debit' },
-    { id: 'demo-6', date: '2024-01-07', description: 'Amazon.in - Electronics', amount: 4299.0, category: 'Shopping', category_color: '#60A5FA', category_icon: 'shopping-bag', type: 'debit' },
-    { id: 'demo-7', date: '2024-01-15', description: 'Myntra Fashion Sale', amount: 2150.0, category: 'Shopping', category_color: '#60A5FA', category_icon: 'shopping-bag', type: 'debit' },
-    { id: 'demo-8', date: '2024-01-08', description: 'Uber Ride - Airport', amount: 890.0, category: 'Transportation', category_color: '#34D399', category_icon: 'car', type: 'debit' },
-    { id: 'demo-9', date: '2024-01-20', description: 'Indian Oil Petrol', amount: 3500.0, category: 'Transportation', category_color: '#34D399', category_icon: 'car', type: 'debit' },
-    { id: 'demo-10', date: '2024-01-09', description: 'Netflix Premium Monthly', amount: 649.0, category: 'Entertainment', category_color: '#A78BFA', category_icon: 'film', type: 'debit' },
-    { id: 'demo-11', date: '2024-01-09', description: 'Spotify Premium Annual', amount: 1189.0, category: 'Entertainment', category_color: '#A78BFA', category_icon: 'film', type: 'debit' },
-    { id: 'demo-12', date: '2024-01-10', description: 'Apollo Pharmacy - Medicines', amount: 1450.0, category: 'Health & Medical', category_color: '#FFB547', category_icon: 'heart-pulse', type: 'debit' },
-    { id: 'demo-13', date: '2024-01-22', description: 'Cult.fit Gym Membership', amount: 1500.0, category: 'Health & Medical', category_color: '#FFB547', category_icon: 'heart-pulse', type: 'debit' },
-    { id: 'demo-14', date: '2024-01-01', description: 'Jio Fiber Monthly', amount: 999.0, category: 'Utilities & Bills', category_color: '#F472B6', category_icon: 'zap', type: 'debit' },
-    { id: 'demo-15', date: '2024-01-05', description: 'BESCOM Electricity Bill', amount: 2100.0, category: 'Utilities & Bills', category_color: '#F472B6', category_icon: 'zap', type: 'debit' },
-    { id: 'demo-16', date: '2024-01-11', description: 'MakeMyTrip - Goa Hotel', amount: 5600.0, category: 'Travel', category_color: '#22D3EE', category_icon: 'plane', type: 'debit' },
-    { id: 'demo-17', date: '2024-01-11', description: 'IndiGo Flight BLR-GOI', amount: 3800.0, category: 'Travel', category_color: '#22D3EE', category_icon: 'plane', type: 'debit' },
-    { id: 'demo-18', date: '2024-01-14', description: 'Udemy - React Native Course', amount: 449.0, category: 'Education', category_color: '#818CF8', category_icon: 'book-open', type: 'debit' },
-    { id: 'demo-19', date: '2024-01-25', description: 'Kindle Unlimited Subscription', amount: 169.0, category: 'Education', category_color: '#818CF8', category_icon: 'book-open', type: 'debit' },
-    { id: 'demo-20', date: '2024-01-02', description: 'Groww - SIP Mutual Fund', amount: 5000.0, category: 'Finance & Investment', category_color: '#FBBF24', category_icon: 'trending-up', type: 'debit' },
-    { id: 'demo-21', date: '2024-01-02', description: 'Zerodha Brokerage', amount: 200.0, category: 'Finance & Investment', category_color: '#FBBF24', category_icon: 'trending-up', type: 'debit' },
-    { id: 'demo-22', date: '2024-01-18', description: 'Google Pay Transfer', amount: 2000.0, category: 'Transfers', category_color: '#94A3B8', category_icon: 'repeat', type: 'debit' },
-    { id: 'demo-23', date: '2024-01-13', description: 'Cashback Reward - Amazon', amount: 430.0, category: 'Shopping', category_color: '#60A5FA', category_icon: 'shopping-bag', type: 'credit' },
-    { id: 'demo-24', date: '2024-01-28', description: 'Refund - Myntra Return', amount: 899.0, category: 'Shopping', category_color: '#60A5FA', category_icon: 'shopping-bag', type: 'credit' },
+    { id: 'demo-1', date: '2024-01-03', description: 'Swiggy Order #48291', amount: 456.0, category: 'Food & Dining', category_color: categoryColors['Food & Dining'], category_icon: 'fork-knife', type: 'debit' },
+    { id: 'demo-2', date: '2024-01-05', description: 'Zomato Gold - Barbeque Nation', amount: 1850.0, category: 'Food & Dining', category_color: categoryColors['Food & Dining'], category_icon: 'fork-knife', type: 'debit' },
+    { id: 'demo-3', date: '2024-01-06', description: 'Starbucks Reserve MG Road', amount: 680.0, category: 'Food & Dining', category_color: categoryColors['Food & Dining'], category_icon: 'fork-knife', type: 'debit' },
+    { id: 'demo-4', date: '2024-01-04', description: 'BigBasket Monthly Groceries', amount: 3240.0, category: 'Groceries', category_color: categoryColors['Groceries'], category_icon: 'shopping-cart', type: 'debit' },
+    { id: 'demo-5', date: '2024-01-12', description: 'Blinkit Instant Delivery', amount: 589.0, category: 'Groceries', category_color: categoryColors['Groceries'], category_icon: 'shopping-cart', type: 'debit' },
+    { id: 'demo-6', date: '2024-01-07', description: 'Amazon.in - Electronics', amount: 4299.0, category: 'Shopping', category_color: categoryColors['Shopping'], category_icon: 'shopping-bag', type: 'debit' },
+    { id: 'demo-7', date: '2024-01-15', description: 'Myntra Fashion Sale', amount: 2150.0, category: 'Shopping', category_color: categoryColors['Shopping'], category_icon: 'shopping-bag', type: 'debit' },
+    { id: 'demo-8', date: '2024-01-08', description: 'Uber Ride - Airport', amount: 890.0, category: 'Transportation', category_color: categoryColors['Transportation'], category_icon: 'car', type: 'debit' },
+    { id: 'demo-9', date: '2024-01-20', description: 'Indian Oil Petrol', amount: 3500.0, category: 'Transportation', category_color: categoryColors['Transportation'], category_icon: 'car', type: 'debit' },
+    { id: 'demo-10', date: '2024-01-09', description: 'Netflix Premium Monthly', amount: 649.0, category: 'Entertainment', category_color: categoryColors['Entertainment'], category_icon: 'film', type: 'debit' },
+    { id: 'demo-11', date: '2024-01-09', description: 'Spotify Premium Annual', amount: 1189.0, category: 'Entertainment', category_color: categoryColors['Entertainment'], category_icon: 'film', type: 'debit' },
+    { id: 'demo-12', date: '2024-01-10', description: 'Apollo Pharmacy - Medicines', amount: 1450.0, category: 'Health & Medical', category_color: categoryColors['Health & Medical'], category_icon: 'heart-pulse', type: 'debit' },
+    { id: 'demo-13', date: '2024-01-22', description: 'Cult.fit Gym Membership', amount: 1500.0, category: 'Health & Medical', category_color: categoryColors['Health & Medical'], category_icon: 'heart-pulse', type: 'debit' },
+    { id: 'demo-14', date: '2024-01-01', description: 'Jio Fiber Monthly', amount: 999.0, category: 'Utilities & Bills', category_color: categoryColors['Utilities & Bills'], category_icon: 'zap', type: 'debit' },
+    { id: 'demo-15', date: '2024-01-05', description: 'BESCOM Electricity Bill', amount: 2100.0, category: 'Utilities & Bills', category_color: categoryColors['Utilities & Bills'], category_icon: 'zap', type: 'debit' },
+    { id: 'demo-16', date: '2024-01-11', description: 'MakeMyTrip - Goa Hotel', amount: 5600.0, category: 'Travel', category_color: categoryColors['Travel'], category_icon: 'plane', type: 'debit' },
+    { id: 'demo-17', date: '2024-01-11', description: 'IndiGo Flight BLR-GOI', amount: 3800.0, category: 'Travel', category_color: categoryColors['Travel'], category_icon: 'plane', type: 'debit' },
+    { id: 'demo-18', date: '2024-01-14', description: 'Udemy - React Native Course', amount: 449.0, category: 'Education', category_color: categoryColors['Education'], category_icon: 'book-open', type: 'debit' },
+    { id: 'demo-19', date: '2024-01-25', description: 'Kindle Unlimited Subscription', amount: 169.0, category: 'Education', category_color: categoryColors['Education'], category_icon: 'book-open', type: 'debit' },
+    { id: 'demo-20', date: '2024-01-02', description: 'Groww - SIP Mutual Fund', amount: 5000.0, category: 'Finance & Investment', category_color: categoryColors['Finance & Investment'], category_icon: 'trending-up', type: 'debit' },
+    { id: 'demo-21', date: '2024-01-02', description: 'Zerodha Brokerage', amount: 200.0, category: 'Finance & Investment', category_color: categoryColors['Finance & Investment'], category_icon: 'trending-up', type: 'debit' },
+    { id: 'demo-22', date: '2024-01-18', description: 'Google Pay Transfer', amount: 2000.0, category: 'Transfers', category_color: categoryColors['Transfers'], category_icon: 'repeat', type: 'debit' },
+    { id: 'demo-23', date: '2024-01-13', description: 'Cashback Reward - Amazon', amount: 430.0, category: 'Shopping', category_color: categoryColors['Shopping'], category_icon: 'shopping-bag', type: 'credit' },
+    { id: 'demo-24', date: '2024-01-28', description: 'Refund - Myntra Return', amount: 899.0, category: 'Shopping', category_color: categoryColors['Shopping'], category_icon: 'shopping-bag', type: 'credit' },
   ];
 
   const totalDebits = transactions
@@ -170,6 +165,41 @@ export function categorizeTransaction(description: string): {
     category: 'Other',
     category_color: categoryColors['Other'],
     category_icon: 'help-circle',
+  };
+}
+
+function validateParseResult(data: any): ParseResult {
+  const transactions: Transaction[] = Array.isArray(data.transactions)
+    ? data.transactions.map((t: any, i: number) => ({
+        id: t.id || `api-${Date.now()}-${i}`,
+        date: t.date || 'Unknown',
+        description: t.description || 'Unknown',
+        amount: typeof t.amount === 'number' ? t.amount : 0,
+        category: t.category || 'Other',
+        category_color: t.category_color || categoryColors['Other'],
+        category_icon: t.category_icon || 'help-circle',
+        type: t.type === 'credit' ? 'credit' : 'debit',
+        cardId: t.cardId,
+        currency: t.currency,
+      }))
+    : [];
+
+  const summary = data.summary || {
+    total_transactions: transactions.length,
+    total_debits: 0,
+    total_credits: 0,
+    net: 0,
+    categories: {},
+    statement_period: { from: null, to: null },
+  };
+
+  return {
+    transactions,
+    summary,
+    csv: data.csv || '',
+    bank_detected: data.bank_detected || 'generic',
+    card_info: data.card_info ?? null,
+    currency_detected: data.currency_detected,
   };
 }
 

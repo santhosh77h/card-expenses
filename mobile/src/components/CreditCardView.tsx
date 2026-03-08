@@ -16,7 +16,7 @@ interface Props {
   compact?: boolean;
 }
 
-export default function CreditCardView({ card, compact = false }: Props) {
+function CreditCardView({ card, compact = false }: Props) {
   const width = compact ? 280 : 340;
   const height = compact ? 160 : 200;
 
@@ -82,6 +82,8 @@ export default function CreditCardView({ card, compact = false }: Props) {
     </View>
   );
 }
+
+export default React.memo(CreditCardView);
 
 const styles = StyleSheet.create({
   card: {

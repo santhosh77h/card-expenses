@@ -9,24 +9,15 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, fontSize, SUPPORTED_CURRENCIES, CURRENCY_CONFIG, CurrencyCode } from '../theme';
 import { useStore, CreditCard } from '../store';
 import { Card, PrimaryButton, SectionHeader } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
-
-const ISSUERS = ['HDFC Bank', 'ICICI Bank', 'SBI Card', 'Axis Bank', 'Chase', 'American Express', 'Citi', 'Other'];
-const NETWORKS = ['Visa', 'Mastercard', 'American Express', 'RuPay'];
-
-const ISSUER_CURRENCY: Record<string, CurrencyCode> = {
-  'HDFC Bank': 'INR', 'ICICI Bank': 'INR', 'SBI Card': 'INR', 'Axis Bank': 'INR',
-  'Chase': 'USD', 'Citi': 'USD', 'American Express': 'INR', 'Other': 'INR',
-};
-const CARD_COLORS = [
-  '#1E3A5F', '#2D1B69', '#1B4332', '#4A1942', '#1C1C1C',
-  '#0F3460', '#3C1518', '#1A535C',
-];
+import { ISSUERS, NETWORKS, ISSUER_CURRENCY, CARD_COLORS } from '../constants/cards';
 
 export default function AddCardScreen() {
+  const insets = useSafeAreaInsets();
   const { cards, addCard, removeCard } = useStore();
 
   const [nickname, setNickname] = useState('');
@@ -104,7 +95,7 @@ export default function AddCardScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Cards</Text>
         <Text style={styles.subtitle}>Manage your credit cards</Text>
       </View>
@@ -273,7 +264,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },

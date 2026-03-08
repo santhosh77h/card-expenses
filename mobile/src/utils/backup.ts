@@ -188,6 +188,13 @@ export async function exportBackup(password: string): Promise<void> {
     dialogTitle: 'Export Vector Backup',
     UTI: 'public.json',
   });
+
+  // Clean up cache file after sharing
+  try {
+    await FileSystem.deleteAsync(filePath, { idempotent: true });
+  } catch {
+    // Non-fatal — cache will be cleaned up by OS eventually
+  }
 }
 
 // ---------------------------------------------------------------------------

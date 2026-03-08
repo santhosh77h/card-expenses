@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -27,6 +29,7 @@ type NavProp = CompositeNavigationProp<
 
 export default function TransactionsScreen() {
   const navigation = useNavigation<NavProp>();
+  const insets = useSafeAreaInsets();
   const { cards, manualTransactions, enrichments } = useStore();
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -149,7 +152,7 @@ export default function TransactionsScreen() {
     return `${names[parseInt(m, 10) - 1]} ${y}`;
   };
 
-  const renderItem = ({ item }: { item: Transaction }) => {
+  const renderItem = useCallback(({ item }: { item: Transaction }) => {
     const txnCard = item.cardId ? cardMap[item.cardId] : undefined;
     const enrichment = enrichments[item.id];
     return (
@@ -199,12 +202,12 @@ export default function TransactionsScreen() {
       </View>
     </TouchableOpacity>
     );
-  };
+  }, [cardMap, enrichments]);
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Transactions</Text>
       </View>
 
@@ -215,7 +218,7 @@ export default function TransactionsScreen() {
             title="No Transactions Yet"
             subtitle="Add your first transaction to see it auto-categorized and tracked here."
           />
-          <View style={{ paddingHorizontal: spacing.lg }}>
+          <View style={styles.listHeader}>
             <PrimaryButton
               title="Add Transaction"
               icon="plus"
@@ -229,7 +232,7 @@ export default function TransactionsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ListHeaderComponent={
-            <View style={{ paddingHorizontal: spacing.lg }}>
+            <View style={styles.listHeader}>
               <Card>
                 <StatRow
                   label="Total Transactions"
@@ -300,6 +303,9 @@ export default function TransactionsScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  onSubmitEditing={Keyboard.dismiss}
+                  accessibilityLabel="Search transactions"
                 />
               </View>
 
@@ -433,6 +439,8 @@ export default function TransactionsScreen() {
                 <TouchableOpacity
                   style={styles.sortToggle}
                   onPress={() => setSortBy(sortBy === 'date' ? 'amount' : 'date')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sort ${sortBy === 'date' ? 'by date' : 'by amount'}`}
                 >
                   <Feather name="repeat" size={14} color={colors.textSecondary} />
                   <Text style={styles.sortToggleText}>
@@ -465,7 +473,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
   },
@@ -599,5 +606,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '600',
     marginLeft: spacing.xs,
+  },
+  listHeader: {
+    paddingHorizontal: spacing.lg,
   },
 });

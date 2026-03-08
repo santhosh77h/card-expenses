@@ -15,7 +15,7 @@ interface Props {
   currency?: CurrencyCode;
 }
 
-export function CategoryPieChart({ categories, currency }: Props) {
+export const CategoryPieChart = React.memo(function CategoryPieChart({ categories, currency }: Props) {
   const data = Object.entries(categories)
     .map(([name, val]) => ({ name, ...val }))
     .sort((a, b) => b.total - a.total);
@@ -69,9 +69,9 @@ export function CategoryPieChart({ categories, currency }: Props) {
       </View>
     </View>
   );
-}
+});
 
-export function CategoryBarChart({ categories, currency }: Props) {
+export const CategoryBarChart = React.memo(function CategoryBarChart({ categories, currency }: Props) {
   const data = Object.entries(categories)
     .map(([name, val]) => ({ name, ...val }))
     .sort((a, b) => b.total - a.total)
@@ -106,7 +106,7 @@ export function CategoryBarChart({ categories, currency }: Props) {
       })}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

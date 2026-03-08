@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
@@ -25,39 +26,61 @@ type NavProp = CompositeNavigationProp<
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
+  const insets = useSafeAreaInsets();
   const { cards, statements, activeCardId, setActiveCard, monthlyUsage } = useStore();
 
   // Get all statements across all cards
-  const allStatements: (StatementData & { cardNickname: string; cardCurrency: CurrencyCode })[] = [];
-  for (const card of cards) {
-    const cardStatements = statements[card.id] || [];
-    for (const stmt of cardStatements) {
-      allStatements.push({ ...stmt, cardNickname: card.nickname, cardCurrency: card.currency ?? 'INR' });
+  const allStatements = useMemo(() => {
+    const result: (StatementData & { cardNickname: string; cardCurrency: CurrencyCode })[] = [];
+    for (const card of cards) {
+      const cardStatements = statements[card.id] || [];
+      for (const stmt of cardStatements) {
+        result.push({ ...stmt, cardNickname: card.nickname, cardCurrency: card.currency ?? 'INR' });
+      }
     }
-  }
-  allStatements.sort(
-    (a, b) => new Date(b.parsedAt).getTime() - new Date(a.parsedAt).getTime()
-  );
+    result.sort(
+      (a, b) => new Date(b.parsedAt).getTime() - new Date(a.parsedAt).getTime()
+    );
+    return result;
+  }, [cards, statements]);
 
   // Group totals by currency
-  const currencyGroups: Record<string, { totalSpent: number; totalLimit: number }> = {};
-  for (const card of cards) {
-    const cur = card.currency ?? 'INR';
-    if (!currencyGroups[cur]) currencyGroups[cur] = { totalSpent: 0, totalLimit: 0 };
-    currencyGroups[cur].totalLimit += card.creditLimit;
-    const cardStmts = allStatements.filter((s) => s.cardId === card.id);
-    currencyGroups[cur].totalSpent += cardStmts.reduce((s, st) => s + (st.summary?.net || 0), 0);
-  }
-  const currencyKeys = Object.keys(currencyGroups) as CurrencyCode[];
-  const isSingleCurrency = currencyKeys.length <= 1;
-  const primaryCurrency = currencyKeys[0] ?? 'INR';
-  const primaryGroup = currencyGroups[primaryCurrency] ?? { totalSpent: 0, totalLimit: 0 };
-  const utilization = primaryGroup.totalLimit > 0 ? primaryGroup.totalSpent / primaryGroup.totalLimit : 0;
+  const { currencyGroups, currencyKeys, isSingleCurrency, primaryCurrency, primaryGroup, utilization } = useMemo(() => {
+    const groups: Record<string, { totalSpent: number; totalLimit: number }> = {};
+    for (const card of cards) {
+      const cur = card.currency ?? 'INR';
+      if (!groups[cur]) groups[cur] = { totalSpent: 0, totalLimit: 0 };
+      groups[cur].totalLimit += card.creditLimit;
+      const cardStmts = allStatements.filter((s) => s.cardId === card.id);
+      groups[cur].totalSpent += cardStmts.reduce((s, st) => s + (st.summary?.net || 0), 0);
+    }
+    const keys = Object.keys(groups) as CurrencyCode[];
+    const single = keys.length <= 1;
+    const primary = keys[0] ?? 'INR';
+    const pGroup = groups[primary] ?? { totalSpent: 0, totalLimit: 0 };
+    const util = pGroup.totalLimit > 0 ? pGroup.totalSpent / pGroup.totalLimit : 0;
+    return { currencyGroups: groups, currencyKeys: keys, isSingleCurrency: single, primaryCurrency: primary, primaryGroup: pGroup, utilization: util };
+  }, [cards, allStatements]);
+
+  const cardKeyExtractor = useCallback((item: typeof cards[0]) => item.id, []);
+  const renderCardItem = useCallback(({ item }: { item: typeof cards[0] }) => (
+    <TouchableOpacity
+      onPress={() => setActiveCard(item.id)}
+      activeOpacity={0.9}
+      style={
+        activeCardId === item.id
+          ? { borderWidth: 2, borderColor: colors.accent, borderRadius: borderRadius.xl }
+          : undefined
+      }
+    >
+      <CreditCardView card={item} compact />
+    </TouchableOpacity>
+  ), [activeCardId, setActiveCard]);
 
   if (cards.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <Text style={styles.title}>Vector</Text>
           <Text style={styles.subtitle}>Your Money. Directed.</Text>
         </View>
@@ -66,18 +89,18 @@ export default function HomeScreen() {
           title="No Cards Yet"
           subtitle="Add your first credit card to start tracking your expenses."
         />
-        <View style={{ paddingHorizontal: spacing.lg }}>
+        <View style={styles.paddedSection}>
           <PrimaryButton
             title="Add Your First Card"
             icon="plus"
-            onPress={() => navigation.navigate('Cards' as any)}
+            onPress={() => navigation.navigate('Tabs', { screen: 'Cards' })}
           />
           <View style={{ height: spacing.md }} />
           <PrimaryButton
             title="Try Demo Mode"
             icon="play"
             variant="outline"
-            onPress={() => navigation.navigate('Upload' as any)}
+            onPress={() => navigation.navigate('Tabs', { screen: 'Upload' })}
           />
         </View>
       </View>
@@ -87,13 +110,13 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Vector</Text>
         <Text style={styles.subtitle}>Your Money. Directed.</Text>
       </View>
 
       {/* Portfolio Card */}
-      <View style={{ paddingHorizontal: spacing.lg }}>
+      <View style={styles.paddedSection}>
         <Card>
           <Text style={styles.portfolioLabel}>Total Outstanding</Text>
           {isSingleCurrency ? (
@@ -170,27 +193,15 @@ export default function HomeScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => setActiveCard(item.id)}
-            activeOpacity={0.9}
-            style={
-              activeCardId === item.id
-                ? { borderWidth: 2, borderColor: colors.accent, borderRadius: borderRadius.xl }
-                : undefined
-            }
-          >
-            <CreditCardView card={item} compact />
-          </TouchableOpacity>
-        )}
+        keyExtractor={cardKeyExtractor}
+        renderItem={renderCardItem}
       />
 
       {/* Monthly Usage */}
       {monthlyUsage.length > 0 && (
         <View style={{ marginTop: spacing.xl }}>
           <SectionHeader title="Monthly Usage" />
-          <View style={{ paddingHorizontal: spacing.lg }}>
+          <View style={styles.paddedSection}>
             {cards.map((card) => {
               const latestUsage = monthlyUsage
                 .filter((u) => u.cardId === card.id)
@@ -231,7 +242,7 @@ export default function HomeScreen() {
       <View style={{ marginTop: spacing.xl }}>
         <SectionHeader title="Recent Statements" />
         {allStatements.length === 0 ? (
-          <View style={{ paddingHorizontal: spacing.lg }}>
+          <View style={styles.paddedSection}>
             <Card>
               <Text style={styles.noStatements}>
                 No statements yet. Upload a PDF to get started.
@@ -280,15 +291,15 @@ export default function HomeScreen() {
       </View>
 
       {/* Upload CTA */}
-      <View style={{ padding: spacing.lg, marginTop: spacing.md }}>
+      <View style={styles.ctaSection}>
         <PrimaryButton
           title="Upload Statement"
           icon="upload"
-          onPress={() => navigation.navigate('Upload' as any)}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Upload' })}
         />
       </View>
 
-      <View style={{ height: 40 }} />
+      <View style={styles.bottomSpacer} />
     </ScrollView>
   );
 }
@@ -299,7 +310,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
@@ -423,5 +433,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     marginTop: spacing.xs,
     textAlign: 'right',
+  },
+  paddedSection: {
+    paddingHorizontal: spacing.lg,
+  },
+  bottomSpacer: {
+    height: 40,
+  },
+  ctaSection: {
+    padding: spacing.lg,
+    marginTop: spacing.md,
   },
 });

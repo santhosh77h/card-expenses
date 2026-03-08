@@ -21,7 +21,7 @@ function abbreviate(n: number): string {
   return String(Math.round(n));
 }
 
-export default function DailySpendingChart({
+function DailySpendingChart({
   debitsByDay,
   daysInRange,
 }: DailySpendingChartProps) {
@@ -132,6 +132,8 @@ export default function DailySpendingChart({
     </View>
   );
 }
+
+export default React.memo(DailySpendingChart);
 
 const styles = StyleSheet.create({
   container: {

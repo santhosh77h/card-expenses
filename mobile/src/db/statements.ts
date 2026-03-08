@@ -1,7 +1,24 @@
 import { getDb } from './index';
 import { insertStatementTransactions, getTransactionsByStatementId } from './transactions';
-import type { StatementData } from '../store';
+import type { StatementData, StatementSummary } from '../store';
 import type { CurrencyCode } from '../theme';
+
+const EMPTY_SUMMARY: StatementSummary = {
+  total_transactions: 0,
+  total_debits: 0,
+  total_credits: 0,
+  net: 0,
+  categories: {},
+  statement_period: { from: null, to: null },
+};
+
+function safeParseSummary(raw: string): StatementSummary {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return EMPTY_SUMMARY;
+  }
+}
 
 export function insertStatement(cardId: string, stmt: StatementData): void {
   const db = getDb();
@@ -36,7 +53,7 @@ export function getAllStatements(): Record<string, StatementData[]> {
       cardId,
       parsedAt: row.parsedAt as string,
       transactions,
-      summary: JSON.parse(row.summary as string),
+      summary: safeParseSummary(row.summary as string),
       csv: row.csv as string,
       bankDetected: row.bankDetected as string,
       currency: (row.currency as CurrencyCode | null) ?? undefined,

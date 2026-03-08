@@ -14,7 +14,7 @@ import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode }
 // Card wrapper
 // ---------------------------------------------------------------------------
 
-export function Card({
+export const Card = React.memo(function Card({
   children,
   style,
 }: {
@@ -22,13 +22,13 @@ export function Card({
   style?: ViewStyle;
 }) {
   return <View style={[styles.card, style]}>{children}</View>;
-}
+});
 
 // ---------------------------------------------------------------------------
 // Section header
 // ---------------------------------------------------------------------------
 
-export function SectionHeader({
+export const SectionHeader = React.memo(function SectionHeader({
   title,
   action,
   onAction,
@@ -47,13 +47,13 @@ export function SectionHeader({
       )}
     </View>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Stat row — label + value
 // ---------------------------------------------------------------------------
 
-export function StatRow({
+export const StatRow = React.memo(function StatRow({
   label,
   value,
   valueColor,
@@ -70,13 +70,13 @@ export function StatRow({
       </Text>
     </View>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Badge
 // ---------------------------------------------------------------------------
 
-export function Badge({
+export const Badge = React.memo(function Badge({
   text,
   color = colors.accent,
 }: {
@@ -88,13 +88,13 @@ export function Badge({
       <Text style={[styles.badgeText, { color }]}>{text}</Text>
     </View>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Amount text
 // ---------------------------------------------------------------------------
 
-export function AmountText({
+export const AmountText = React.memo(function AmountText({
   amount,
   type,
   size = 'md',
@@ -113,13 +113,13 @@ export function AmountText({
       {prefix}{formatCurrency(amount, currency ?? 'INR')}
     </Text>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Progress bar
 // ---------------------------------------------------------------------------
 
-export function ProgressBar({
+export const ProgressBar = React.memo(function ProgressBar({
   progress,
   color = colors.accent,
   height = 6,
@@ -146,13 +146,13 @@ export function ProgressBar({
       />
     </View>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Empty state
 // ---------------------------------------------------------------------------
 
-export function EmptyState({
+export const EmptyState = React.memo(function EmptyState({
   icon,
   title,
   subtitle,
@@ -162,19 +162,19 @@ export function EmptyState({
   subtitle: string;
 }) {
   return (
-    <View style={styles.emptyState}>
+    <View style={styles.emptyState} accessibilityRole="text">
       <Feather name={icon} size={48} color={colors.textMuted} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptySubtitle}>{subtitle}</Text>
     </View>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Primary button
 // ---------------------------------------------------------------------------
 
-export function PrimaryButton({
+export const PrimaryButton = React.memo(function PrimaryButton({
   title,
   onPress,
   disabled,
@@ -202,6 +202,8 @@ export function PrimaryButton({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={title}
     >
       {icon && (
         <Feather
@@ -221,7 +223,7 @@ export function PrimaryButton({
       </Text>
     </TouchableOpacity>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Styles

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,14 +34,18 @@ export default function MonthSelector({ selectedMonth, availableMonths, onChange
   };
 
   // Group available months by year for the picker grid
-  const yearGroups = new Map<number, string[]>();
-  for (const m of availableMonths) {
-    const y = parseInt(m.split('-')[0], 10);
-    if (!yearGroups.has(y)) yearGroups.set(y, []);
-    yearGroups.get(y)!.push(m);
-  }
-  const years = Array.from(yearGroups.keys()).sort((a, b) => b - a);
-  const availableSet = new Set(availableMonths);
+  const { years, availableSet } = useMemo(() => {
+    const groups = new Map<number, string[]>();
+    for (const m of availableMonths) {
+      const y = parseInt(m.split('-')[0], 10);
+      if (!groups.has(y)) groups.set(y, []);
+      groups.get(y)!.push(m);
+    }
+    return {
+      years: Array.from(groups.keys()).sort((a, b) => b - a),
+      availableSet: new Set(availableMonths),
+    };
+  }, [availableMonths]);
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 import type { CurrencyCode } from '../theme';
 import * as dbTxns from '../db/transactions';
 import * as dbStmts from '../db/statements';
@@ -162,9 +163,14 @@ export const useStore = create<AppState>()(
 
       removeCard: (id) =>
         set((state) => {
-          dbFileHashes.deleteFileHashesByCardId(id);
-          dbStmts.deleteStatementsByCardId(id);
-          dbUsage.deleteMonthlyUsageByCardId(id);
+          try {
+            dbFileHashes.deleteFileHashesByCardId(id);
+            dbStmts.deleteStatementsByCardId(id);
+            dbUsage.deleteMonthlyUsageByCardId(id);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to remove card data.');
+            return {};
+          }
           const cards = state.cards.filter((c) => c.id !== id);
           const statements = { ...state.statements };
           delete statements[id];
@@ -187,7 +193,12 @@ export const useStore = create<AppState>()(
       setActiveCard: (id) => set({ activeCardId: id }),
 
       addStatement: (cardId, statement) => {
-        dbStmts.insertStatement(cardId, statement);
+        try {
+          dbStmts.insertStatement(cardId, statement);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to save statement.');
+          return;
+        }
         const now = new Date();
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
         const uploadsThisMonth = dbStmts.getStatementCountSince(firstOfMonth);
@@ -204,10 +215,15 @@ export const useStore = create<AppState>()(
         set((state) => {
           const stmt = (state.statements[cardId] || []).find((s) => s.id === statementId);
           const txnIds = stmt ? stmt.transactions.map((t) => t.id) : [];
-          dbFileHashes.deleteFileHashesByStatementId(statementId);
-          dbUsage.deleteMonthlyUsageByStatementId(statementId);
-          dbEnrich.deleteEnrichments(txnIds);
-          dbStmts.deleteStatementById(statementId);
+          try {
+            dbFileHashes.deleteFileHashesByStatementId(statementId);
+            dbUsage.deleteMonthlyUsageByStatementId(statementId);
+            dbEnrich.deleteEnrichments(txnIds);
+            dbStmts.deleteStatementById(statementId);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to remove statement.');
+            return {};
+          }
           const enrichments = { ...state.enrichments };
           for (const id of txnIds) delete enrichments[id];
           return {
@@ -225,8 +241,13 @@ export const useStore = create<AppState>()(
         set((state) => {
           const stmts = state.statements[cardId] || [];
           const txnIds = stmts.flatMap((s) => s.transactions.map((t) => t.id));
-          dbStmts.deleteStatementsByCardId(cardId);
-          dbEnrich.deleteEnrichments(txnIds);
+          try {
+            dbStmts.deleteStatementsByCardId(cardId);
+            dbEnrich.deleteEnrichments(txnIds);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to clear statements.');
+            return {};
+          }
           const enrichments = { ...state.enrichments };
           for (const id of txnIds) delete enrichments[id];
           return {
@@ -237,22 +258,37 @@ export const useStore = create<AppState>()(
         }),
 
       addTransaction: (txn) => {
-        dbTxns.insertTransaction(txn);
+        try {
+          dbTxns.insertTransaction(txn);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to save transaction.');
+          return;
+        }
         set((state) => ({
           manualTransactions: [txn, ...state.manualTransactions],
         }));
       },
 
       importStatementTransactions: (statementId) => {
-        dbTxns.markStatementImported(statementId);
+        try {
+          dbTxns.markStatementImported(statementId);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to import transactions.');
+          return;
+        }
         set({
           manualTransactions: dbTxns.getVisibleTransactions(),
         });
       },
 
       removeTransaction: (id) => {
-        dbTxns.deleteTransaction(id);
-        dbEnrich.deleteEnrichment(id);
+        try {
+          dbTxns.deleteTransaction(id);
+          dbEnrich.deleteEnrichment(id);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to remove transaction.');
+          return;
+        }
         set((state) => {
           const enrichments = { ...state.enrichments };
           delete enrichments[id];
@@ -264,8 +300,14 @@ export const useStore = create<AppState>()(
       },
 
       clearManualTransactions: () => {
-        const ids = dbTxns.deleteAllManualTransactions();
-        dbEnrich.deleteEnrichments(ids);
+        let ids: string[];
+        try {
+          ids = dbTxns.deleteAllManualTransactions();
+          dbEnrich.deleteEnrichments(ids);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to clear transactions.');
+          return;
+        }
         set((state) => {
           const enrichments = { ...state.enrichments };
           for (const id of ids) delete enrichments[id];
@@ -274,7 +316,12 @@ export const useStore = create<AppState>()(
       },
 
       addMonthlyUsage: (usage) => {
-        dbUsage.upsertMonthlyUsage(usage);
+        try {
+          dbUsage.upsertMonthlyUsage(usage);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to save monthly usage.');
+          return;
+        }
         set((state) => ({
           monthlyUsage: [
             ...state.monthlyUsage.filter(
@@ -292,7 +339,12 @@ export const useStore = create<AppState>()(
             ...patch,
             updatedAt: new Date().toISOString(),
           };
-          dbEnrich.upsertEnrichment(txnId, merged);
+          try {
+            dbEnrich.upsertEnrichment(txnId, merged);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to update enrichment.');
+            return {};
+          }
           return {
             enrichments: {
               ...state.enrichments,
@@ -308,7 +360,12 @@ export const useStore = create<AppState>()(
             flagged: !state.enrichments[txnId]?.flagged,
             updatedAt: new Date().toISOString(),
           };
-          dbEnrich.upsertEnrichment(txnId, updated);
+          try {
+            dbEnrich.upsertEnrichment(txnId, updated);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to toggle flag.');
+            return {};
+          }
           return {
             enrichments: {
               ...state.enrichments,
@@ -318,7 +375,12 @@ export const useStore = create<AppState>()(
         }),
 
       removeEnrichment: (txnId) => {
-        dbEnrich.deleteEnrichment(txnId);
+        try {
+          dbEnrich.deleteEnrichment(txnId);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to remove enrichment.');
+          return;
+        }
         set((state) => {
           const enrichments = { ...state.enrichments };
           delete enrichments[txnId];
@@ -329,13 +391,23 @@ export const useStore = create<AppState>()(
       _hydrateSqlite: () => {
         const now = new Date();
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        set({
-          manualTransactions: dbTxns.getVisibleTransactions(),
-          statements: dbStmts.getAllStatements(),
-          enrichments: dbEnrich.getAllEnrichments(),
-          monthlyUsage: dbUsage.getAllMonthlyUsage(),
-          uploadsThisMonth: dbStmts.getStatementCountSince(firstOfMonth),
-        });
+
+        let manualTransactions: Transaction[] = [];
+        try { manualTransactions = dbTxns.getVisibleTransactions(); } catch (e) { console.error('Hydrate transactions failed:', e); }
+
+        let statements: Record<string, StatementData[]> = {};
+        try { statements = dbStmts.getAllStatements(); } catch (e) { console.error('Hydrate statements failed:', e); }
+
+        let enrichments: Record<string, TransactionEnrichment> = {};
+        try { enrichments = dbEnrich.getAllEnrichments(); } catch (e) { console.error('Hydrate enrichments failed:', e); }
+
+        let monthlyUsage: MonthlyUsage[] = [];
+        try { monthlyUsage = dbUsage.getAllMonthlyUsage(); } catch (e) { console.error('Hydrate monthlyUsage failed:', e); }
+
+        let uploadsThisMonth = 0;
+        try { uploadsThisMonth = dbStmts.getStatementCountSince(firstOfMonth); } catch (e) { console.error('Hydrate uploadCount failed:', e); }
+
+        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth });
       },
 
       _setIsPremium: (value) => set({ isPremium: value }),

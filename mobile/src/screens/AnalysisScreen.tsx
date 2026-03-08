@@ -9,6 +9,7 @@ import {
   Share,
   Platform,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
@@ -322,6 +323,9 @@ function TransactionsTab({
           placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          returnKeyType="search"
+          onSubmitEditing={Keyboard.dismiss}
+          accessibilityLabel="Search transactions"
         />
       </View>
 

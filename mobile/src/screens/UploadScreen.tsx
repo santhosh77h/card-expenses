@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
@@ -28,33 +29,14 @@ import { ENTITLEMENT_ID } from '../utils/revenueCat';
 import { Badge, Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
+import { BANK_TO_ISSUER, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 
 const FREE_TIER_UPLOAD_LIMIT = 3;
-
-const BANK_TO_ISSUER: Record<string, string> = {
-  hdfc: 'HDFC Bank', icici: 'ICICI Bank', sbi: 'SBI Card',
-  axis: 'Axis Bank', chase: 'Chase', amex: 'American Express',
-  citi: 'Citi', generic: 'Other', demo: 'Other',
-};
-const CARD_COLORS = ['#1E3A5F','#2D1B69','#1B4332','#4A1942','#1C1C1C','#0F3460','#3C1518','#1A535C'];
-
-function pickUnusedColor(existingCards: CreditCard[]): string {
-  const used = new Set(existingCards.map((c) => c.color));
-  return CARD_COLORS.find((c) => !used.has(c)) || CARD_COLORS[0];
-}
-
-function normalizeNetwork(network: string | null): string {
-  if (!network) return 'Visa';
-  const lower = network.toLowerCase();
-  if (lower.includes('master')) return 'Mastercard';
-  if (lower.includes('amex') || lower.includes('american')) return 'American Express';
-  if (lower.includes('rupay')) return 'RuPay';
-  return 'Visa';
-}
 
 type UploadState = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
 
 export default function UploadScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { cards, activeCardId, addStatement, addCard, updateCard, addMonthlyUsage, isPremium, uploadsThisMonth, _refreshUploadCount } = useStore();
   const [state, setState] = useState<UploadState>('idle');
@@ -335,7 +317,7 @@ export default function UploadScreen() {
   return (
     <>
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Upload Statement</Text>
         <Text style={styles.subtitle}>Parse your credit card PDF statement</Text>
       </View>
@@ -511,7 +493,7 @@ export default function UploadScreen() {
                   setResolvedCard(null);
                   setLastNavParams(null);
                   setState('idle');
-                  (navigation as any).navigate('Cards');
+                  navigation.navigate('Tabs' as any, { screen: 'Cards' });
                 }}
               >
                 <Feather name="credit-card" size={16} color={colors.accent} />
@@ -608,7 +590,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
