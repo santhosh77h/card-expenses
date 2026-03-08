@@ -1,5 +1,52 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DB } from '@op-engineering/op-sqlite';
+import { LATEST_VERSION, migrations } from './schema';
+
+/**
+ * Runs sequential schema migrations using PRAGMA user_version.
+ * Fresh install (user_version=0) runs ALL migrations 1→N.
+ * Upgrades run only the missing ones.
+ * Each migration is wrapped in its own transaction.
+ */
+export function runSchemaMigrations(db: DB): void {
+  const result = db.executeSync('PRAGMA user_version');
+  const currentVersion = (result.rows[0]?.user_version as number) ?? 0;
+
+  if (currentVersion >= LATEST_VERSION) return;
+
+  for (let v = currentVersion + 1; v <= LATEST_VERSION; v++) {
+    const migrationFn = migrations[v];
+    if (!migrationFn) {
+      throw new Error(`Missing migration for version ${v}`);
+    }
+
+    db.executeSync('BEGIN');
+    try {
+      migrationFn(db);
+      db.executeSync(`PRAGMA user_version = ${v}`);
+      db.executeSync('COMMIT');
+    } catch (e) {
+      db.executeSync('ROLLBACK');
+      throw new Error(`Migration to v${v} failed: ${e}`);
+    }
+  }
+}
+
+/**
+ * Post-migration sanity check that critical tables exist.
+ */
+export function validateSchema(db: DB): void {
+  const tables = ['statements', 'transactions', 'enrichments', 'monthly_usage', 'file_hashes'];
+  for (const table of tables) {
+    const result = db.executeSync(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,
+      [table],
+    );
+    if (result.rows.length === 0) {
+      throw new Error(`Schema validation failed: table '${table}' missing`);
+    }
+  }
+}
 
 export async function migrateFromAsyncStorage(db: DB): Promise<void> {
   const check = db.executeSync(

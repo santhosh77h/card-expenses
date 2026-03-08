@@ -92,3 +92,4 @@ Supported: INR, USD, EUR, GBP. Each card/statement/transaction tracks currency. 
 - **TypeScript path aliases**: `@/*` → `src/*`, plus `@components/*`, `@screens/*`, `@store/*`, `@utils/*`, `@navigation/*`
 - **Dark theme only**: Background `#0A0E1A`, accent `#00E5A0`
 - **Babel**: requires `react-native-reanimated/plugin` as last plugin
+- **Schema changes**: Any change to the SQLite schema (new table, new column, altered column, new index) **must** follow `MIGRATION_GUIDE.md`. Never modify existing migrations — only append new ones. Bump `LATEST_VERSION` in `schema.ts` and add a new numbered migration function.

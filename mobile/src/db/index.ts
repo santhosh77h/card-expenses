@@ -1,6 +1,5 @@
 import { open, type DB } from '@op-engineering/op-sqlite';
-import { SCHEMA_SQL } from './schema';
-import { migrateFromAsyncStorage } from './migrations';
+import { runSchemaMigrations, validateSchema, migrateFromAsyncStorage } from './migrations';
 
 let db: DB | null = null;
 
@@ -16,11 +15,15 @@ export async function initDatabase(): Promise<void> {
   db.executeSync('PRAGMA journal_mode = WAL');
   db.executeSync('PRAGMA foreign_keys = ON');
 
-  for (const sql of SCHEMA_SQL) {
-    db.executeSync(sql);
-  }
+  // Run versioned schema migrations (creates tables on fresh install,
+  // alters schema on upgrade)
+  runSchemaMigrations(db);
 
+  // One-time data migration from old AsyncStorage format
   await migrateFromAsyncStorage(db);
+
+  // Validate critical tables exist
+  validateSchema(db);
 }
 
 export function closeDatabase(): void {
