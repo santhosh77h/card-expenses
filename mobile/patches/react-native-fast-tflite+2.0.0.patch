@@ -4,7 +4,7 @@ diff --git a/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts b/node_
 @@ -1,8 +1,14 @@
  import type { TurboModule } from 'react-native'
 -import { TurboModuleRegistry } from 'react-native'
-+import { TurboModuleRegistry, NativeModules } from 'react-native'
++import { TurboModuleRegistry, NativeModules, Platform } from 'react-native'
 
  export interface Spec extends TurboModule {
    install(): boolean
@@ -14,6 +14,6 @@ diff --git a/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts b/node_
 +// TurboModuleRegistry works on new arch; fall back to NativeModules for old arch
 +const module = TurboModuleRegistry.get<Spec>('Tflite') ?? NativeModules.Tflite
 +if (module == null) {
-+  throw new Error("'Tflite' native module could not be found. Make sure you rebuilt the native app after installing react-native-fast-tflite.")
++  console.warn(`[react-native-fast-tflite] Native module 'Tflite' not found (${Platform.OS}). TFLite models will not be available.`)
 +}
 +export default module as Spec

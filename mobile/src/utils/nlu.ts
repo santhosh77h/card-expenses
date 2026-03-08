@@ -7,7 +7,16 @@
  * Pipeline:  User question → tokenize → TFLite intent → TFLite entities → resolve → SQL
  */
 
-import { loadTensorflowModel, TensorflowModel } from 'react-native-fast-tflite';
+import { Platform } from 'react-native';
+
+let loadTensorflowModel: typeof import('react-native-fast-tflite').loadTensorflowModel;
+type TensorflowModel = import('react-native-fast-tflite').TensorflowModel;
+
+try {
+  loadTensorflowModel = require('react-native-fast-tflite').loadTensorflowModel;
+} catch {
+  // Native module unavailable — loadTensorflowModel stays undefined
+}
 
 // --- Model metadata (co-located in src/nlu/) ---
 import intentLabelsJson from '../nlu/intent_labels.json';
@@ -92,6 +101,14 @@ let _loading: Promise<void> | null = null;
 export async function initNLU(): Promise<void> {
   if (intentModel && entityModel) return;
   if (_loading) return _loading;
+
+  if (!loadTensorflowModel) {
+    throw new Error(
+      Platform.OS === 'ios'
+        ? 'On-device NLU is not yet available on iOS. This feature works on Android.'
+        : 'TFLite native module not available.',
+    );
+  }
 
   _loading = (async () => {
     const [im, em] = await Promise.all([
