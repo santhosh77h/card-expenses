@@ -13,6 +13,8 @@ import {
   Platform,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,6 +22,8 @@ import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { colors, spacing, borderRadius, fontSize, CurrencyCode } from '../theme';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
+import { findByHash, insertFileHash } from '../db/fileHashes';
+import { isStatementImported } from '../db/transactions';
 import { ENTITLEMENT_ID } from '../utils/revenueCat';
 import { Badge, Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
@@ -66,6 +70,35 @@ export default function UploadScreen() {
   const [resolvedAutoCreated, setResolvedAutoCreated] = useState(false);
   const [lastNavParams, setLastNavParams] = useState<{ statementId: string; cardId: string } | null>(null);
 
+  const computeFileHash = async (fileUri: string): Promise<string> => {
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      base64,
+    );
+  };
+
+  const checkDuplicate = (hash: string): boolean => {
+    const existing = findByHash(hash);
+    if (!existing) return false;
+
+    const cardName =
+      cards.find((c) => c.id === existing.cardId)?.nickname ?? 'a card';
+    const imported = isStatementImported(existing.statementId);
+
+    let message = `This statement has already been uploaded for ${cardName}.`;
+    if (imported) {
+      message += '\nTransactions have also been added to your records.';
+    }
+
+    Alert.alert('Statement Already Uploaded', message, [
+      { text: 'OK', onPress: () => setState('idle') },
+    ]);
+    return true;
+  };
+
   const checkUploadAllowed = async (): Promise<boolean> => {
     if (isPremium) return true;
     _refreshUploadCount();
@@ -95,9 +128,12 @@ export default function UploadScreen() {
       setError('');
 
       try {
+        const fileHash = await computeFileHash(file.uri);
+        if (checkDuplicate(fileHash)) return;
+
         setState('parsing');
         const parsed = await parseStatement(file.uri, file.name);
-        saveAndNavigate(parsed);
+        saveAndNavigate(parsed, fileHash);
       } catch (err: any) {
         const errorCode = err?.response?.data?.detail?.error_code;
         if (errorCode === 'password_required' || errorCode === 'incorrect_password') {
@@ -128,11 +164,19 @@ export default function UploadScreen() {
     setState('parsing');
     setError('');
     try {
+      const fileHash = await computeFileHash(pendingFile.uri);
+      if (checkDuplicate(fileHash)) {
+        setPendingFile(null);
+        setPassword('');
+        setPasswordError('');
+        return;
+      }
+
       const parsed = await parseStatement(pendingFile.uri, pendingFile.name, password);
       setPendingFile(null);
       setPassword('');
       setPasswordError('');
-      saveAndNavigate(parsed);
+      saveAndNavigate(parsed, fileHash);
     } catch (err: any) {
       const errorCode = err?.response?.data?.detail?.error_code;
       if (errorCode === 'incorrect_password') {
@@ -162,15 +206,21 @@ export default function UploadScreen() {
     setPasswordError('');
   };
 
-  const handleDemo = () => {
+  const handleDemo = async () => {
     setState('parsing');
     setError('');
+
+    const demoHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      'cardlytics-demo-statement-v1',
+    );
+    if (checkDuplicate(demoHash)) return;
 
     // Small delay to show parsing state
     setTimeout(() => {
       try {
         const parsed = parseDemoStatement();
-        saveAndNavigate(parsed);
+        saveAndNavigate(parsed, demoHash);
       } catch {
         setState('error');
         setError('Demo failed unexpectedly.');
@@ -178,7 +228,7 @@ export default function UploadScreen() {
     }, 800);
   };
 
-  const saveAndNavigate = (parsed: any) => {
+  const saveAndNavigate = (parsed: any, fileHash?: string) => {
     const cardInfo: CardInfo | null = parsed.card_info ?? null;
     const bankDetected: string = parsed.bank_detected || 'generic';
     const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
@@ -249,6 +299,10 @@ export default function UploadScreen() {
     };
 
     addStatement(cardId, statement);
+
+    if (fileHash) {
+      insertFileHash(fileHash, statementId, cardId);
+    }
 
     // --- Track monthly usage ---
     const periodTo = parsed.summary?.statement_period?.to;

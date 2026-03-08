@@ -27,3 +27,7 @@ export function getAllMonthlyUsage(): MonthlyUsage[] {
 export function deleteMonthlyUsageByCardId(cardId: string): void {
   getDb().executeSync(`DELETE FROM monthly_usage WHERE cardId = ?`, [cardId]);
 }
+
+export function deleteMonthlyUsageByStatementId(statementId: string): void {
+  getDb().executeSync(`DELETE FROM monthly_usage WHERE statementId = ?`, [statementId]);
+}

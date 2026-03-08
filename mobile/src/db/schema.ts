@@ -58,4 +58,11 @@ export const SCHEMA_SQL: string[] = [
     currency     TEXT,
     PRIMARY KEY (cardId, month)
   )`,
+
+  `CREATE TABLE IF NOT EXISTS file_hashes (
+    hash        TEXT PRIMARY KEY,
+    statementId TEXT NOT NULL,
+    cardId      TEXT NOT NULL,
+    createdAt   TEXT NOT NULL
+  )`,
 ];

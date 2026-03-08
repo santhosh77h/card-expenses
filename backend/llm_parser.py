@@ -227,7 +227,17 @@ def llm_parse_transactions(
     logger.info("--- USER MESSAGE END ---")
 
     try:
-        client = OpenAI(api_key=api_key, timeout=45.0)
+        # Route through Helicone proxy if configured
+        helicone_base_url = os.getenv("HELICONE_BASE_URL")
+        helicone_api_key = os.getenv("HELICONE_API_KEY", "")
+        client_kwargs: dict = {"api_key": api_key, "timeout": 45.0}
+        if helicone_base_url:
+            client_kwargs["base_url"] = f"{helicone_base_url}/openai/v1"
+            client_kwargs["default_headers"] = {
+                "Helicone-Auth": f"Bearer {helicone_api_key}" if helicone_api_key else "",
+            }
+            logger.info("Using Helicone proxy at %s", helicone_base_url)
+        client = OpenAI(**client_kwargs)
         completion = client.beta.chat.completions.parse(
             model=model,
             temperature=0.0,

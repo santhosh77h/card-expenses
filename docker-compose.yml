@@ -1,0 +1,39 @@
+name: cardlytics
+
+services:
+  helicone:
+    image: helicone/helicone-all-in-one:latest
+    container_name: cardlytics-helicone
+    ports:
+      - "3000:3000"   # Web Dashboard
+      - "8585:8585"   # Jawn API + LLM Proxy
+    restart: unless-stopped
+    volumes:
+      - helicone_postgres:/var/lib/postgresql/data
+      - helicone_clickhouse:/var/lib/clickhouse
+      - helicone_minio:/data
+    environment:
+      SITE_URL: http://localhost:3000
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_HELICONE_JAWN_SERVICE: http://localhost:8585
+      S3_ENDPOINT: http://localhost:9080
+
+  backend:
+    build: ./backend
+    container_name: cardlytics-backend
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      - helicone
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      HELICONE_BASE_URL: http://helicone:8585
+      HELICONE_API_KEY: ${HELICONE_API_KEY:-}
+
+volumes:
+  helicone_postgres:
+  helicone_clickhouse:
+  helicone_minio:

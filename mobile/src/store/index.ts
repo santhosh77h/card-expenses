@@ -6,6 +6,7 @@ import * as dbTxns from '../db/transactions';
 import * as dbStmts from '../db/statements';
 import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
+import * as dbFileHashes from '../db/fileHashes';
 
 // ---------------------------------------------------------------------------
 // AsyncStorage adapter (works in Expo Go without native builds)
@@ -126,6 +127,7 @@ interface AppState {
   updateCard: (id: string, updates: Partial<CreditCard>) => void;
   setActiveCard: (id: string | null) => void;
   addStatement: (cardId: string, statement: StatementData) => void;
+  removeStatement: (cardId: string, statementId: string) => void;
   clearStatements: (cardId: string) => void;
   addTransaction: (txn: Transaction) => void;
   importStatementTransactions: (statementId: string) => void;
@@ -160,6 +162,7 @@ export const useStore = create<AppState>()(
 
       removeCard: (id) =>
         set((state) => {
+          dbFileHashes.deleteFileHashesByCardId(id);
           dbStmts.deleteStatementsByCardId(id);
           dbUsage.deleteMonthlyUsageByCardId(id);
           const cards = state.cards.filter((c) => c.id !== id);
@@ -196,6 +199,27 @@ export const useStore = create<AppState>()(
           uploadsThisMonth,
         }));
       },
+
+      removeStatement: (cardId, statementId) =>
+        set((state) => {
+          const stmt = (state.statements[cardId] || []).find((s) => s.id === statementId);
+          const txnIds = stmt ? stmt.transactions.map((t) => t.id) : [];
+          dbFileHashes.deleteFileHashesByStatementId(statementId);
+          dbUsage.deleteMonthlyUsageByStatementId(statementId);
+          dbEnrich.deleteEnrichments(txnIds);
+          dbStmts.deleteStatementById(statementId);
+          const enrichments = { ...state.enrichments };
+          for (const id of txnIds) delete enrichments[id];
+          return {
+            statements: {
+              ...state.statements,
+              [cardId]: (state.statements[cardId] || []).filter((s) => s.id !== statementId),
+            },
+            monthlyUsage: state.monthlyUsage.filter((u) => u.statementId !== statementId),
+            enrichments,
+            manualTransactions: dbTxns.getVisibleTransactions(),
+          };
+        }),
 
       clearStatements: (cardId) =>
         set((state) => {

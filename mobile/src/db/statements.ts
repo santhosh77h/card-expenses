@@ -57,3 +57,7 @@ export function getStatementCountSince(sinceIso: string): number {
 export function deleteStatementsByCardId(cardId: string): void {
   getDb().executeSync(`DELETE FROM statements WHERE cardId = ?`, [cardId]);
 }
+
+export function deleteStatementById(statementId: string): void {
+  getDb().executeSync(`DELETE FROM statements WHERE id = ?`, [statementId]);
+}

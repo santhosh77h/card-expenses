@@ -6,7 +6,7 @@ import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 const REVENUECAT_IOS_KEY = 'test_gXkAiXkciTfZanQAXvXMteQcQKx';
 const REVENUECAT_ANDROID_KEY = 'test_gXkAiXkciTfZanQAXvXMteQcQKx';
 
-export const ENTITLEMENT_ID = 'premium';
+export const ENTITLEMENT_ID = 'Credit Analytics Pro';
 
 export function checkPremium(customerInfo: CustomerInfo): boolean {
 	return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;

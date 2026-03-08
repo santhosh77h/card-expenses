@@ -73,6 +73,14 @@ export function getTransactionsByStatementId(stmtId: string): Transaction[] {
   return result.rows.map(rowToTransaction);
 }
 
+export function isStatementImported(statementId: string): boolean {
+  const result = getDb().executeSync(
+    `SELECT COUNT(*) as cnt FROM transactions WHERE statementId = ? AND isImported = 1`,
+    [statementId],
+  );
+  return ((result.rows[0]?.cnt as number) ?? 0) > 0;
+}
+
 function rowToTransaction(row: Record<string, any>): Transaction {
   return {
     id: row.id,

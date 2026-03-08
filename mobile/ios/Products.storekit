@@ -1,16 +1,40 @@
 {
-  "identifier" : "8A3F4A5B-1C2D-4E6F-8A9B-0C1D2E3F4A5B",
-  "nonRenewableSubscriptions" : [
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "Products",
+  "nonRenewingSubscriptions" : [
 
   ],
   "products" : [
-
+    {
+      "displayPrice" : "1.00",
+      "familyShareable" : false,
+      "internalID" : "1",
+      "localizations" : [
+        {
+          "description" : "Unlock all features forever",
+          "displayName" : "Lifetime Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "lifetime_premium",
+      "referenceName" : "Lifetime Premium",
+      "type" : "NonConsumable"
+    }
   ],
   "settings" : {
-    "_applicationInternalID" : "6740614681",
-    "_developerTeamID" : "6N47N4HTAG",
+    "_applicationInternalID" : "1",
+    "_developerTeamID" : "",
     "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : 731580000,
+    "_lastVerificationError" : "",
     "_locale" : "en_US",
     "_storefront" : "USA",
     "_storeKitErrors" : [
@@ -52,81 +76,17 @@
       {
         "current" : null,
         "enabled" : false,
-        "name" : "Refund Request Sheet"
+        "name" : "Offer Code Redeem Sheet"
       },
       {
         "current" : null,
         "enabled" : false,
-        "name" : "Offer Code Redeem Sheet"
+        "name" : "Manage Subscriptions Sheet"
       }
     ]
   },
   "subscriptionGroups" : [
-    {
-      "id" : "premium_group",
-      "localizations" : [
 
-      ],
-      "name" : "Premium",
-      "subscriptions" : [
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "4.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "monthly_001",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Unlimited statement uploads",
-              "displayName" : "Monthly Premium",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Monthly",
-          "subscriptionGroupID" : "premium_group",
-          "type" : "RecurringSubscription",
-          "winbackOffers" : [
-
-          ]
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "29.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "yearly_001",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Unlimited statement uploads",
-              "displayName" : "Yearly Premium",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Yearly",
-          "subscriptionGroupID" : "premium_group",
-          "type" : "RecurringSubscription",
-          "winbackOffers" : [
-
-          ]
-        }
-      ]
-    }
   ],
   "version" : {
     "major" : 4,
