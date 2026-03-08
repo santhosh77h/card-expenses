@@ -22,6 +22,13 @@
       "ios": {
         "autoIncrement": true
       }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "developmentClient": false,
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }

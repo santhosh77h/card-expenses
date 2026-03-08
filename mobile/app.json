@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Vector",
-    "slug": "vector",
+    "slug": "cardlytics",
     "version": "1.0.0",
     "scheme": "vector",
     "orientation": "portrait",
@@ -28,10 +28,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0E1A"
       },
-      "package": "com.cardlytics.app",
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "minSdkVersion": 24,
+      "package": "com.cardlytics.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -40,8 +38,7 @@
     "plugins": [
       "expo-font",
       "expo-document-picker",
-      "expo-image-picker",
-      "expo-dev-client"
+      "expo-image-picker"
     ],
     "extra": {
       "eas": {
