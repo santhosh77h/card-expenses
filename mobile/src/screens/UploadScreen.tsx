@@ -56,11 +56,12 @@ export default function UploadScreen() {
 	const [password, setPassword] = useState('');
 	const [passwordError, setPasswordError] = useState('');
 	const [pendingFile, setPendingFile] = useState<{ uri: string; name: string } | null>(null);
+	const [savePasswordChecked, setSavePasswordChecked] = useState(false);
 
 	// Card confirmation modal state
 	const [cardConfirmVisible, setCardConfirmVisible] = useState(false);
 	const [pendingCardData, setPendingCardData] = useState<CreditCard | null>(null);
-	const [pendingParseResult, setPendingParseResult] = useState<{ parsed: any; fileHash?: string } | null>(null);
+	const [pendingParseResult, setPendingParseResult] = useState<{ parsed: any; fileHash?: string; passwordToSave?: string } | null>(null);
 	const [confirmNickname, setConfirmNickname] = useState('');
 	const [confirmLast4, setConfirmLast4] = useState('');
 	const [confirmIssuer, setConfirmIssuer] = useState('');
@@ -121,26 +122,49 @@ export default function UploadScreen() {
 			setState('uploading');
 			setError('');
 
+			let fileHash: string | undefined;
 			try {
-				const fileHash = await computeFileHash(file.uri);
+				fileHash = await computeFileHash(file.uri);
 				if (checkDuplicate(fileHash)) return;
 
 				setState('parsing');
 				const parsed = await parseStatement(file.uri, file.name);
 				saveAndNavigate(parsed, fileHash);
 			} catch (err: any) {
-				const errorCode = err?.response?.data?.detail?.error_code;
+				const respData = err?.response?.data;
+				console.log('[Upload] error status:', err?.response?.status);
+				console.log('[Upload] error body:', JSON.stringify(respData));
+				const errorCode = respData?.error_code || respData?.detail?.error_code;
+				console.log('[Upload] resolved errorCode:', errorCode);
 				if (errorCode === 'password_required' || errorCode === 'incorrect_password') {
+					// Auto-retry with saved password if available
+					const selectedCard = cards.find((c) => c.id === selectedCardId);
+					if (errorCode === 'password_required' && selectedCard?.pdfPassword) {
+						try {
+							setState('parsing');
+							const parsed = await parseStatement(file.uri, file.name, selectedCard.pdfPassword);
+							saveAndNavigate(parsed, fileHash);
+							return;
+						} catch (retryErr: any) {
+							const retryData = retryErr?.response?.data;
+							const retryCode = retryData?.error_code || retryData?.detail?.error_code;
+							if (retryCode === 'incorrect_password') {
+								updateCard(selectedCard.id, { pdfPassword: undefined });
+							}
+							// Fall through to show password modal
+						}
+					}
 					setPendingFile({ uri: file.uri, name: file.name });
 					setPasswordError(errorCode === 'incorrect_password' ? 'Incorrect password. Please try again.' : '');
 					setPassword('');
+					setSavePasswordChecked(false);
 					setPasswordModalVisible(true);
 					setState('idle');
 					return;
 				}
-				const detail = err?.response?.data?.detail;
 				const msg =
-					(typeof detail === 'string' ? detail : detail?.message) ||
+					respData?.message ||
+					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
 					err?.message ||
 					'Failed to parse statement.';
 				setState('error');
@@ -154,6 +178,8 @@ export default function UploadScreen() {
 
 	const handlePasswordSubmit = async () => {
 		if (!pendingFile || !password.trim()) return;
+		const usedPwd = password;
+		const shouldSave = savePasswordChecked;
 		setPasswordModalVisible(false);
 		setState('parsing');
 		setError('');
@@ -163,16 +189,19 @@ export default function UploadScreen() {
 				setPendingFile(null);
 				setPassword('');
 				setPasswordError('');
+				setSavePasswordChecked(false);
 				return;
 			}
 
-			const parsed = await parseStatement(pendingFile.uri, pendingFile.name, password);
+			const parsed = await parseStatement(pendingFile.uri, pendingFile.name, usedPwd);
 			setPendingFile(null);
 			setPassword('');
 			setPasswordError('');
-			saveAndNavigate(parsed, fileHash);
+			setSavePasswordChecked(false);
+			saveAndNavigate(parsed, fileHash, shouldSave ? usedPwd : undefined);
 		} catch (err: any) {
-			const errorCode = err?.response?.data?.detail?.error_code;
+			const respData = err?.response?.data;
+			const errorCode = respData?.error_code || respData?.detail?.error_code;
 			if (errorCode === 'incorrect_password') {
 				setPasswordError('Incorrect password. Please try again.');
 				setPassword('');
@@ -182,9 +211,10 @@ export default function UploadScreen() {
 				setPendingFile(null);
 				setPassword('');
 				setPasswordError('');
-				const detail = err?.response?.data?.detail;
+				setSavePasswordChecked(false);
 				const msg =
-					(typeof detail === 'string' ? detail : detail?.message) ||
+					respData?.message ||
+					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
 					err?.message ||
 					'Failed to parse statement.';
 				setState('error');
@@ -198,6 +228,7 @@ export default function UploadScreen() {
 		setPendingFile(null);
 		setPassword('');
 		setPasswordError('');
+		setSavePasswordChecked(false);
 	};
 
 	const handleDemo = async () => {
@@ -222,7 +253,7 @@ export default function UploadScreen() {
 		}, 800);
 	};
 
-	const saveAndNavigate = (parsed: any, fileHash?: string) => {
+	const saveAndNavigate = (parsed: any, fileHash?: string, passwordToSave?: string) => {
 		const cardInfo: CardInfo | null = parsed.card_info ?? null;
 		const bankDetected: string = parsed.bank_detected || 'generic';
 		const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
@@ -241,6 +272,7 @@ export default function UploadScreen() {
 				if (cardInfo.total_amount_due != null) updates.totalAmountDue = cardInfo.total_amount_due;
 				if (cardInfo.minimum_amount_due != null) updates.minimumAmountDue = cardInfo.minimum_amount_due;
 				if (cardInfo.payment_due_date) updates.paymentDueDate = cardInfo.payment_due_date;
+				if (passwordToSave) updates.pdfPassword = passwordToSave;
 				if (Object.keys(updates).length > 0) updateCard(existing.id, updates);
 				finalizeSave(existing.id, existing, false, parsed, fileHash);
 			} else {
@@ -269,7 +301,7 @@ export default function UploadScreen() {
 				setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
 				setConfirmCurrency(detectedCurrency);
 				setPendingCardData(newCard);
-				setPendingParseResult({ parsed, fileHash });
+				setPendingParseResult({ parsed, fileHash, passwordToSave });
 				setState('idle');
 				setCardConfirmVisible(true);
 			}
@@ -277,6 +309,9 @@ export default function UploadScreen() {
 			// Fallback to selected card
 			const cardId = selectedCardId || 'demo';
 			const matched = cards.find((c) => c.id === cardId);
+			if (passwordToSave && matched) {
+				updateCard(matched.id, { pdfPassword: passwordToSave });
+			}
 			finalizeSave(cardId, matched, false, parsed, fileHash);
 		}
 	};
@@ -343,6 +378,7 @@ export default function UploadScreen() {
 			network: confirmNetwork,
 			creditLimit: parseFloat(confirmCreditLimit) || 0,
 			currency: confirmCurrency,
+			pdfPassword: pendingParseResult.passwordToSave,
 		};
 		addCard(confirmedCard);
 		setCardConfirmVisible(false);
@@ -540,6 +576,16 @@ export default function UploadScreen() {
 							onSubmitEditing={handlePasswordSubmit}
 							returnKeyType="done"
 						/>
+						<TouchableOpacity
+							style={styles.checkboxRow}
+							onPress={() => setSavePasswordChecked((prev) => !prev)}
+							activeOpacity={0.7}
+						>
+							<View style={[styles.checkbox, savePasswordChecked && styles.checkboxChecked]}>
+								{savePasswordChecked && <Feather name="check" size={14} color="#fff" />}
+							</View>
+							<Text style={styles.checkboxLabel}>Save password for this card</Text>
+						</TouchableOpacity>
 						<View style={styles.modalButtons}>
 							<TouchableOpacity style={styles.modalCancelBtn} onPress={handlePasswordCancel}>
 								<Text style={styles.modalCancelText}>Cancel</Text>
@@ -911,6 +957,30 @@ const styles = StyleSheet.create({
 		paddingHorizontal: spacing.lg,
 		paddingVertical: spacing.md,
 		marginTop: spacing.lg,
+	},
+	checkboxRow: {
+		flexDirection: 'row' as const,
+		alignItems: 'center' as const,
+		marginTop: spacing.md,
+	},
+	checkbox: {
+		width: 22,
+		height: 22,
+		borderRadius: borderRadius.sm,
+		borderWidth: 1.5,
+		borderColor: colors.border,
+		alignItems: 'center' as const,
+		justifyContent: 'center' as const,
+		marginRight: spacing.sm,
+	},
+	checkboxChecked: {
+		backgroundColor: colors.accent,
+		borderColor: colors.accent,
+	},
+	checkboxLabel: {
+		color: colors.textSecondary,
+		fontSize: fontSize.sm,
+		lineHeight: 18,
 	},
 	modalButtons: {
 		flexDirection: 'row',

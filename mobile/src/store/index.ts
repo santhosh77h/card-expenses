@@ -44,6 +44,7 @@ export interface CreditCard {
   minimumAmountDue?: number;
   paymentDueDate?: string;
   autoCreated?: boolean;
+  pdfPassword?: string;
 }
 
 export interface MonthlyUsage {

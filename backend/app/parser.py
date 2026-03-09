@@ -30,10 +30,15 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
     """
     validate_pdf_bytes(file_bytes)
 
-    if not password and check_encrypted(file_bytes):
+    logger.info("[parse_pdf] password=%s, file_size=%d bytes", "provided" if password else "none", len(file_bytes))
+
+    encrypted = check_encrypted(file_bytes)
+    logger.info("[parse_pdf] check_encrypted=%s", encrypted)
+    if not password and encrypted:
         raise PDFEncryptedError("password_required")
 
     text = extract_text(file_bytes, password=password)
+    logger.info("[parse_pdf] extracted text length=%d", len(text.strip()))
     if not text.strip():
         raise ParseError("Could not extract text from PDF. It may be scanned/image-based.")
 
