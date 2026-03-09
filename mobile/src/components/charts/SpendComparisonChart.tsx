@@ -114,8 +114,9 @@ const styles = StyleSheet.create({
   title: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: spacing.sm,
+    lineHeight: 22,
   },
   legend: {
     flexDirection: 'row',
@@ -137,5 +138,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.xs,
     maxWidth: 100,
+    lineHeight: 16,
   },
 });

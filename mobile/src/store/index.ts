@@ -8,6 +8,7 @@ import * as dbStmts from '../db/statements';
 import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
 import * as dbFileHashes from '../db/fileHashes';
+import { generateCSV } from '../utils/api';
 
 // ---------------------------------------------------------------------------
 // AsyncStorage adapter (works in Expo Go without native builds)
@@ -110,6 +111,44 @@ export interface TransactionEnrichment {
 }
 
 // ---------------------------------------------------------------------------
+// Recompute summary from transactions
+// ---------------------------------------------------------------------------
+
+export function recomputeSummary(
+  transactions: Transaction[],
+  existingPeriod?: StatementPeriod,
+): StatementSummary {
+  const totalDebits = transactions
+    .filter((t) => t.type === 'debit')
+    .reduce((s, t) => s + t.amount, 0);
+  const totalCredits = transactions
+    .filter((t) => t.type === 'credit')
+    .reduce((s, t) => s + t.amount, 0);
+
+  const categories: Record<string, CategorySummary> = {};
+  for (const t of transactions) {
+    if (!categories[t.category]) categories[t.category] = { total: 0, count: 0 };
+    categories[t.category].total += t.amount;
+    categories[t.category].count += 1;
+  }
+
+  const dates = transactions.map((t) => t.date).filter(Boolean).sort();
+  const statement_period: StatementPeriod = existingPeriod ?? {
+    from: dates[0] || null,
+    to: dates[dates.length - 1] || null,
+  };
+
+  return {
+    total_transactions: transactions.length,
+    total_debits: Math.round(totalDebits * 100) / 100,
+    total_credits: Math.round(totalCredits * 100) / 100,
+    net: Math.round((totalDebits - totalCredits) * 100) / 100,
+    categories,
+    statement_period,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -141,6 +180,18 @@ interface AppState {
   updateEnrichment: (txnId: string, patch: Partial<TransactionEnrichment>) => void;
   toggleFlag: (txnId: string) => void;
   removeEnrichment: (txnId: string) => void;
+  updateStatementTransaction: (
+    cardId: string,
+    statementId: string,
+    txnId: string,
+    updates: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'category_color' | 'category_icon' | 'type'>>,
+  ) => void;
+  updateStatementCardFields: (
+    cardId: string,
+    statementId: string,
+    cardUpdates?: Partial<Pick<CreditCard, 'totalAmountDue' | 'minimumAmountDue' | 'paymentDueDate'>>,
+    periodUpdates?: Partial<StatementPeriod>,
+  ) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -385,6 +436,116 @@ export const useStore = create<AppState>()(
           const enrichments = { ...state.enrichments };
           delete enrichments[txnId];
           return { enrichments };
+        });
+      },
+
+      updateStatementTransaction: (cardId, statementId, txnId, updates) => {
+        try {
+          dbTxns.updateTransaction(txnId, updates);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to update transaction.');
+          return;
+        }
+
+        set((state) => {
+          const cardStmts = (state.statements[cardId] || []).map((stmt) => {
+            if (stmt.id !== statementId) return stmt;
+
+            const updatedTransactions = stmt.transactions.map((t) =>
+              t.id === txnId ? { ...t, ...updates } : t,
+            );
+            const newSummary = recomputeSummary(updatedTransactions, stmt.summary.statement_period);
+            const newCsv = generateCSV(updatedTransactions);
+
+            try {
+              dbStmts.updateStatementSummary(statementId, newSummary);
+              dbStmts.updateStatementCsv(statementId, newCsv);
+            } catch (e: any) {
+              console.error('Failed to persist summary/csv:', e);
+            }
+
+            // Update monthly usage
+            const month = newSummary.statement_period.to?.slice(0, 7);
+            if (month) {
+              try {
+                dbUsage.upsertMonthlyUsage({
+                  cardId,
+                  month,
+                  totalDebits: newSummary.total_debits,
+                  totalCredits: newSummary.total_credits,
+                  net: newSummary.net,
+                  statementId,
+                  currency: stmt.currency,
+                });
+              } catch (e: any) {
+                console.error('Failed to update monthly usage:', e);
+              }
+            }
+
+            return { ...stmt, transactions: updatedTransactions, summary: newSummary, csv: newCsv };
+          });
+
+          const manualTransactions = dbTxns.getVisibleTransactions();
+
+          // Update monthly usage in state
+          const updatedStmt = cardStmts.find((s) => s.id === statementId);
+          let monthlyUsage = state.monthlyUsage;
+          if (updatedStmt) {
+            const month = updatedStmt.summary.statement_period.to?.slice(0, 7);
+            if (month) {
+              const newUsage: MonthlyUsage = {
+                cardId,
+                month,
+                totalDebits: updatedStmt.summary.total_debits,
+                totalCredits: updatedStmt.summary.total_credits,
+                net: updatedStmt.summary.net,
+                statementId,
+                currency: updatedStmt.currency,
+              };
+              monthlyUsage = [
+                ...state.monthlyUsage.filter((u) => !(u.cardId === cardId && u.month === month)),
+                newUsage,
+              ];
+            }
+          }
+
+          return {
+            statements: { ...state.statements, [cardId]: cardStmts },
+            manualTransactions,
+            monthlyUsage,
+          };
+        });
+      },
+
+      updateStatementCardFields: (cardId, statementId, cardUpdates, periodUpdates) => {
+        set((state) => {
+          let cards = state.cards;
+          if (cardUpdates && Object.keys(cardUpdates).length > 0) {
+            cards = state.cards.map((c) => (c.id === cardId ? { ...c, ...cardUpdates } : c));
+          }
+
+          let statementsForCard = state.statements[cardId] || [];
+          if (periodUpdates) {
+            statementsForCard = statementsForCard.map((stmt) => {
+              if (stmt.id !== statementId) return stmt;
+              const newPeriod: StatementPeriod = {
+                from: periodUpdates.from ?? stmt.summary.statement_period.from,
+                to: periodUpdates.to ?? stmt.summary.statement_period.to,
+              };
+              const newSummary = { ...stmt.summary, statement_period: newPeriod };
+              try {
+                dbStmts.updateStatementSummary(statementId, newSummary);
+              } catch (e: any) {
+                console.error('Failed to persist period update:', e);
+              }
+              return { ...stmt, summary: newSummary };
+            });
+          }
+
+          return {
+            cards,
+            statements: { ...state.statements, [cardId]: statementsForCard },
+          };
         });
       },
 

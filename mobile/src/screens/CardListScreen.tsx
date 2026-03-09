@@ -88,11 +88,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   cardMeta: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   cardRight: {
     flexDirection: 'row',
@@ -103,6 +105,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
   empty: {
     alignItems: 'center',
@@ -113,8 +116,9 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.xl,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: spacing.lg,
+    lineHeight: 26,
   },
   emptySubtitle: {
     color: colors.textSecondary,

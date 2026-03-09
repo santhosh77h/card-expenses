@@ -28,7 +28,7 @@ type Tab = 'overview' | 'transactions' | 'categories';
 export default function AnalysisScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Analysis'>>();
   const { statementId, cardId } = route.params;
-  const { statements, cards, importStatementTransactions, enrichments } = useStore();
+  const { statements, cards, importStatementTransactions, enrichments, updateStatementTransaction, updateStatementCardFields } = useStore();
 
   const statement = useMemo(() => {
     const cardStatements = statements[cardId] || [];
@@ -54,6 +54,12 @@ export default function AnalysisScreen() {
 
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId]);
   const currency: CurrencyCode = card?.currency ?? 'INR';
+
+  const handleUpdateTransaction = useCallback((txnId: string, updates: Partial<Transaction>) => {
+    updateStatementTransaction(cardId, statementId, txnId, updates);
+    // Re-derive selectedTxn from updated state
+    setSelectedTxn((prev) => prev && prev.id === txnId ? { ...prev, ...updates } : prev);
+  }, [cardId, statementId, updateStatementTransaction]);
 
   const handleAddToTransactions = useCallback(() => {
     importStatementTransactions(statementId);
@@ -100,14 +106,11 @@ export default function AnalysisScreen() {
     return Array.from(cats).sort();
   }, [transactions]);
 
-  const largestTxn = useMemo(
-    () =>
-      transactions.reduce(
-        (max, t) => (t.amount > max.amount ? t : max),
-        transactions[0]
-      ),
-    [transactions]
-  );
+  const largestTxn = useMemo(() => {
+    const debits = transactions.filter((t) => t.type === 'debit');
+    if (debits.length === 0) return null;
+    return debits.reduce((max, t) => (t.amount > max.amount ? t : max), debits[0]);
+  }, [transactions]);
 
   const handleExportCSV = async () => {
     try {
@@ -155,6 +158,10 @@ export default function AnalysisScreen() {
             onAddToTransactions={handleAddToTransactions}
             imported={imported}
             currency={currency}
+            card={card}
+            onUpdateCardFields={(cardUpdates, periodUpdates) =>
+              updateStatementCardFields(cardId, statementId, cardUpdates, periodUpdates)
+            }
           />
         )}
         {activeTab === 'transactions' && (
@@ -187,6 +194,7 @@ export default function AnalysisScreen() {
         isManual={false}
         onPrev={handlePrev}
         onNext={handleNext}
+        onUpdateTransaction={handleUpdateTransaction}
       />
     </View>
   );
@@ -203,21 +211,161 @@ function OverviewTab({
   onAddToTransactions,
   imported,
   currency,
+  card,
+  onUpdateCardFields,
 }: {
   summary: any;
-  largestTxn: Transaction;
+  largestTxn: Transaction | null;
   onExport: () => void;
   onAddToTransactions: () => void;
   imported: boolean;
   currency: CurrencyCode;
+  card?: CreditCard;
+  onUpdateCardFields?: (
+    cardUpdates?: Partial<Pick<CreditCard, 'totalAmountDue' | 'minimumAmountDue' | 'paymentDueDate'>>,
+    periodUpdates?: { from?: string | null; to?: string | null },
+  ) => void;
 }) {
+  const hasDueInfo = card?.totalAmountDue != null && card.totalAmountDue > 0;
+
+  // Editing state for payment due card
+  const [isEditingDue, setIsEditingDue] = useState(false);
+  const [editTotalDue, setEditTotalDue] = useState('');
+  const [editMinDue, setEditMinDue] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+
+  // Editing state for statement period
+  const [isEditingPeriod, setIsEditingPeriod] = useState(false);
+  const [editPeriodFrom, setEditPeriodFrom] = useState('');
+  const [editPeriodTo, setEditPeriodTo] = useState('');
+
+  const startEditingDue = () => {
+    setEditTotalDue(card?.totalAmountDue?.toString() ?? '');
+    setEditMinDue(card?.minimumAmountDue?.toString() ?? '');
+    setEditDueDate(card?.paymentDueDate ?? '');
+    setIsEditingDue(true);
+  };
+
+  const saveDueEdits = () => {
+    const totalDue = parseFloat(editTotalDue);
+    const minDue = parseFloat(editMinDue);
+    onUpdateCardFields?.(
+      {
+        totalAmountDue: isNaN(totalDue) ? undefined : totalDue,
+        minimumAmountDue: isNaN(minDue) ? undefined : minDue,
+        paymentDueDate: editDueDate || undefined,
+      },
+    );
+    setIsEditingDue(false);
+  };
+
+  const startEditingPeriod = () => {
+    setEditPeriodFrom(summary.statement_period.from ?? '');
+    setEditPeriodTo(summary.statement_period.to ?? '');
+    setIsEditingPeriod(true);
+  };
+
+  const savePeriodEdits = () => {
+    onUpdateCardFields?.(undefined, {
+      from: editPeriodFrom || null,
+      to: editPeriodTo || null,
+    });
+    setIsEditingPeriod(false);
+  };
+
   return (
     <View style={{ padding: spacing.lg }}>
-      {/* Hero net spend */}
+      {/* Payment Due — hero card (if available) */}
+      {hasDueInfo && (
+        <Card>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.overviewLabel}>Total Amount Due</Text>
+            {onUpdateCardFields && (
+              <TouchableOpacity onPress={isEditingDue ? () => setIsEditingDue(false) : startEditingDue}>
+                <Feather name={isEditingDue ? 'x' : 'edit-2'} size={14} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+          {isEditingDue ? (
+            <TextInput
+              style={styles.heroEditInput}
+              value={editTotalDue}
+              onChangeText={setEditTotalDue}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={colors.textMuted}
+            />
+          ) : (
+            <Text style={styles.heroAmount}>{formatCurrency(card.totalAmountDue!, currency)}</Text>
+          )}
+
+          <View style={{ marginTop: spacing.lg }}>
+            {isEditingDue ? (
+              <>
+                <View style={styles.editStatRow}>
+                  <Text style={styles.editStatLabel}>Minimum Due</Text>
+                  <TextInput
+                    style={styles.editStatInput}
+                    value={editMinDue}
+                    onChangeText={setEditMinDue}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
+                <View style={styles.editStatRow}>
+                  <Text style={styles.editStatLabel}>Due Date</Text>
+                  <TextInput
+                    style={styles.editStatInput}
+                    value={editDueDate}
+                    onChangeText={setEditDueDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
+                <TouchableOpacity style={styles.inlineSaveBtn} onPress={saveDueEdits}>
+                  <Feather name="check" size={14} color="#fff" />
+                  <Text style={styles.inlineSaveBtnText}>Save</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {card.minimumAmountDue != null && card.minimumAmountDue > 0 && (
+                  <StatRow
+                    label="Minimum Due"
+                    value={formatCurrency(card.minimumAmountDue, currency)}
+                    valueColor={colors.warning}
+                  />
+                )}
+                {card.paymentDueDate && (
+                  <StatRow
+                    label="Payment Due Date"
+                    value={card.paymentDueDate}
+                    valueColor={colors.textPrimary}
+                  />
+                )}
+              </>
+            )}
+          </View>
+        </Card>
+      )}
+
+      {/* Statement summary */}
       <Card>
-        <Text style={styles.overviewLabel}>Net Spending</Text>
-        <Text style={styles.heroAmount}>{formatCurrency(summary.net, currency)}</Text>
-        <View style={{ marginTop: spacing.lg }}>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.overviewLabel}>
+            {hasDueInfo ? 'Statement Summary' : 'Net Spending'}
+          </Text>
+          {onUpdateCardFields && (
+            <TouchableOpacity onPress={isEditingPeriod ? () => setIsEditingPeriod(false) : startEditingPeriod}>
+              <Feather name={isEditingPeriod ? 'x' : 'edit-2'} size={14} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {!hasDueInfo && (
+          <Text style={styles.heroAmount}>{formatCurrency(summary.net, currency)}</Text>
+        )}
+        <View style={hasDueInfo ? undefined : { marginTop: spacing.lg }}>
           <StatRow
             label="Total Debits"
             value={formatCurrency(summary.total_debits, currency)}
@@ -232,10 +380,39 @@ function OverviewTab({
             label="Transactions"
             value={summary.total_transactions.toString()}
           />
-          <StatRow
-            label="Statement Period"
-            value={`${summary.statement_period.from || 'N/A'} to ${summary.statement_period.to || 'N/A'}`}
-          />
+          {isEditingPeriod ? (
+            <>
+              <View style={styles.editStatRow}>
+                <Text style={styles.editStatLabel}>Period From</Text>
+                <TextInput
+                  style={styles.editStatInput}
+                  value={editPeriodFrom}
+                  onChangeText={setEditPeriodFrom}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={styles.editStatRow}>
+                <Text style={styles.editStatLabel}>Period To</Text>
+                <TextInput
+                  style={styles.editStatInput}
+                  value={editPeriodTo}
+                  onChangeText={setEditPeriodTo}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <TouchableOpacity style={styles.inlineSaveBtn} onPress={savePeriodEdits}>
+                <Feather name="check" size={14} color="#fff" />
+                <Text style={styles.inlineSaveBtnText}>Save</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <StatRow
+              label="Statement Period"
+              value={`${summary.statement_period.from || 'N/A'} to ${summary.statement_period.to || 'N/A'}`}
+            />
+          )}
         </View>
       </Card>
 
@@ -533,7 +710,8 @@ const styles = StyleSheet.create({
   tabText: {
     color: colors.textMuted,
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 20,
   },
   tabTextActive: {
     color: colors.accent,
@@ -542,29 +720,33 @@ const styles = StyleSheet.create({
   overviewLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    lineHeight: 16,
   },
   heroAmount: {
     color: colors.textPrimary,
     fontSize: fontSize.hero,
-    fontWeight: '800',
+    fontWeight: '700',
     marginTop: spacing.sm,
+    lineHeight: 40,
   },
   cardLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
+    lineHeight: 16,
   },
   largestDesc: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: '500',
     marginBottom: spacing.sm,
+    lineHeight: 20,
   },
   largestRow: {
     flexDirection: 'row',
@@ -588,8 +770,9 @@ const styles = StyleSheet.create({
   addToTxnText: {
     color: '#fff',
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
     marginLeft: spacing.sm,
+    lineHeight: 20,
   },
   addToTxnTextDone: {
     color: colors.credit,
@@ -607,8 +790,9 @@ const styles = StyleSheet.create({
   exportBtnText: {
     color: colors.accent,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
     marginLeft: spacing.sm,
+    lineHeight: 20,
   },
   // Transactions
   searchRow: {
@@ -646,7 +830,8 @@ const styles = StyleSheet.create({
   chipText: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 16,
   },
   chipTextActive: {
     color: colors.accent,
@@ -674,8 +859,9 @@ const styles = StyleSheet.create({
   sortToggleText: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
     marginLeft: spacing.xs,
+    lineHeight: 18,
   },
   txnRow: {
     flexDirection: 'row',
@@ -694,6 +880,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '500',
+    lineHeight: 20,
   },
   txnMeta: {
     flexDirection: 'row',
@@ -746,15 +933,72 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   catAmount: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   catMeta: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: spacing.xs,
+    lineHeight: 16,
+  },
+  // Edit mode styles
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroEditInput: {
+    color: colors.textPrimary,
+    fontSize: fontSize.hero,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent + '40',
+    paddingVertical: spacing.xs,
+  },
+  editStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  editStatLabel: {
+    color: colors.textSecondary,
+    fontSize: fontSize.md,
+    flex: 1,
+  },
+  editStatInput: {
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.accent + '40',
+    paddingVertical: spacing.xs,
+  },
+  inlineSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.accent,
+  },
+  inlineSaveBtnText: {
+    color: '#fff',
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
 });

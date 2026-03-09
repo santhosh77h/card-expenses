@@ -109,7 +109,7 @@ export const AmountText = React.memo(function AmountText({
   const prefix = type === 'debit' ? '-' : '+';
   const sizeMap = { sm: fontSize.sm, md: fontSize.md, lg: fontSize.xl };
   return (
-    <Text style={{ color, fontSize: sizeMap[size], fontWeight: '700' }}>
+    <Text style={{ color, fontSize: sizeMap[size], fontWeight: '600', lineHeight: { sm: 18, md: 20, lg: 26 }[size] }}>
       {prefix}{formatCurrency(amount, currency ?? 'INR')}
     </Text>
   );
@@ -246,12 +246,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 22,
   },
   sectionAction: {
     color: colors.accent,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 20,
   },
   statRow: {
     flexDirection: 'row',
@@ -262,11 +264,13 @@ const styles = StyleSheet.create({
   statLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.md,
+    lineHeight: 20,
   },
   statValue: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   badge: {
     paddingHorizontal: spacing.md,
@@ -276,7 +280,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: fontSize.xs,
-    fontWeight: '700',
+    fontWeight: '500',
+    lineHeight: 16,
   },
   progressBg: {
     backgroundColor: colors.surfaceElevated,
@@ -297,8 +302,9 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.xl,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: spacing.lg,
+    lineHeight: 26,
   },
   emptySubtitle: {
     color: colors.textSecondary,
@@ -318,6 +324,7 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 22,
   },
 });

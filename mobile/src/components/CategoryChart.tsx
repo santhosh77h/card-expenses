@@ -136,11 +136,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     flex: 1,
+    lineHeight: 18,
   },
   legendValue: {
     color: colors.textPrimary,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
   barContainer: {
     marginTop: spacing.lg,
@@ -148,8 +150,9 @@ const styles = StyleSheet.create({
   barTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: spacing.md,
+    lineHeight: 22,
   },
   barRow: {
     flexDirection: 'row',
@@ -160,6 +163,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.xs,
     width: 90,
+    lineHeight: 16,
   },
   barTrack: {
     flex: 1,
@@ -179,5 +183,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     width: 80,
     textAlign: 'right',
+    lineHeight: 16,
   },
 });

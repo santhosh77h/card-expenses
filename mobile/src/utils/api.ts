@@ -524,6 +524,15 @@ const categoryKeywords: { category: string; icon: string; keywords: string[] }[]
 	},
 ];
 
+export const CATEGORIES: { name: string; color: string; icon: string }[] = [
+	...categoryKeywords.map((ck) => ({
+		name: ck.category,
+		color: categoryColors[ck.category] || categoryColors['Other'],
+		icon: ck.icon,
+	})),
+	{ name: 'Other', color: categoryColors['Other'], icon: 'help-circle' },
+];
+
 export function categorizeTransaction(description: string): {
 	category: string;
 	category_color: string;

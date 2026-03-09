@@ -270,12 +270,14 @@ const styles = StyleSheet.create({
   title: {
     color: colors.textPrimary,
     fontSize: fontSize.xxxl,
-    fontWeight: '800',
+    fontWeight: '600',
+    lineHeight: 32,
   },
   subtitle: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     marginTop: spacing.xs,
+    lineHeight: 18,
   },
   previewContainer: {
     alignItems: 'center',
@@ -287,6 +289,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
+    lineHeight: 18,
   },
   input: {
     backgroundColor: colors.surfaceElevated,
@@ -362,10 +365,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   existingCardMeta: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
 });

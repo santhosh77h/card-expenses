@@ -320,7 +320,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.xl,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 26,
   },
   scroll: {
     flex: 1,
@@ -342,6 +343,7 @@ const styles = StyleSheet.create({
   statusText: {
     color: colors.textSecondary,
     fontSize: fontSize.md,
+    lineHeight: 20,
   },
 
   // Empty state
@@ -354,11 +356,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.lg,
     fontWeight: '600',
+    lineHeight: 22,
     marginTop: spacing.md,
   },
   emptySubtitle: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   suggestions: {
     flexDirection: 'row',
@@ -379,6 +383,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
 
   // Q&A
@@ -400,6 +405,7 @@ const styles = StyleSheet.create({
   questionText: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
+    lineHeight: 20,
   },
   answerCard: {
     alignSelf: 'flex-start',
@@ -420,12 +426,14 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: fontSize.xs,
     fontWeight: '600',
+    lineHeight: 16,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   confidenceText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   answerText: {
     color: colors.textPrimary,
@@ -449,11 +457,13 @@ const styles = StyleSheet.create({
   entityKey: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   entityVal: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
     fontWeight: '600',
+    lineHeight: 16,
   },
 
   // Input

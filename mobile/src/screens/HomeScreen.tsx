@@ -62,6 +62,22 @@ export default function HomeScreen() {
     return { currencyGroups: groups, currencyKeys: keys, isSingleCurrency: single, primaryCurrency: primary, primaryGroup: pGroup, utilization: util };
   }, [cards, allStatements]);
 
+  // Payment due info across cards
+  const paymentDueCards = useMemo(() => {
+    return cards
+      .filter((c) => c.totalAmountDue != null && c.totalAmountDue > 0)
+      .sort((a, b) => {
+        if (a.paymentDueDate && b.paymentDueDate) return a.paymentDueDate.localeCompare(b.paymentDueDate);
+        if (a.paymentDueDate) return -1;
+        return 1;
+      });
+  }, [cards]);
+
+  const totalAmountDue = useMemo(() => {
+    if (!isSingleCurrency || paymentDueCards.length === 0) return 0;
+    return paymentDueCards.reduce((sum, c) => sum + (c.totalAmountDue ?? 0), 0);
+  }, [paymentDueCards, isSingleCurrency]);
+
   const cardKeyExtractor = useCallback((item: typeof cards[0]) => item.id, []);
   const renderCardItem = useCallback(({ item }: { item: typeof cards[0] }) => (
     <TouchableOpacity
@@ -118,19 +134,56 @@ export default function HomeScreen() {
       {/* Portfolio Card */}
       <View style={styles.paddedSection}>
         <Card>
-          <Text style={styles.portfolioLabel}>Total Outstanding</Text>
-          {isSingleCurrency ? (
-            <Text style={styles.portfolioAmount}>
-              {formatCurrency(primaryGroup.totalSpent, primaryCurrency)}
-            </Text>
-          ) : (
-            <View style={{ marginTop: spacing.sm }}>
-              {currencyKeys.map((cur) => (
-                <Text key={cur} style={styles.portfolioAmount}>
-                  {formatCurrency(currencyGroups[cur].totalSpent, cur)}
-                </Text>
+          <Text style={styles.portfolioLabel}>
+            {totalAmountDue > 0 ? 'Total Amount Due' : 'Total Outstanding'}
+          </Text>
+          {totalAmountDue > 0 ? (
+            <>
+              <Text style={styles.portfolioAmount}>
+                {formatCurrency(totalAmountDue, primaryCurrency)}
+              </Text>
+              {paymentDueCards.map((c) => (
+                <View key={c.id} style={styles.dueCardRow}>
+                  <View style={[styles.dueCardDot, { backgroundColor: c.color }]} />
+                  <Text style={styles.dueCardName} numberOfLines={1}>{c.nickname}</Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.dueCardAmount}>
+                      {formatCurrency(c.totalAmountDue!, c.currency ?? 'INR')}
+                    </Text>
+                    {c.paymentDueDate && (
+                      <Text style={styles.dueCardDate}>Due {c.paymentDueDate}</Text>
+                    )}
+                  </View>
+                </View>
               ))}
-            </View>
+              {paymentDueCards.some((c) => c.minimumAmountDue != null && c.minimumAmountDue > 0) && (
+                <View style={styles.minDueRow}>
+                  <Feather name="alert-circle" size={12} color={colors.warning} />
+                  <Text style={styles.minDueText}>
+                    Min. due: {formatCurrency(
+                      paymentDueCards.reduce((s, c) => s + (c.minimumAmountDue ?? 0), 0),
+                      primaryCurrency
+                    )}
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {isSingleCurrency ? (
+                <Text style={styles.portfolioAmount}>
+                  {formatCurrency(primaryGroup.totalSpent, primaryCurrency)}
+                </Text>
+              ) : (
+                <View style={{ marginTop: spacing.sm }}>
+                  {currencyKeys.map((cur) => (
+                    <Text key={cur} style={styles.portfolioAmount}>
+                      {formatCurrency(currencyGroups[cur].totalSpent, cur)}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </>
           )}
 
           {isSingleCurrency && (
@@ -316,25 +369,29 @@ const styles = StyleSheet.create({
   title: {
     color: colors.textPrimary,
     fontSize: fontSize.xxxl,
-    fontWeight: '800',
+    fontWeight: '600',
+    lineHeight: 32,
   },
   subtitle: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     marginTop: spacing.xs,
+    lineHeight: 18,
   },
   portfolioLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    lineHeight: 16,
   },
   portfolioAmount: {
     color: colors.textPrimary,
     fontSize: fontSize.hero,
-    fontWeight: '800',
+    fontWeight: '700',
     marginVertical: spacing.sm,
+    lineHeight: 40,
   },
   utilizationRow: {
     flexDirection: 'row',
@@ -345,11 +402,13 @@ const styles = StyleSheet.create({
   utilizationLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   utilizationPct: {
     color: colors.textPrimary,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
   thresholds: {
     flexDirection: 'row',
@@ -359,12 +418,14 @@ const styles = StyleSheet.create({
   thresholdText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   noStatements: {
     color: colors.textMuted,
     fontSize: fontSize.md,
     textAlign: 'center',
     paddingVertical: spacing.lg,
+    lineHeight: 20,
   },
   statementRow: {
     flexDirection: 'row',
@@ -387,21 +448,25 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   statementDate: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   statementAmount: {
     color: colors.debit,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   statementCount: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   usageRow: {
     flexDirection: 'row',
@@ -417,22 +482,75 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   usageMonth: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   usageAmount: {
     color: colors.debit,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   usageLimit: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: spacing.xs,
     textAlign: 'right',
+    lineHeight: 16,
+  },
+  dueCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: spacing.sm,
+  },
+  dueCardDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: spacing.sm,
+  },
+  dueCardName: {
+    color: colors.textSecondary,
+    fontSize: fontSize.md,
+    fontWeight: '500',
+    lineHeight: 20,
+    flex: 1,
+  },
+  dueCardAmount: {
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  dueCardDate: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  minDueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    backgroundColor: colors.warning + '15',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  minDueText: {
+    color: colors.warning,
+    fontSize: fontSize.sm,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   paddedSection: {
     paddingHorizontal: spacing.lg,

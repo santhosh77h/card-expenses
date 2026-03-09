@@ -1030,12 +1030,14 @@ const styles = StyleSheet.create({
   title: {
     color: colors.textPrimary,
     fontSize: fontSize.xxxl,
-    fontWeight: '800',
+    fontWeight: '600',
+    lineHeight: 32,
   },
   subtitle: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     marginTop: spacing.xs,
+    lineHeight: 18,
   },
 
   // Segment bar
@@ -1061,7 +1063,8 @@ const styles = StyleSheet.create({
   segmentText: {
     color: colors.textMuted,
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 20,
   },
   segmentTextActive: {
     color: colors.accent,
@@ -1089,7 +1092,8 @@ const styles = StyleSheet.create({
   currencyChipText: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 18,
   },
   currencyChipTextActive: {
     color: colors.accent,
@@ -1103,8 +1107,9 @@ const styles = StyleSheet.create({
   detailTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: spacing.md,
+    lineHeight: 22,
   },
   sparklineContainer: {
     backgroundColor: colors.surface,
@@ -1119,6 +1124,7 @@ const styles = StyleSheet.create({
   sparklineLabel: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
 
   // Category rows
@@ -1141,6 +1147,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '500',
     flex: 1,
+    lineHeight: 20,
   },
   catRowRight: {
     flexDirection: 'row',
@@ -1163,6 +1170,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     minWidth: 80,
     textAlign: 'right',
+    lineHeight: 18,
   },
 
   // Transaction rows
@@ -1183,16 +1191,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '500',
+    lineHeight: 20,
   },
   txnMeta: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   txnAmount: {
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
     marginLeft: spacing.sm,
+    lineHeight: 20,
   },
 
   // Manage view — card detail
@@ -1205,12 +1216,14 @@ const styles = StyleSheet.create({
   manageCardName: {
     color: colors.textPrimary,
     fontSize: fontSize.xl,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 26,
   },
   manageCardInfo: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
     marginTop: 2,
+    lineHeight: 18,
   },
   deleteBtn: {
     padding: spacing.sm,
@@ -1238,11 +1251,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '700',
     textAlign: 'center',
+    lineHeight: 18,
   },
   statLabel: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     textAlign: 'center',
+    lineHeight: 16,
   },
 
   // Sections
@@ -1253,8 +1268,9 @@ const styles = StyleSheet.create({
   manageSectionTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: spacing.md,
+    lineHeight: 22,
   },
 
   // Utilization
@@ -1268,10 +1284,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.xxl,
     fontWeight: '700',
+    lineHeight: 28,
   },
   utilizationLimit: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   utilizationBarTrack: {
     height: 8,
@@ -1291,10 +1309,12 @@ const styles = StyleSheet.create({
   utilizationPct: {
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
   utilizationAvail: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   utilizationWarning: {
     flexDirection: 'row',
@@ -1310,6 +1330,7 @@ const styles = StyleSheet.create({
     color: colors.debit,
     fontSize: fontSize.xs,
     fontWeight: '500',
+    lineHeight: 16,
   },
 
   // Payment info
@@ -1325,11 +1346,13 @@ const styles = StyleSheet.create({
   paymentLabel: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   paymentValue: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   billingCycleRow: {
     flexDirection: 'row',
@@ -1343,6 +1366,7 @@ const styles = StyleSheet.create({
   billingCycleText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
 
   // Section header row
@@ -1356,6 +1380,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.xs,
     fontWeight: '600',
+    lineHeight: 16,
   },
 
   // Scrollable bar chart
@@ -1370,8 +1395,9 @@ const styles = StyleSheet.create({
   chartTooltipMonth: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: spacing.sm,
+    lineHeight: 20,
   },
   chartTooltipRow: {
     flexDirection: 'row',
@@ -1383,11 +1409,13 @@ const styles = StyleSheet.create({
   chartTooltipLabel: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   chartTooltipValue: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '700',
+    lineHeight: 20,
   },
   chartLimitLine: {
     position: 'absolute',
@@ -1451,6 +1479,7 @@ const styles = StyleSheet.create({
   billSummaryText: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
 
   // Add card section
@@ -1481,11 +1510,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   addCardBtnSubtitle: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   collapseBtn: {
     flexDirection: 'row',
@@ -1498,7 +1529,8 @@ const styles = StyleSheet.create({
   collapseBtnText: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 18,
   },
 
   // Form (shared with AddCardForm)
@@ -1512,6 +1544,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
+    lineHeight: 18,
   },
   input: {
     backgroundColor: colors.surfaceElevated,

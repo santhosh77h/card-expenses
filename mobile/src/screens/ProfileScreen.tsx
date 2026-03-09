@@ -170,14 +170,16 @@ const styles = StyleSheet.create({
   brand: {
     color: colors.textPrimary,
     fontSize: fontSize.hero,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 4,
+    lineHeight: 40,
   },
   tagline: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     letterSpacing: 1,
     marginTop: spacing.xs,
+    lineHeight: 18,
   },
   badgeRow: {
     marginTop: spacing.lg,
@@ -193,7 +195,8 @@ const styles = StyleSheet.create({
   upgradeBtnText: {
     color: colors.warning,
     fontSize: fontSize.sm,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 18,
   },
   statsCard: {
     marginHorizontal: spacing.lg,
@@ -209,7 +212,8 @@ const styles = StyleSheet.create({
   statValue: {
     color: colors.textPrimary,
     fontSize: fontSize.xxl,
-    fontWeight: '800',
+    fontWeight: '700',
+    lineHeight: 28,
   },
   statLabel: {
     color: colors.textSecondary,
@@ -217,6 +221,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    lineHeight: 16,
   },
   statsDivider: {
     width: 1,
@@ -250,11 +255,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   menuSubtitle: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
     marginTop: 2,
+    lineHeight: 16,
   },
   aboutCard: {
     marginHorizontal: spacing.lg,
@@ -268,10 +275,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.md,
     flex: 1,
+    lineHeight: 20,
   },
   aboutValue: {
     color: colors.textMuted,
     fontSize: fontSize.md,
+    lineHeight: 20,
   },
   aboutDivider: {
     height: 1,
@@ -285,6 +294,7 @@ const styles = StyleSheet.create({
   privacyText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    fontWeight: '400',
     flex: 1,
     lineHeight: 18,
   },

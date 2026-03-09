@@ -140,6 +140,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: '600',
     flex: 1,
+    lineHeight: 18,
   },
   cardTitleSelected: {
     color: colors.accent,
@@ -147,12 +148,14 @@ const styles = StyleSheet.create({
   cardLast4: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   cardSpend: {
     color: colors.textPrimary,
     fontSize: fontSize.xl,
     fontWeight: '700',
     marginBottom: spacing.sm,
+    lineHeight: 26,
   },
   barTrack: {
     height: 4,
@@ -172,5 +175,6 @@ const styles = StyleSheet.create({
   momText: {
     fontSize: fontSize.xs,
     fontWeight: '500',
+    lineHeight: 16,
   },
 });

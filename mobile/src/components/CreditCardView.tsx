@@ -118,9 +118,10 @@ const styles = StyleSheet.create({
   issuer: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: fontSize.lg,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
+    lineHeight: 22,
   },
   numberRow: {
     flexDirection: 'row',
@@ -150,16 +151,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
+    lineHeight: 16,
   },
   nickname: {
     color: '#FFFFFF',
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   limit: {
     color: '#FFFFFF',
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
   currencyBadge: {
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -172,5 +176,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: '700',
     letterSpacing: 0.5,
+    lineHeight: 16,
   },
 });

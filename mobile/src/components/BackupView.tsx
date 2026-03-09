@@ -324,7 +324,8 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 22,
   },
   desc: {
     color: colors.textSecondary,
@@ -357,12 +358,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     marginBottom: spacing.md,
     marginTop: -spacing.sm,
+    lineHeight: 16,
   },
   errorText: {
     color: colors.debit,
     fontSize: fontSize.sm,
     marginTop: -spacing.xs,
     marginBottom: spacing.sm,
+    lineHeight: 18,
   },
   decryptCard: {
     borderWidth: 1,
@@ -375,6 +378,7 @@ const styles = StyleSheet.create({
   previewDate: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   previewDivider: {
     height: 1,
@@ -392,5 +396,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.xs,
     flex: 1,
+    lineHeight: 16,
   },
 });

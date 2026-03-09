@@ -472,7 +472,8 @@ const styles = StyleSheet.create({
   title: {
     color: colors.textPrimary,
     fontSize: fontSize.xxxl,
-    fontWeight: '800',
+    fontWeight: '600',
+    lineHeight: 32,
   },
   row: {
     flexDirection: 'row',
@@ -494,7 +495,8 @@ const styles = StyleSheet.create({
   rowDesc: {
     color: colors.textPrimary,
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 20,
   },
   rowMeta: {
     flexDirection: 'row',
@@ -505,6 +507,7 @@ const styles = StyleSheet.create({
   rowDate: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   rowRight: {
     alignItems: 'flex-end',
@@ -512,7 +515,8 @@ const styles = StyleSheet.create({
   },
   rowAmount: {
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   indicators: {
     flexDirection: 'row',
@@ -532,6 +536,7 @@ const styles = StyleSheet.create({
   cardTagText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
   searchRow: {
     flexDirection: 'row',
@@ -569,7 +574,8 @@ const styles = StyleSheet.create({
   chipText: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 16,
   },
   chipTextActive: {
     color: colors.accent,
@@ -589,6 +595,7 @@ const styles = StyleSheet.create({
   sortLabel: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   sortToggle: {
     flexDirection: 'row',
@@ -597,7 +604,8 @@ const styles = StyleSheet.create({
   sortToggleText: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 18,
     marginLeft: spacing.xs,
   },
   listHeader: {
@@ -615,5 +623,6 @@ const styles = StyleSheet.create({
   monthTotalText: {
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
 });

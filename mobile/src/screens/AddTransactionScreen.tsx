@@ -267,6 +267,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    lineHeight: 18,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
@@ -295,6 +296,7 @@ const styles = StyleSheet.create({
   hint: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
     flexBasis: '100%',
     marginTop: 4,
   },
@@ -321,7 +323,8 @@ const styles = StyleSheet.create({
   toggleText: {
     color: colors.textMuted,
     fontSize: fontSize.md,
-    fontWeight: '700',
+    fontWeight: '500',
+    lineHeight: 20,
   },
   cardChip: {
     flexDirection: 'row',
@@ -342,7 +345,8 @@ const styles = StyleSheet.create({
   cardChipText: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 18,
   },
   cardChipTextActive: {
     color: colors.accent,

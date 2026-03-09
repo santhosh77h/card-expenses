@@ -34,14 +34,28 @@ export const borderRadius = {
 };
 
 export const fontSize = {
-  xs: 10,
+  xs: 11,
   sm: 12,
   md: 14,
   lg: 16,
   xl: 18,
   xxl: 22,
-  xxxl: 28,
-  hero: 36,
+  xxxl: 24,
+  hero: 32,
+};
+
+export const typography = {
+  displayLarge:  { fontSize: 32, lineHeight: 40, fontWeight: '700' as const },
+  headlineLarge: { fontSize: 24, lineHeight: 32, fontWeight: '600' as const },
+  titleLarge:    { fontSize: 18, lineHeight: 26, fontWeight: '600' as const },
+  titleMedium:   { fontSize: 16, lineHeight: 22, fontWeight: '500' as const },
+  titleSmall:    { fontSize: 14, lineHeight: 20, fontWeight: '500' as const },
+  bodyLarge:     { fontSize: 16, lineHeight: 24, fontWeight: '400' as const },
+  bodyMedium:    { fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
+  bodySmall:     { fontSize: 12, lineHeight: 18, fontWeight: '400' as const },
+  labelLarge:    { fontSize: 14, lineHeight: 20, fontWeight: '500' as const },
+  labelMedium:   { fontSize: 12, lineHeight: 16, fontWeight: '500' as const },
+  labelSmall:    { fontSize: 11, lineHeight: 16, fontWeight: '500' as const },
 };
 
 export const categoryColors: Record<string, string> = {

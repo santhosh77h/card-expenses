@@ -203,6 +203,7 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
+    lineHeight: 18,
   },
   legend: {
     flexDirection: 'row',
@@ -223,6 +224,7 @@ const styles = StyleSheet.create({
   legendLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontWeight: '500',
+    lineHeight: 16,
   },
 });

@@ -71,6 +71,20 @@ export function getStatementCountSince(sinceIso: string): number {
   return (result.rows[0]?.cnt as number) ?? 0;
 }
 
+export function updateStatementSummary(statementId: string, summary: StatementSummary): void {
+  getDb().executeSync(
+    `UPDATE statements SET summary = ? WHERE id = ?`,
+    [JSON.stringify(summary), statementId],
+  );
+}
+
+export function updateStatementCsv(statementId: string, csv: string): void {
+  getDb().executeSync(
+    `UPDATE statements SET csv = ? WHERE id = ?`,
+    [csv, statementId],
+  );
+}
+
 export function deleteStatementsByCardId(cardId: string): void {
   getDb().executeSync(`DELETE FROM statements WHERE cardId = ?`, [cardId]);
 }

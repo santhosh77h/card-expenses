@@ -63,7 +63,7 @@ function TabNavigator() {
         },
         tabBarActiveTintColor: colors.tabBarActive,
         tabBarInactiveTintColor: colors.tabBarInactive,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' as const },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' as const },
         tabBarIcon: ({ color, size }) => {
           let iconName: keyof typeof Feather.glyphMap = 'home';
           if (route.name === 'Home') iconName = 'home';

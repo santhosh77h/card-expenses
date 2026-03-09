@@ -20,7 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
-import { colors, spacing, borderRadius, fontSize, CurrencyCode } from '../theme';
+import { colors, spacing, borderRadius, fontSize, CurrencyCode, SUPPORTED_CURRENCIES, CURRENCY_CONFIG } from '../theme';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { findByHash, insertFileHash } from '../db/fileHashes';
@@ -29,11 +29,11 @@ import { ENTITLEMENT_ID } from '../utils/revenueCat';
 import { Badge, Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
-import { BANK_TO_ISSUER, normalizeNetwork, pickUnusedColor } from '../constants/cards';
+import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 
 const FREE_TIER_UPLOAD_LIMIT = 3;
 
-type UploadState = 'idle' | 'uploading' | 'parsing' | 'done' | 'error';
+type UploadState = 'idle' | 'uploading' | 'parsing' | 'error';
 
 export default function UploadScreen() {
 	const insets = useSafeAreaInsets();
@@ -56,9 +56,17 @@ export default function UploadScreen() {
 	const [password, setPassword] = useState('');
 	const [passwordError, setPasswordError] = useState('');
 	const [pendingFile, setPendingFile] = useState<{ uri: string; name: string } | null>(null);
-	const [resolvedCard, setResolvedCard] = useState<CreditCard | null>(null);
-	const [resolvedAutoCreated, setResolvedAutoCreated] = useState(false);
-	const [lastNavParams, setLastNavParams] = useState<{ statementId: string; cardId: string } | null>(null);
+
+	// Card confirmation modal state
+	const [cardConfirmVisible, setCardConfirmVisible] = useState(false);
+	const [pendingCardData, setPendingCardData] = useState<CreditCard | null>(null);
+	const [pendingParseResult, setPendingParseResult] = useState<{ parsed: any; fileHash?: string } | null>(null);
+	const [confirmNickname, setConfirmNickname] = useState('');
+	const [confirmLast4, setConfirmLast4] = useState('');
+	const [confirmIssuer, setConfirmIssuer] = useState('');
+	const [confirmNetwork, setConfirmNetwork] = useState('');
+	const [confirmCreditLimit, setConfirmCreditLimit] = useState('');
+	const [confirmCurrency, setConfirmCurrency] = useState<CurrencyCode>('INR');
 
 	const computeFileHash = async (fileUri: string): Promise<string> => {
 		const base64 = await FileSystem.readAsStringAsync(fileUri, {
@@ -220,11 +228,6 @@ export default function UploadScreen() {
 		const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
 		const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
 
-		// --- Resolve card ---
-		let cardId: string;
-		let wasAutoCreated = false;
-		let matched: CreditCard | undefined;
-
 		if (cardInfo?.card_last4) {
 			// Try to find existing card by last4 + issuer
 			const existing = cards.find(
@@ -232,22 +235,19 @@ export default function UploadScreen() {
 			);
 
 			if (existing) {
-				cardId = existing.id;
-				matched = existing;
-				// Update metadata from latest statement
+				// Existing card matched — update metadata and proceed directly
 				const updates: Partial<CreditCard> = {};
 				if (cardInfo.credit_limit != null) updates.creditLimit = cardInfo.credit_limit;
 				if (cardInfo.total_amount_due != null) updates.totalAmountDue = cardInfo.total_amount_due;
 				if (cardInfo.minimum_amount_due != null) updates.minimumAmountDue = cardInfo.minimum_amount_due;
 				if (cardInfo.payment_due_date) updates.paymentDueDate = cardInfo.payment_due_date;
-				if (Object.keys(updates).length > 0) updateCard(cardId, updates);
+				if (Object.keys(updates).length > 0) updateCard(existing.id, updates);
+				finalizeSave(existing.id, existing, false, parsed, fileHash);
 			} else {
-				// Auto-create new card
-				cardId = `auto-${Date.now()}`;
-				wasAutoCreated = true;
+				// New card detected — show confirmation modal
 				const network = normalizeNetwork(cardInfo.card_network);
 				const newCard: CreditCard = {
-					id: cardId,
+					id: `auto-${Date.now()}`,
 					nickname: `${issuerName} •${cardInfo.card_last4}`,
 					last4: cardInfo.card_last4,
 					issuer: issuerName,
@@ -261,14 +261,35 @@ export default function UploadScreen() {
 					autoCreated: true,
 					currency: detectedCurrency,
 				};
-				addCard(newCard);
-				matched = newCard;
+				// Populate confirmation fields
+				setConfirmNickname(newCard.nickname);
+				setConfirmLast4(newCard.last4);
+				setConfirmIssuer(newCard.issuer);
+				setConfirmNetwork(newCard.network);
+				setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
+				setConfirmCurrency(detectedCurrency);
+				setPendingCardData(newCard);
+				setPendingParseResult({ parsed, fileHash });
+				setState('idle');
+				setCardConfirmVisible(true);
 			}
 		} else {
-			// Fallback to manual selection
-			cardId = selectedCardId || 'demo';
-			matched = cards.find((c) => c.id === cardId);
+			// Fallback to selected card
+			const cardId = selectedCardId || 'demo';
+			const matched = cards.find((c) => c.id === cardId);
+			finalizeSave(cardId, matched, false, parsed, fileHash);
 		}
+	};
+
+	const finalizeSave = (
+		cardId: string,
+		matched: CreditCard | undefined,
+		wasAutoCreated: boolean,
+		parsed: any,
+		fileHash?: string,
+	) => {
+		const bankDetected: string = parsed.bank_detected || 'generic';
+		const detectedCurrency = (parsed.card_info?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
 
 		const statementId = Date.now().toString();
 		const statement: StatementData = {
@@ -308,10 +329,33 @@ export default function UploadScreen() {
 			});
 		}
 
-		setResolvedCard(matched ?? null);
-		setResolvedAutoCreated(wasAutoCreated);
-		setLastNavParams({ statementId: statement.id, cardId });
-		setState('done');
+		setState('idle');
+		navigation.navigate('Analysis', { statementId: statement.id, cardId });
+	};
+
+	const handleCardConfirm = () => {
+		if (!pendingCardData || !pendingParseResult) return;
+		const confirmedCard: CreditCard = {
+			...pendingCardData,
+			nickname: confirmNickname.trim() || pendingCardData.nickname,
+			last4: confirmLast4.trim() || pendingCardData.last4,
+			issuer: confirmIssuer,
+			network: confirmNetwork,
+			creditLimit: parseFloat(confirmCreditLimit) || 0,
+			currency: confirmCurrency,
+		};
+		addCard(confirmedCard);
+		setCardConfirmVisible(false);
+		finalizeSave(confirmedCard.id, confirmedCard, true, pendingParseResult.parsed, pendingParseResult.fileHash);
+		setPendingCardData(null);
+		setPendingParseResult(null);
+	};
+
+	const handleCardConfirmCancel = () => {
+		setCardConfirmVisible(false);
+		setPendingCardData(null);
+		setPendingParseResult(null);
+		setState('idle');
 	};
 
 	return (
@@ -424,13 +468,6 @@ export default function UploadScreen() {
 								<Text style={styles.uploadSubtitle}>Your data is being processed securely</Text>
 							</>
 						)}
-						{state === 'done' && (
-							<>
-								<Feather name="check-circle" size={48} color={colors.accent} />
-								<Text style={[styles.uploadTitle, { color: colors.accent }]}>Done!</Text>
-								<Text style={styles.uploadSubtitle}>Tap below to continue</Text>
-							</>
-						)}
 						{state === 'error' && (
 							<>
 								<Feather name="alert-circle" size={48} color={colors.debit} />
@@ -444,53 +481,6 @@ export default function UploadScreen() {
 					</TouchableOpacity>
 				</View>
 
-				{/* Resolved card + actions after successful parse */}
-				{state === 'done' && resolvedCard && lastNavParams && (
-					<View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
-						<Card>
-							<View style={styles.detectedHeader}>
-								<Feather
-									name={resolvedAutoCreated ? 'plus-circle' : 'check-circle'}
-									size={16}
-									color={colors.accent}
-								/>
-								<Text style={styles.detectedLabel}>
-									{resolvedAutoCreated ? 'Card Auto-Created' : 'Card Detected'}
-								</Text>
-							</View>
-							<View style={{ alignItems: 'center', marginTop: spacing.md }}>
-								<CreditCardView card={resolvedCard} compact />
-							</View>
-							<View style={styles.doneButtons}>
-								<TouchableOpacity
-									style={styles.doneBtn}
-									onPress={() => {
-										setResolvedCard(null);
-										setLastNavParams(null);
-										setState('idle');
-										navigation.navigate('Analysis', lastNavParams);
-									}}
-								>
-									<Feather name="bar-chart-2" size={16} color={colors.accent} />
-									<Text style={styles.doneBtnText}>View Analysis</Text>
-								</TouchableOpacity>
-								<TouchableOpacity
-									style={styles.doneBtn}
-									onPress={() => {
-										setResolvedCard(null);
-										setLastNavParams(null);
-										setState('idle');
-										navigation.navigate('Tabs' as any, { screen: 'Cards' });
-									}}
-								>
-									<Feather name="credit-card" size={16} color={colors.accent} />
-									<Text style={styles.doneBtnText}>View Card</Text>
-								</TouchableOpacity>
-							</View>
-						</Card>
-					</View>
-				)}
-
 				{/* Demo button */}
 				<View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
 					<PrimaryButton
@@ -498,7 +488,7 @@ export default function UploadScreen() {
 						icon="play"
 						variant="outline"
 						onPress={handleDemo}
-						disabled={state === 'uploading' || state === 'parsing' || state === 'done'}
+						disabled={state === 'uploading' || state === 'parsing'}
 					/>
 				</View>
 
@@ -566,6 +556,150 @@ export default function UploadScreen() {
 					</View>
 				</KeyboardAvoidingView>
 			</Modal>
+
+			{/* Card Confirmation Modal */}
+			<Modal
+				visible={cardConfirmVisible}
+				transparent
+				animationType="fade"
+				onRequestClose={handleCardConfirmCancel}
+			>
+				<KeyboardAvoidingView
+					behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+					style={styles.modalOverlay}
+				>
+					<ScrollView
+						style={{ width: '100%' }}
+						contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: spacing.lg }}
+						keyboardShouldPersistTaps="handled"
+					>
+						<View style={styles.modalCard}>
+							<Feather name="credit-card" size={36} color={colors.accent} style={{ alignSelf: 'center' }} />
+							<Text style={styles.modalTitle}>New Card Detected</Text>
+							<Text style={styles.modalSubtitle}>
+								Review the details below before adding this card.
+							</Text>
+
+							{/* Card preview */}
+							<View style={{ alignItems: 'center', marginTop: spacing.lg }}>
+								<CreditCardView
+									card={{
+										id: pendingCardData?.id ?? '',
+										nickname: confirmNickname || 'New Card',
+										last4: confirmLast4 || '••••',
+										issuer: confirmIssuer,
+										network: confirmNetwork,
+										creditLimit: parseFloat(confirmCreditLimit) || 0,
+										billingCycle: '1',
+										color: pendingCardData?.color ?? '#1E3A5F',
+										currency: confirmCurrency,
+									}}
+									compact
+								/>
+							</View>
+
+							{/* Nickname */}
+							<Text style={styles.confirmFieldLabel}>Nickname</Text>
+							<TextInput
+								style={styles.modalInput}
+								placeholder="e.g. HDFC •1234"
+								placeholderTextColor={colors.textMuted}
+								value={confirmNickname}
+								onChangeText={setConfirmNickname}
+							/>
+
+							{/* Last 4 Digits */}
+							<Text style={styles.confirmFieldLabel}>Last 4 Digits</Text>
+							<TextInput
+								style={styles.modalInput}
+								placeholder="1234"
+								placeholderTextColor={colors.textMuted}
+								value={confirmLast4}
+								onChangeText={(t) => setConfirmLast4(t.replace(/\D/g, '').slice(0, 4))}
+								keyboardType="number-pad"
+								maxLength={4}
+							/>
+
+							{/* Issuer picker */}
+							<Text style={styles.confirmFieldLabel}>Issuer</Text>
+							<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
+								{ISSUERS.map((iss) => (
+									<TouchableOpacity
+										key={iss}
+										style={[styles.chipOption, confirmIssuer === iss && styles.chipOptionActive]}
+										onPress={() => {
+											setConfirmIssuer(iss);
+											if (ISSUER_CURRENCY[iss]) setConfirmCurrency(ISSUER_CURRENCY[iss]);
+										}}
+									>
+										<Text style={[styles.chipOptionText, confirmIssuer === iss && styles.chipOptionTextActive]}>
+											{iss}
+										</Text>
+									</TouchableOpacity>
+								))}
+							</ScrollView>
+
+							{/* Network picker */}
+							<Text style={styles.confirmFieldLabel}>Network</Text>
+							<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
+								{NETWORKS.map((net) => (
+									<TouchableOpacity
+										key={net}
+										style={[styles.chipOption, confirmNetwork === net && styles.chipOptionActive]}
+										onPress={() => setConfirmNetwork(net)}
+									>
+										<Text style={[styles.chipOptionText, confirmNetwork === net && styles.chipOptionTextActive]}>
+											{net}
+										</Text>
+									</TouchableOpacity>
+								))}
+							</ScrollView>
+
+							{/* Credit Limit */}
+							<Text style={styles.confirmFieldLabel}>Credit Limit</Text>
+							<TextInput
+								style={styles.modalInput}
+								placeholder="0"
+								placeholderTextColor={colors.textMuted}
+								value={confirmCreditLimit}
+								onChangeText={setConfirmCreditLimit}
+								keyboardType="numeric"
+							/>
+
+							{/* Currency picker */}
+							<Text style={styles.confirmFieldLabel}>Currency</Text>
+							<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
+								{SUPPORTED_CURRENCIES.map((cur) => (
+									<TouchableOpacity
+										key={cur}
+										style={[styles.chipOption, confirmCurrency === cur && styles.chipOptionActive]}
+										onPress={() => setConfirmCurrency(cur)}
+									>
+										<Text style={[styles.chipOptionText, confirmCurrency === cur && styles.chipOptionTextActive]}>
+											{CURRENCY_CONFIG[cur].symbol} {cur}
+										</Text>
+									</TouchableOpacity>
+								))}
+							</ScrollView>
+
+							{/* Buttons */}
+							<View style={[styles.modalButtons, { marginTop: spacing.xl }]}>
+								<TouchableOpacity style={styles.modalCancelBtn} onPress={handleCardConfirmCancel}>
+									<Text style={styles.modalCancelText}>Cancel</Text>
+								</TouchableOpacity>
+								<TouchableOpacity
+									style={[styles.modalUnlockBtn, !confirmLast4.trim() && { opacity: 0.5 }]}
+									onPress={handleCardConfirm}
+									disabled={!confirmLast4.trim()}
+								>
+									<Feather name="check" size={16} color="#fff" style={{ marginRight: 6 }} />
+									<Text style={styles.modalUnlockText}>Confirm & Continue</Text>
+								</TouchableOpacity>
+							</View>
+						</View>
+					</ScrollView>
+				</KeyboardAvoidingView>
+			</Modal>
 		</>
 	);
 }
@@ -582,17 +716,20 @@ const styles = StyleSheet.create({
 	title: {
 		color: colors.textPrimary,
 		fontSize: fontSize.xxxl,
-		fontWeight: '800',
+		fontWeight: '600',
+		lineHeight: 32,
 	},
 	subtitle: {
 		color: colors.textSecondary,
 		fontSize: fontSize.sm,
 		marginTop: spacing.xs,
+		lineHeight: 18,
 	},
 	label: {
 		color: colors.textSecondary,
 		fontSize: fontSize.sm,
 		fontWeight: '600',
+		lineHeight: 18,
 	},
 	cardChip: {
 		paddingHorizontal: spacing.lg,
@@ -609,7 +746,8 @@ const styles = StyleSheet.create({
 	cardChipText: {
 		color: colors.textSecondary,
 		fontSize: fontSize.sm,
-		fontWeight: '600',
+		fontWeight: '500',
+		lineHeight: 18,
 	},
 	cardChipTextActive: {
 		color: colors.accent,
@@ -628,8 +766,9 @@ const styles = StyleSheet.create({
 	uploadTitle: {
 		color: colors.textPrimary,
 		fontSize: fontSize.xl,
-		fontWeight: '700',
+		fontWeight: '600',
 		marginTop: spacing.lg,
+		lineHeight: 26,
 	},
 	uploadSubtitle: {
 		color: colors.textMuted,
@@ -638,37 +777,34 @@ const styles = StyleSheet.create({
 		marginTop: spacing.sm,
 		lineHeight: 18,
 	},
-	detectedHeader: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: spacing.sm,
-	},
-	detectedLabel: {
-		color: colors.accent,
-		fontSize: fontSize.sm,
-		fontWeight: '700',
-		textTransform: 'uppercase',
-		letterSpacing: 0.5,
-	},
-	doneButtons: {
-		flexDirection: 'row',
-		marginTop: spacing.lg,
-		gap: spacing.sm,
-	},
-	doneBtn: {
-		flex: 1,
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: spacing.sm,
-		paddingVertical: spacing.md,
-		borderRadius: borderRadius.lg,
-		backgroundColor: colors.surfaceElevated,
-	},
-	doneBtnText: {
-		color: colors.accent,
+	confirmFieldLabel: {
+		color: colors.textSecondary,
 		fontSize: fontSize.sm,
 		fontWeight: '600',
+		marginTop: spacing.md,
+		lineHeight: 18,
+	},
+	chipOption: {
+		paddingHorizontal: spacing.md,
+		paddingVertical: spacing.sm,
+		borderRadius: borderRadius.full,
+		backgroundColor: colors.surface,
+		marginRight: spacing.xs,
+		borderWidth: 1,
+		borderColor: colors.border,
+	},
+	chipOptionActive: {
+		backgroundColor: colors.accent + '20',
+		borderColor: colors.accent,
+	},
+	chipOptionText: {
+		color: colors.textSecondary,
+		fontSize: fontSize.sm,
+		fontWeight: '500',
+		lineHeight: 18,
+	},
+	chipOptionTextActive: {
+		color: colors.accent,
 	},
 	privacyRow: {
 		flexDirection: 'row',
@@ -677,7 +813,8 @@ const styles = StyleSheet.create({
 	privacyTitle: {
 		color: colors.textPrimary,
 		fontSize: fontSize.md,
-		fontWeight: '700',
+		fontWeight: '600',
+		lineHeight: 20,
 	},
 	privacyText: {
 		color: colors.textSecondary,
@@ -694,11 +831,13 @@ const styles = StyleSheet.create({
 		color: colors.textPrimary,
 		fontSize: fontSize.sm,
 		fontWeight: '600',
+		lineHeight: 18,
 	},
 	usageSubtitle: {
 		color: colors.textMuted,
 		fontSize: fontSize.xs,
 		marginTop: 2,
+		lineHeight: 16,
 	},
 	upgradeBtn: {
 		flexDirection: 'row',
@@ -712,7 +851,8 @@ const styles = StyleSheet.create({
 	upgradeBtnText: {
 		color: '#fff',
 		fontSize: fontSize.sm,
-		fontWeight: '700',
+		fontWeight: '600',
+		lineHeight: 18,
 	},
 	usageBarBg: {
 		height: 4,
@@ -741,9 +881,10 @@ const styles = StyleSheet.create({
 	modalTitle: {
 		color: colors.textPrimary,
 		fontSize: fontSize.xl,
-		fontWeight: '700',
+		fontWeight: '600',
 		textAlign: 'center',
 		marginTop: spacing.md,
+		lineHeight: 26,
 	},
 	modalSubtitle: {
 		color: colors.textSecondary,
@@ -758,6 +899,7 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 		marginTop: spacing.sm,
 		fontWeight: '600',
+		lineHeight: 18,
 	},
 	modalInput: {
 		backgroundColor: colors.surface,
@@ -787,6 +929,7 @@ const styles = StyleSheet.create({
 		color: colors.textSecondary,
 		fontSize: fontSize.md,
 		fontWeight: '600',
+		lineHeight: 20,
 	},
 	modalUnlockBtn: {
 		flex: 1,
@@ -800,6 +943,7 @@ const styles = StyleSheet.create({
 	modalUnlockText: {
 		color: '#fff',
 		fontSize: fontSize.md,
-		fontWeight: '700',
+		fontWeight: '600',
+		lineHeight: 20,
 	},
 });

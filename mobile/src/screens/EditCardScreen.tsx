@@ -263,6 +263,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     textAlign: 'center',
     marginTop: spacing.xxxl,
+    lineHeight: 22,
   },
   previewContainer: {
     alignItems: 'center',
@@ -274,6 +275,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: spacing.xs,
     marginTop: spacing.md,
+    lineHeight: 18,
   },
   input: {
     backgroundColor: colors.surfaceElevated,
@@ -341,5 +343,6 @@ const styles = StyleSheet.create({
     color: colors.debit,
     fontSize: fontSize.md,
     fontWeight: '600',
+    lineHeight: 20,
   },
 });

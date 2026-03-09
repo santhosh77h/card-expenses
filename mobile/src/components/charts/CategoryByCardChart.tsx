@@ -79,13 +79,15 @@ const styles = StyleSheet.create({
   title: {
     color: colors.textPrimary,
     fontSize: fontSize.lg,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: spacing.xs,
+    lineHeight: 22,
   },
   subtitle: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
     marginBottom: spacing.lg,
+    lineHeight: 18,
   },
   row: {
     marginBottom: spacing.lg,
@@ -106,11 +108,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '600',
     flex: 1,
+    lineHeight: 20,
   },
   catAmount: {
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
   barTrack: {
     flexDirection: 'row',
@@ -141,5 +145,6 @@ const styles = StyleSheet.create({
   segText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
+    lineHeight: 16,
   },
 });

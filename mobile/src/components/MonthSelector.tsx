@@ -182,6 +182,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.lg,
     fontWeight: '600',
+    lineHeight: 22,
   },
   overlay: {
     flex: 1,
@@ -199,7 +200,8 @@ const styles = StyleSheet.create({
   pickerTitle: {
     color: colors.textPrimary,
     fontSize: fontSize.xl,
-    fontWeight: '700',
+    fontWeight: '600',
+    lineHeight: 26,
     marginBottom: spacing.lg,
     textAlign: 'center',
   },
@@ -207,6 +209,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -234,6 +237,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.sm,
     fontWeight: '500',
+    lineHeight: 18,
   },
   monthCellTextActive: {
     color: colors.accent,
@@ -254,5 +258,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: fontSize.sm,
     fontWeight: '600',
+    lineHeight: 18,
   },
 });

@@ -81,6 +81,24 @@ export function isStatementImported(statementId: string): boolean {
   return ((result.rows[0]?.cnt as number) ?? 0) > 0;
 }
 
+export function updateTransaction(
+  id: string,
+  updates: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'category_color' | 'category_icon' | 'type'>>,
+): void {
+  const fields: string[] = [];
+  const values: any[] = [];
+  const allowed = ['date', 'description', 'amount', 'category', 'category_color', 'category_icon', 'type'] as const;
+  for (const key of allowed) {
+    if (key in updates) {
+      fields.push(`${key} = ?`);
+      values.push(updates[key]);
+    }
+  }
+  if (fields.length === 0) return;
+  values.push(id);
+  getDb().executeSync(`UPDATE transactions SET ${fields.join(', ')} WHERE id = ?`, values);
+}
+
 function rowToTransaction(row: Record<string, any>): Transaction {
   return {
     id: row.id,
