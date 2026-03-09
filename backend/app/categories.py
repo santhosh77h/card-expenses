@@ -20,24 +20,42 @@ class Category:
 # Ordered: first match wins. More specific categories before broader ones.
 CATEGORIES: list[Category] = [
     Category(
-        name="Food & Dining",
-        color="#FF6B6B",
-        icon="fork-knife",
-        keywords=(
-            "swiggy", "zomato", "starbucks", "restaurant", "mcdonald",
-            "dominos", "pizza", "kfc", "burger", "cafe", "bakery", "food",
-            "dining", "eat", "biryani", "haldiram", "barbeque", "subway",
-            "dunkin", "baskin", "chai", "tea", "coffee", "dine",
-        ),
-    ),
-    Category(
         name="Groceries",
         color="#4ADE80",
         icon="shopping-cart",
         keywords=(
+            # Generic
+            "fresh", "vegetable", "fruit", "grocery", "supermarket", "milk",
+            "dairy",
+            # India
             "bigbasket", "blinkit", "dmart", "zepto", "instamart", "jiomart",
-            "grofers", "nature basket", "fresh", "vegetable", "fruit",
-            "grocery", "supermarket", "provision", "kirana", "milk", "dairy",
+            "grofers", "nature basket", "provision", "kirana",
+            # US
+            "walmart grocery", "kroger", "whole foods", "trader joe",
+            "safeway", "publix", "aldi", "instacart",
+            # UK
+            "tesco", "sainsbury", "asda", "waitrose", "ocado", "lidl",
+            "morrisons", "co-op", "iceland",
+        ),
+    ),
+    Category(
+        name="Food & Dining",
+        color="#FF6B6B",
+        icon="fork-knife",
+        keywords=(
+            # Generic
+            "starbucks", "restaurant", "mcdonald", "dominos", "pizza", "kfc",
+            "burger", "cafe", "bakery", "food", "dining", "eat", "subway",
+            "dunkin", "baskin", "chai", "tea", "coffee", "dine",
+            # India
+            "swiggy", "zomato", "biryani", "haldiram", "barbeque",
+            # US
+            "doordash", "grubhub", "chipotle", "chick-fil-a", "taco bell",
+            "wendys", "panera", "shake shack", "panda express", "chilis",
+            "applebees", "ihop", "uber eats",
+            # UK
+            "deliveroo", "just eat", "nandos", "greggs", "pret",
+            "wagamama", "costa", "wetherspoon",
         ),
     ),
     Category(
@@ -45,10 +63,18 @@ CATEGORIES: list[Category] = [
         color="#60A5FA",
         icon="shopping-bag",
         keywords=(
-            "amazon", "myntra", "flipkart", "mall", "ajio", "meesho", "nykaa",
-            "tata cliq", "reliance", "shoppers stop", "lifestyle", "westside",
-            "h&m", "zara", "uniqlo", "decathlon", "ikea", "croma",
+            # Generic
+            "amazon", "mall", "h&m", "zara", "uniqlo", "decathlon", "ikea",
+            # India
+            "myntra", "flipkart", "ajio", "meesho", "nykaa", "tata cliq",
+            "reliance", "shoppers stop", "lifestyle", "westside", "croma",
             "vijay sales",
+            # US
+            "target", "best buy", "home depot", "lowes", "macys",
+            "nordstrom", "tj maxx", "marshalls", "etsy", "wayfair",
+            # UK
+            "primark", "john lewis", "argos", "next", "asos", "tk maxx",
+            "selfridges", "currys",
         ),
     ),
     Category(
@@ -56,9 +82,17 @@ CATEGORIES: list[Category] = [
         color="#34D399",
         icon="car",
         keywords=(
-            "uber", "ola", "rapido", "irctc", "petrol", "fuel", "metro",
-            "parking", "toll", "diesel", "bp", "shell", "indian oil",
-            "bharat petroleum", "hindustan petroleum", "lyft", "grab",
+            # Generic
+            "uber", "petrol", "fuel", "metro", "parking", "toll", "diesel",
+            "bp", "shell",
+            # India
+            "ola", "rapido", "irctc", "indian oil", "bharat petroleum",
+            "hindustan petroleum", "fasttag",
+            # US
+            "lyft", "exxon", "chevron", "sunoco", "ez pass", "fastrak",
+            # UK
+            "tfl", "oyster", "trainline", "national rail", "bolt",
+            "addison lee", "esso", "dart charge",
         ),
     ),
     Category(
@@ -66,9 +100,15 @@ CATEGORIES: list[Category] = [
         color="#A78BFA",
         icon="film",
         keywords=(
-            "netflix", "spotify", "hotstar", "prime video", "youtube",
-            "bookmyshow", "cinema", "pvr", "inox", "apple music", "disney",
-            "hbo", "game", "playstation", "xbox", "steam", "twitch",
+            # Generic
+            "netflix", "spotify", "youtube", "apple music", "disney", "hbo",
+            "game", "playstation", "xbox", "steam", "twitch", "prime video",
+            # India
+            "hotstar", "bookmyshow", "cinema", "pvr", "inox",
+            # US
+            "hulu", "peacock", "paramount", "hbo max", "amc", "fandango",
+            # UK
+            "sky tv", "now tv", "britbox", "odeon", "cineworld", "vue",
         ),
     ),
     Category(
@@ -76,9 +116,17 @@ CATEGORIES: list[Category] = [
         color="#FFB547",
         icon="heart-pulse",
         keywords=(
-            "apollo", "pharmacy", "hospital", "medplus", "netmeds",
-            "pharmeasy", "1mg", "cult.fit", "gym", "doctor", "diagnostic",
-            "lab", "dental", "optical", "wellness", "yoga", "meditation",
+            # Generic
+            "pharmacy", "hospital", "gym", "doctor", "diagnostic", "lab",
+            "dental", "optical", "wellness", "yoga", "meditation",
+            # India
+            "apollo", "medplus", "netmeds", "pharmeasy", "1mg", "cult.fit",
+            # US
+            "cvs", "walgreens", "rite aid", "kaiser", "planet fitness",
+            "peloton",
+            # UK
+            "boots", "superdrug", "lloyds pharmacy", "bupa", "puregym",
+            "specsavers",
         ),
     ),
     Category(
@@ -86,9 +134,17 @@ CATEGORIES: list[Category] = [
         color="#F472B6",
         icon="zap",
         keywords=(
-            "jio", "airtel", "vodafone", "vi", "electricity", "rent", "emi",
-            "insurance", "broadband", "wifi", "gas", "water", "maintenance",
-            "society", "postpaid", "prepaid", "dth", "tata sky",
+            # Generic
+            "electricity", "rent", "emi", "insurance", "broadband", "wifi",
+            "gas", "water", "maintenance", "postpaid", "prepaid",
+            # India
+            "jio", "airtel", "vodafone", "vi", "society", "dth", "tata sky",
+            # US
+            "comcast", "xfinity", "verizon", "t-mobile", "spectrum", "at&t",
+            "duke energy", "geico", "state farm",
+            # UK
+            "bt", "virgin media", "three", "ee", "british gas",
+            "octopus energy", "thames water", "council tax", "tv licence",
         ),
     ),
     Category(
@@ -96,9 +152,18 @@ CATEGORIES: list[Category] = [
         color="#22D3EE",
         icon="plane",
         keywords=(
-            "hotel", "oyo", "makemytrip", "airline", "goibibo", "cleartrip",
-            "yatra", "airbnb", "booking.com", "agoda", "indigo", "air india",
-            "spicejet", "vistara", "emirates", "flight", "resort",
+            # Generic
+            "hotel", "airbnb", "booking.com", "agoda", "emirates", "flight",
+            "resort", "airline",
+            # India
+            "oyo", "makemytrip", "goibibo", "cleartrip", "yatra", "indigo",
+            "air india", "spicejet", "vistara",
+            # US
+            "delta", "united", "american airlines", "southwest", "jetblue",
+            "marriott", "hilton", "expedia", "hertz",
+            # UK
+            "british airways", "easyjet", "ryanair", "jet2", "premier inn",
+            "travelodge", "eurostar", "national express",
         ),
     ),
     Category(
@@ -106,9 +171,16 @@ CATEGORIES: list[Category] = [
         color="#818CF8",
         icon="book-open",
         keywords=(
-            "udemy", "coursera", "byju", "school", "college", "university",
-            "tuition", "coaching", "book", "kindle", "audible", "skillshare",
-            "linkedin learning", "unacademy", "vedantu", "exam", "test prep",
+            # Generic
+            "udemy", "coursera", "school", "college", "university", "tuition",
+            "coaching", "book", "kindle", "audible", "skillshare",
+            "linkedin learning", "exam", "test prep",
+            # India
+            "byju", "unacademy", "vedantu",
+            # US
+            "khan academy", "pluralsight", "masterclass", "brilliant", "chegg",
+            # UK
+            "open university", "futurelearn",
         ),
     ),
     Category(
@@ -116,9 +188,17 @@ CATEGORIES: list[Category] = [
         color="#FBBF24",
         icon="trending-up",
         keywords=(
-            "groww", "zerodha", "sip", "mutual fund", "stock", "share",
-            "demat", "upstox", "coin", "kuvera", "smallcase", "angel", "ipo",
-            "dividend", "interest", "fd", "rd",
+            # Generic
+            "mutual fund", "stock", "share", "dividend", "interest",
+            # India
+            "groww", "zerodha", "sip", "demat", "upstox", "coin", "kuvera",
+            "smallcase", "angel", "ipo", "fd", "rd",
+            # US
+            "robinhood", "fidelity", "schwab", "vanguard", "coinbase",
+            "sofi", "wealthfront",
+            # UK
+            "hargreaves lansdown", "trading 212", "freetrade", "nutmeg",
+            "moneybox",
         ),
     ),
     Category(
@@ -126,9 +206,16 @@ CATEGORIES: list[Category] = [
         color="#94A3B8",
         icon="repeat",
         keywords=(
-            "upi", "neft", "imps", "rtgs", "google pay", "phonepe", "paytm",
+            # Generic
             "bank transfer", "fund transfer", "self transfer",
-            "account transfer",
+            "account transfer", "wire transfer",
+            # India
+            "upi", "neft", "imps", "rtgs", "google pay", "phonepe", "paytm",
+            # US
+            "venmo", "zelle", "cash app", "apple cash",
+            # UK
+            "faster payment", "bacs", "chaps", "standing order", "wise",
+            "revolut",
         ),
     ),
 ]

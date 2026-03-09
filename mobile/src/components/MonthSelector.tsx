@@ -12,25 +12,40 @@ import { colors, spacing, borderRadius, fontSize } from '../theme';
 import { monthLabelFull } from '../utils/cardAnalytics';
 
 interface Props {
-  selectedMonth: string; // "YYYY-MM"
+  selectedMonth: string | null; // "YYYY-MM" or null for "All"
   availableMonths: string[]; // sorted descending
-  onChangeMonth: (month: string) => void;
+  onChangeMonth: (month: string | null) => void;
+  allowAll?: boolean;                    // enables "All" navigation step
+  renderSubtitle?: () => React.ReactNode; // slot below month label
 }
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export default function MonthSelector({ selectedMonth, availableMonths, onChangeMonth }: Props) {
+export default function MonthSelector({ selectedMonth, availableMonths, onChangeMonth, allowAll, renderSubtitle }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const currentIdx = availableMonths.indexOf(selectedMonth);
-  const canGoNewer = currentIdx > 0;
-  const canGoOlder = currentIdx < availableMonths.length - 1;
+  const isAll = selectedMonth === null;
+  const currentIdx = isAll ? -1 : availableMonths.indexOf(selectedMonth);
+
+  // Navigation logic: when allowAll, "All" sits before the newest month (index 0)
+  const canGoNewer = isAll ? false : (allowAll || currentIdx > 0);
+  const canGoOlder = isAll ? (availableMonths.length > 0) : (currentIdx < availableMonths.length - 1);
 
   const goNewer = () => {
-    if (canGoNewer) onChangeMonth(availableMonths[currentIdx - 1]);
+    if (!canGoNewer) return;
+    if (currentIdx === 0 && allowAll) {
+      onChangeMonth(null); // newest month → All
+    } else if (currentIdx > 0) {
+      onChangeMonth(availableMonths[currentIdx - 1]);
+    }
   };
   const goOlder = () => {
-    if (canGoOlder) onChangeMonth(availableMonths[currentIdx + 1]);
+    if (!canGoOlder) return;
+    if (isAll) {
+      onChangeMonth(availableMonths[0]); // All → newest month
+    } else {
+      onChangeMonth(availableMonths[currentIdx + 1]);
+    }
   };
 
   // Group available months by year for the picker grid
@@ -63,7 +78,7 @@ export default function MonthSelector({ selectedMonth, availableMonths, onChange
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setPickerOpen(true)} style={styles.labelBtn}>
-          <Text style={styles.label}>{monthLabelFull(selectedMonth)}</Text>
+          <Text style={styles.label}>{isAll ? 'All Transactions' : monthLabelFull(selectedMonth)}</Text>
           <Feather name="chevron-down" size={14} color={colors.textSecondary} />
         </TouchableOpacity>
 
@@ -80,6 +95,8 @@ export default function MonthSelector({ selectedMonth, availableMonths, onChange
         </TouchableOpacity>
       </View>
 
+      {renderSubtitle?.()}
+
       {/* Month picker modal */}
       <Modal visible={pickerOpen} transparent animationType="fade">
         <TouchableOpacity
@@ -89,6 +106,20 @@ export default function MonthSelector({ selectedMonth, availableMonths, onChange
         >
           <View style={styles.pickerContainer} onStartShouldSetResponder={() => true}>
             <Text style={styles.pickerTitle}>Select Month</Text>
+
+            {allowAll && (
+              <TouchableOpacity
+                style={[styles.allCell, isAll && styles.monthCellActive]}
+                onPress={() => {
+                  onChangeMonth(null);
+                  setPickerOpen(false);
+                }}
+              >
+                <Text style={[styles.allCellText, isAll && styles.monthCellTextActive]}>
+                  All Transactions
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {years.map((year) => (
               <View key={year}>
@@ -210,5 +241,18 @@ const styles = StyleSheet.create({
   },
   monthCellTextDisabled: {
     color: colors.textMuted,
+  },
+  allCell: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surfaceElevated,
+    marginBottom: spacing.md,
+  },
+  allCellText: {
+    color: colors.textPrimary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
 });

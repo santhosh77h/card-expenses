@@ -6,7 +6,8 @@ import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 const REVENUECAT_IOS_KEY = 'test_gXkAiXkciTfZanQAXvXMteQcQKx';
 const REVENUECAT_ANDROID_KEY = 'test_gXkAiXkciTfZanQAXvXMteQcQKx';
 
-export const ENTITLEMENT_ID = 'Credit Analytics Pro';
+// export const ENTITLEMENT_ID = 'Credit Analytics Pro';
+export const ENTITLEMENT_ID = 'Vector Expense';
 
 export function checkPremium(customerInfo: CustomerInfo): boolean {
 	return customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
@@ -48,12 +49,12 @@ export async function presentPaywall(offering?: PurchasesOffering): Promise<bool
 export async function presentPaywallIfNeeded(offering?: PurchasesOffering): Promise<PAYWALL_RESULT> {
 	const paywallResult: PAYWALL_RESULT = offering
 		? await RevenueCatUI.presentPaywallIfNeeded({
-			offering,
-			requiredEntitlementIdentifier: ENTITLEMENT_ID,
-		})
+				offering,
+				requiredEntitlementIdentifier: ENTITLEMENT_ID,
+			})
 		: await RevenueCatUI.presentPaywallIfNeeded({
-			requiredEntitlementIdentifier: ENTITLEMENT_ID,
-		});
+				requiredEntitlementIdentifier: ENTITLEMENT_ID,
+			});
 
 	return paywallResult;
 }

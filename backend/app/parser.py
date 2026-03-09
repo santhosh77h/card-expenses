@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from app.categories import categorize
-from app.detector import detect_bank, detect_currency
+from app.detector import detect_bank, detect_currency, detect_region
 from app.exceptions import PDFEncryptedError, ParseError
 from app.llm_parser import llm_parse_transactions
 from app.pdf import check_encrypted, extract_text, validate_pdf_bytes
@@ -38,6 +38,8 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
         raise ParseError("Could not extract text from PDF. It may be scanned/image-based.")
 
     bank = detect_bank(text)
+    currency_hint = detect_currency(text, bank)
+    region = detect_region(text, bank, currency_hint)
 
     # --- LLM-based extraction (preferred) ---
     transactions = None
@@ -45,7 +47,7 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
     llm_card_info = None
 
     try:
-        llm_result = llm_parse_transactions(text, bank_hint=bank)
+        llm_result = llm_parse_transactions(text, bank_hint=bank, region=region)
         if llm_result and llm_result.get("transactions"):
             transactions = llm_result["transactions"]
             llm_statement_period = llm_result.get("statement_period")
@@ -85,7 +87,7 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
             }
 
     llm_currency = llm_card_info.get("currency") if llm_card_info else None
-    currency = llm_currency if llm_currency else detect_currency(text, bank)
+    currency = llm_currency if llm_currency else currency_hint
 
     return {
         "transactions": transactions,
@@ -94,6 +96,7 @@ def parse_pdf(file_bytes: bytes, password: Optional[str] = None) -> dict:
         "bank_detected": bank,
         "card_info": llm_card_info,
         "currency_detected": currency,
+        "region_detected": region,
     }
 
 

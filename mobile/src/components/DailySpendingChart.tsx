@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { Polyline, Line, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Path, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { colors, spacing, borderRadius, fontSize } from '../theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -34,7 +34,30 @@ function DailySpendingChart({
   const toX = (day: number) => PAD_LEFT + ((day - 1) / Math.max(daysInRange - 1, 1)) * plotW;
   const toY = (amount: number) => PAD_TOP + plotH - (amount / maxVal) * plotH;
 
-  const debitPoints = debitsByDay.map((d) => `${toX(d.day)},${toY(d.amount)}`).join(' ');
+  // Build smooth cubic bezier path through data points
+  const points = debitsByDay.map((d) => ({ x: toX(d.day), y: toY(d.amount) }));
+
+  const buildLinePath = (pts: { x: number; y: number }[]): string => {
+    if (pts.length === 0) return '';
+    if (pts.length === 1) return `M${pts[0].x},${pts[0].y}`;
+    let d = `M${pts[0].x},${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1];
+      const cur = pts[i];
+      const tension = 0.3;
+      const dx = cur.x - prev.x;
+      const cp1x = prev.x + dx * tension;
+      const cp2x = cur.x - dx * tension;
+      d += ` C${cp1x},${prev.y} ${cp2x},${cur.y} ${cur.x},${cur.y}`;
+    }
+    return d;
+  };
+
+  const linePath = buildLinePath(points);
+  const baselineY = PAD_TOP + plotH;
+  const areaPath = points.length > 0
+    ? `${linePath} L${points[points.length - 1].x},${baselineY} L${points[0].x},${baselineY} Z`
+    : '';
 
   // Grid lines (4 lines including 0)
   const gridCount = 4;
@@ -94,25 +117,54 @@ function DailySpendingChart({
             </SvgText>
           ))}
 
-          {/* Debit line */}
-          {debitsByDay.length > 1 && (
-            <Polyline
-              points={debitPoints}
+          {/* Gradient definition */}
+          <Defs>
+            <LinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={colors.debit} stopOpacity={0.35} />
+              <Stop offset="1" stopColor={colors.debit} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+
+          {/* Area fill with gradient */}
+          {points.length > 1 && (
+            <Path d={areaPath} fill="url(#areaGradient)" />
+          )}
+
+          {/* Line stroke */}
+          {points.length > 1 && (
+            <Path
+              d={linePath}
               fill="none"
               stroke={colors.debit}
               strokeWidth={2}
-              strokeLinejoin="round"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
           )}
+
+          {/* Data point dots — glow ring + white border + solid core */}
           {debitsByDay.map((d) => (
-            <Circle
-              key={`d-${d.day}`}
-              cx={toX(d.day)}
-              cy={toY(d.amount)}
-              r={3}
-              fill={colors.debit}
-            />
+            <React.Fragment key={`d-${d.day}`}>
+              <Circle
+                cx={toX(d.day)}
+                cy={toY(d.amount)}
+                r={7}
+                fill={colors.debit}
+                opacity={0.15}
+              />
+              <Circle
+                cx={toX(d.day)}
+                cy={toY(d.amount)}
+                r={4}
+                fill={colors.surface}
+              />
+              <Circle
+                cx={toX(d.day)}
+                cy={toY(d.amount)}
+                r={2.5}
+                fill={colors.debit}
+              />
+            </React.Fragment>
           ))}
 
         </Svg>

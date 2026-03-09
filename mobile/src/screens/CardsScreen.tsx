@@ -33,10 +33,9 @@ import {
   type CardMonthlyBill,
 } from '../utils/cardAnalytics';
 import type { StatementData, MonthlyUsage } from '../store';
-import BackupView from '../components/BackupView';
 import { ISSUERS, NETWORKS, ISSUER_CURRENCY, CARD_COLORS } from '../constants/cards';
 
-type Segment = 'analytics' | 'manage' | 'data';
+type Segment = 'analytics' | 'manage';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -102,15 +101,15 @@ export default function CardsScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Cards</Text>
         <Text style={styles.subtitle}>
-          {activeSegment === 'analytics' ? 'Analytics & insights' : activeSegment === 'manage' ? 'Manage your credit cards' : 'Backup & restore your data'}
+          {activeSegment === 'analytics' ? 'Analytics & insights' : 'Manage your credit cards'}
         </Text>
       </View>
 
       {/* Segment bar */}
       <View style={styles.segmentBar}>
-        {(['analytics', 'manage', 'data'] as Segment[]).map((seg) => {
-          const icon = seg === 'analytics' ? 'bar-chart-2' : seg === 'manage' ? 'settings' : 'database';
-          const label = seg === 'analytics' ? 'Analytics' : seg === 'manage' ? 'Manage' : 'Data';
+        {(['analytics', 'manage'] as Segment[]).map((seg) => {
+          const icon = seg === 'analytics' ? 'bar-chart-2' : 'settings';
+          const label = seg === 'analytics' ? 'Analytics' : 'Manage';
           return (
             <TouchableOpacity
               key={seg}
@@ -136,7 +135,7 @@ export default function CardsScreen() {
           hasData={hasData}
           effectiveMonth={effectiveMonth}
           availableMonths={availableMonths}
-          onChangeMonth={(m) => setSelectedMonth(m)}
+          onChangeMonth={(m) => { if (m) setSelectedMonth(m); }}
           activeCurrencies={activeCurrencies}
           effectiveCurrency={effectiveCurrency}
           onChangeCurrency={setCurrencyFilter}
@@ -149,10 +148,8 @@ export default function CardsScreen() {
           selectedCard={selectedCard}
           cardColorMap={cardColorMap}
         />
-      ) : activeSegment === 'manage' ? (
-        <ManageView cards={cards} statements={statements} monthlyUsage={monthlyUsage} addCard={addCard} removeCard={removeCard} />
       ) : (
-        <BackupView />
+        <ManageView cards={cards} statements={statements} monthlyUsage={monthlyUsage} addCard={addCard} removeCard={removeCard} />
       )}
 
       <View style={{ height: 60 }} />
@@ -184,7 +181,7 @@ function AnalyticsView({
   hasData: boolean;
   effectiveMonth: string;
   availableMonths: string[];
-  onChangeMonth: (m: string) => void;
+  onChangeMonth: (m: string | null) => void;
   activeCurrencies: CurrencyCode[];
   effectiveCurrency: CurrencyCode;
   onChangeCurrency: (c: CurrencyCode | undefined) => void;

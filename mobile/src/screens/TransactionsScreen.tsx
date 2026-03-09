@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,10 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
 import { useStore, Transaction, CreditCard } from '../store';
-import { Card, StatRow, Badge, EmptyState, PrimaryButton } from '../components/ui';
+import { Badge, EmptyState, PrimaryButton } from '../components/ui';
 import TransactionDetailModal from '../components/TransactionDetailModal';
 import DailySpendingChart from '../components/DailySpendingChart';
+import MonthSelector from '../components/MonthSelector';
 import type { RootStackParamList, TabParamList } from '../navigation';
 
 type NavProp = CompositeNavigationProp<
@@ -58,6 +59,27 @@ export default function TransactionsScreen() {
     return Array.from(months).sort().reverse();
   }, [manualTransactions]);
 
+  // Default to newest month on first load
+  useEffect(() => {
+    if (monthFilter === null && availableMonths.length > 0) {
+      setMonthFilter(availableMonths[0]);
+    }
+  }, [availableMonths]);
+
+  // Handle stale monthFilter (e.g. all transactions in that month deleted)
+  const effectiveMonth = monthFilter === null
+    ? null
+    : availableMonths.includes(monthFilter)
+      ? monthFilter
+      : availableMonths[0] ?? null;
+
+  // Sync state if effectiveMonth differs
+  useEffect(() => {
+    if (monthFilter !== null && effectiveMonth !== monthFilter) {
+      setMonthFilter(effectiveMonth);
+    }
+  }, [effectiveMonth, monthFilter]);
+
   const usedCards = useMemo(() => {
     const ids = new Set(manualTransactions.map((t) => t.cardId).filter(Boolean));
     return Array.from(ids).map((id) => cardMap[id!]).filter(Boolean) as CreditCard[];
@@ -65,8 +87,8 @@ export default function TransactionsScreen() {
 
   const filteredTransactions = useMemo(() => {
     let result = [...manualTransactions];
-    if (monthFilter) {
-      result = result.filter((t) => t.date.startsWith(monthFilter));
+    if (effectiveMonth) {
+      result = result.filter((t) => t.date.startsWith(effectiveMonth));
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -101,7 +123,7 @@ export default function TransactionsScreen() {
       return b.date.localeCompare(a.date);
     });
     return result;
-  }, [manualTransactions, monthFilter, searchQuery, categoryFilter, cardFilter, enrichmentFilter, sortBy, enrichments]);
+  }, [manualTransactions, effectiveMonth, searchQuery, categoryFilter, cardFilter, enrichmentFilter, sortBy, enrichments]);
 
   const selectedIdx = selectedTxn
     ? filteredTransactions.findIndex((t) => t.id === selectedTxn.id)
@@ -113,23 +135,23 @@ export default function TransactionsScreen() {
     ? () => setSelectedTxn(filteredTransactions[selectedIdx + 1])
     : undefined;
 
-  // Group totals by currency
-  const totals = React.useMemo(() => {
+  // Group totals by currency (month-scoped via filteredTransactions)
+  const totals = useMemo(() => {
     const byCurrency: Record<string, { debits: number; credits: number }> = {};
-    for (const t of manualTransactions) {
+    for (const t of filteredTransactions) {
       const cur = t.currency ?? (t.cardId ? cardMap[t.cardId]?.currency : undefined) ?? 'INR';
       if (!byCurrency[cur]) byCurrency[cur] = { debits: 0, credits: 0 };
       if (t.type === 'debit') byCurrency[cur].debits += t.amount;
       else byCurrency[cur].credits += t.amount;
     }
     return byCurrency;
-  }, [manualTransactions, cardMap]);
+  }, [filteredTransactions, cardMap]);
   const totalCurrencies = Object.keys(totals) as CurrencyCode[];
 
   const chartData = useMemo(() => {
-    if (!monthFilter) return null;
-    const source = manualTransactions.filter((t) => t.date.startsWith(monthFilter));
-    const [year, month] = monthFilter.split('-').map(Number);
+    if (!effectiveMonth) return null;
+    const source = manualTransactions.filter((t) => t.date.startsWith(effectiveMonth));
+    const [year, month] = effectiveMonth.split('-').map(Number);
     const daysInRange = new Date(year, month, 0).getDate();
 
     const debitMap: Record<number, number> = {};
@@ -144,13 +166,7 @@ export default function TransactionsScreen() {
       .sort((a, b) => a.day - b.day);
 
     return { debitsByDay, daysInRange };
-  }, [manualTransactions, monthFilter]);
-
-  const formatMonthLabel = (ym: string) => {
-    const [y, m] = ym.split('-');
-    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${names[parseInt(m, 10) - 1]} ${y}`;
-  };
+  }, [manualTransactions, effectiveMonth]);
 
   const renderItem = useCallback(({ item }: { item: Transaction }) => {
     const txnCard = item.cardId ? cardMap[item.cardId] : undefined;
@@ -227,231 +243,208 @@ export default function TransactionsScreen() {
           </View>
         </View>
       ) : (
-        <FlatList
-          data={filteredTransactions}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <Card>
-                <StatRow
-                  label="Total Transactions"
-                  value={String(manualTransactions.length)}
-                />
+        <>
+          {/* Sticky month selector outside FlatList */}
+          <MonthSelector
+            selectedMonth={effectiveMonth}
+            availableMonths={availableMonths}
+            onChangeMonth={setMonthFilter}
+            allowAll
+            renderSubtitle={() => (
+              <View style={styles.monthTotals}>
                 {totalCurrencies.map((cur) => (
-                  <React.Fragment key={cur}>
-                    <StatRow
-                      label={totalCurrencies.length > 1 ? `Debits (${cur})` : 'Total Debits'}
-                      value={formatCurrency(totals[cur].debits, cur)}
-                      valueColor={colors.debit}
-                    />
-                    <StatRow
-                      label={totalCurrencies.length > 1 ? `Credits (${cur})` : 'Total Credits'}
-                      value={formatCurrency(totals[cur].credits, cur)}
-                      valueColor={colors.credit}
-                    />
-                  </React.Fragment>
-                ))}
-              </Card>
-              <PrimaryButton
-                title="Add Transaction"
-                icon="plus"
-                onPress={() => navigation.navigate('AddTransaction')}
-              />
-
-              {/* Month chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chipRow}
-              >
-                <TouchableOpacity
-                  style={[styles.chip, !monthFilter && styles.chipActive]}
-                  onPress={() => setMonthFilter(null)}
-                >
-                  <Text style={[styles.chipText, !monthFilter && styles.chipTextActive]}>
-                    All
-                  </Text>
-                </TouchableOpacity>
-                {availableMonths.map((ym) => (
-                  <TouchableOpacity
-                    key={ym}
-                    style={[styles.chip, monthFilter === ym && styles.chipActive]}
-                    onPress={() => setMonthFilter(monthFilter === ym ? null : ym)}
-                  >
-                    <Text style={[styles.chipText, monthFilter === ym && styles.chipTextActive]}>
-                      {formatMonthLabel(ym)}
+                  <View key={cur} style={styles.monthTotalsRow}>
+                    <Text style={[styles.monthTotalText, { color: colors.debit }]}>
+                      -{formatCurrency(totals[cur]?.debits ?? 0, cur)}
                     </Text>
-                  </TouchableOpacity>
+                    <Text style={[styles.monthTotalText, { color: colors.credit }]}>
+                      +{formatCurrency(totals[cur]?.credits ?? 0, cur)}
+                    </Text>
+                  </View>
                 ))}
-              </ScrollView>
-
-              {/* Daily spending chart */}
-              {chartData && (
-                <DailySpendingChart
-                  debitsByDay={chartData.debitsByDay}
-                  daysInRange={chartData.daysInRange}
-                />
-              )}
-
-              {/* Search */}
-              <View style={styles.searchRow}>
-                <Feather name="search" size={16} color={colors.textMuted} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search transactions..."
-                  placeholderTextColor={colors.textMuted}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  returnKeyType="search"
-                  onSubmitEditing={Keyboard.dismiss}
-                  accessibilityLabel="Search transactions"
-                />
               </View>
+            )}
+          />
 
-              {/* Category chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chipRow}
-              >
-                <TouchableOpacity
-                  style={[styles.chip, !categoryFilter && styles.chipActive]}
-                  onPress={() => setCategoryFilter(null)}
-                >
-                  <Text style={[styles.chipText, !categoryFilter && styles.chipTextActive]}>
-                    All
-                  </Text>
-                </TouchableOpacity>
-                {allCategories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.chip, categoryFilter === cat && styles.chipActive]}
-                    onPress={() =>
-                      setCategoryFilter(categoryFilter === cat ? null : cat)
-                    }
-                  >
-                    <View
-                      style={[
-                        styles.chipDot,
-                        { backgroundColor: categoryColors[cat] || colors.textMuted },
-                      ]}
-                    />
-                    <Text
-                      style={[styles.chipText, categoryFilter === cat && styles.chipTextActive]}
-                    >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+          <FlatList
+            data={filteredTransactions}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            ListHeaderComponent={
+              <View style={styles.listHeader}>
+                <PrimaryButton
+                  title="Add Transaction"
+                  icon="plus"
+                  onPress={() => navigation.navigate('AddTransaction')}
+                />
 
-              {/* Card chips */}
-              {usedCards.length > 0 && (
+                {/* Daily spending chart */}
+                {chartData && (
+                  <DailySpendingChart
+                    debitsByDay={chartData.debitsByDay}
+                    daysInRange={chartData.daysInRange}
+                  />
+                )}
+
+                {/* Search */}
+                <View style={styles.searchRow}>
+                  <Feather name="search" size={16} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search transactions..."
+                    placeholderTextColor={colors.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    returnKeyType="search"
+                    onSubmitEditing={Keyboard.dismiss}
+                    accessibilityLabel="Search transactions"
+                  />
+                </View>
+
+                {/* Category chips */}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   style={styles.chipRow}
                 >
                   <TouchableOpacity
-                    style={[styles.chip, cardFilter === null && styles.chipActive]}
-                    onPress={() => setCardFilter(null)}
+                    style={[styles.chip, !categoryFilter && styles.chipActive]}
+                    onPress={() => setCategoryFilter(null)}
                   >
-                    <Text style={[styles.chipText, cardFilter === null && styles.chipTextActive]}>
-                      All Cards
+                    <Text style={[styles.chipText, !categoryFilter && styles.chipTextActive]}>
+                      All
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.chip, cardFilter === '__none__' && styles.chipActive]}
-                    onPress={() =>
-                      setCardFilter(cardFilter === '__none__' ? null : '__none__')
-                    }
-                  >
-                    <Text style={[styles.chipText, cardFilter === '__none__' && styles.chipTextActive]}>
-                      No Card
-                    </Text>
-                  </TouchableOpacity>
-                  {usedCards.map((c) => (
+                  {allCategories.map((cat) => (
                     <TouchableOpacity
-                      key={c.id}
-                      style={[styles.chip, cardFilter === c.id && styles.chipActive]}
+                      key={cat}
+                      style={[styles.chip, categoryFilter === cat && styles.chipActive]}
                       onPress={() =>
-                        setCardFilter(cardFilter === c.id ? null : c.id)
+                        setCategoryFilter(categoryFilter === cat ? null : cat)
                       }
                     >
                       <View
-                        style={[styles.chipDot, { backgroundColor: c.color }]}
+                        style={[
+                          styles.chipDot,
+                          { backgroundColor: categoryColors[cat] || colors.textMuted },
+                        ]}
                       />
                       <Text
-                        style={[styles.chipText, cardFilter === c.id && styles.chipTextActive]}
+                        style={[styles.chipText, categoryFilter === cat && styles.chipTextActive]}
                       >
-                        {c.nickname}
+                        {cat}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-              )}
 
-              {/* Enrichment chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chipRow}
-              >
-                <TouchableOpacity
-                  style={[styles.chip, enrichmentFilter === 'flagged' && styles.chipActive]}
-                  onPress={() =>
-                    setEnrichmentFilter(enrichmentFilter === 'flagged' ? null : 'flagged')
-                  }
-                >
-                  <Feather name="star" size={12} color={enrichmentFilter === 'flagged' ? colors.accent : colors.textSecondary} style={{ marginRight: spacing.xs }} />
-                  <Text style={[styles.chipText, enrichmentFilter === 'flagged' && styles.chipTextActive]}>
-                    Starred
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.chip, enrichmentFilter === 'notes' && styles.chipActive]}
-                  onPress={() =>
-                    setEnrichmentFilter(enrichmentFilter === 'notes' ? null : 'notes')
-                  }
-                >
-                  <Feather name="message-square" size={12} color={enrichmentFilter === 'notes' ? colors.accent : colors.textSecondary} style={{ marginRight: spacing.xs }} />
-                  <Text style={[styles.chipText, enrichmentFilter === 'notes' && styles.chipTextActive]}>
-                    Has Notes
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.chip, enrichmentFilter === 'receipt' && styles.chipActive]}
-                  onPress={() =>
-                    setEnrichmentFilter(enrichmentFilter === 'receipt' ? null : 'receipt')
-                  }
-                >
-                  <Feather name="paperclip" size={12} color={enrichmentFilter === 'receipt' ? colors.accent : colors.textSecondary} style={{ marginRight: spacing.xs }} />
-                  <Text style={[styles.chipText, enrichmentFilter === 'receipt' && styles.chipTextActive]}>
-                    Has Receipt
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
+                {/* Card chips */}
+                {usedCards.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.chipRow}
+                  >
+                    <TouchableOpacity
+                      style={[styles.chip, cardFilter === null && styles.chipActive]}
+                      onPress={() => setCardFilter(null)}
+                    >
+                      <Text style={[styles.chipText, cardFilter === null && styles.chipTextActive]}>
+                        All Cards
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.chip, cardFilter === '__none__' && styles.chipActive]}
+                      onPress={() =>
+                        setCardFilter(cardFilter === '__none__' ? null : '__none__')
+                      }
+                    >
+                      <Text style={[styles.chipText, cardFilter === '__none__' && styles.chipTextActive]}>
+                        No Card
+                      </Text>
+                    </TouchableOpacity>
+                    {usedCards.map((c) => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[styles.chip, cardFilter === c.id && styles.chipActive]}
+                        onPress={() =>
+                          setCardFilter(cardFilter === c.id ? null : c.id)
+                        }
+                      >
+                        <View
+                          style={[styles.chipDot, { backgroundColor: c.color }]}
+                        />
+                        <Text
+                          style={[styles.chipText, cardFilter === c.id && styles.chipTextActive]}
+                        >
+                          {c.nickname}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
 
-              {/* Sort toggle */}
-              <View style={styles.sortRow}>
-                <Text style={styles.sortLabel}>{filteredTransactions.length} transactions</Text>
-                <TouchableOpacity
-                  style={styles.sortToggle}
-                  onPress={() => setSortBy(sortBy === 'date' ? 'amount' : 'date')}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Sort ${sortBy === 'date' ? 'by date' : 'by amount'}`}
+                {/* Enrichment chips */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.chipRow}
                 >
-                  <Feather name="repeat" size={14} color={colors.textSecondary} />
-                  <Text style={styles.sortToggleText}>
-                    {sortBy === 'date' ? 'By Date' : 'By Amount'}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, enrichmentFilter === 'flagged' && styles.chipActive]}
+                    onPress={() =>
+                      setEnrichmentFilter(enrichmentFilter === 'flagged' ? null : 'flagged')
+                    }
+                  >
+                    <Feather name="star" size={12} color={enrichmentFilter === 'flagged' ? colors.accent : colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                    <Text style={[styles.chipText, enrichmentFilter === 'flagged' && styles.chipTextActive]}>
+                      Starred
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, enrichmentFilter === 'notes' && styles.chipActive]}
+                    onPress={() =>
+                      setEnrichmentFilter(enrichmentFilter === 'notes' ? null : 'notes')
+                    }
+                  >
+                    <Feather name="message-square" size={12} color={enrichmentFilter === 'notes' ? colors.accent : colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                    <Text style={[styles.chipText, enrichmentFilter === 'notes' && styles.chipTextActive]}>
+                      Has Notes
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chip, enrichmentFilter === 'receipt' && styles.chipActive]}
+                    onPress={() =>
+                      setEnrichmentFilter(enrichmentFilter === 'receipt' ? null : 'receipt')
+                    }
+                  >
+                    <Feather name="paperclip" size={12} color={enrichmentFilter === 'receipt' ? colors.accent : colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                    <Text style={[styles.chipText, enrichmentFilter === 'receipt' && styles.chipTextActive]}>
+                      Has Receipt
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+
+                {/* Sort toggle */}
+                <View style={styles.sortRow}>
+                  <Text style={styles.sortLabel}>{filteredTransactions.length} transactions</Text>
+                  <TouchableOpacity
+                    style={styles.sortToggle}
+                    onPress={() => setSortBy(sortBy === 'date' ? 'amount' : 'date')}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Sort ${sortBy === 'date' ? 'by date' : 'by amount'}`}
+                  >
+                    <Feather name="repeat" size={14} color={colors.textSecondary} />
+                    <Text style={styles.sortToggleText}>
+                      {sortBy === 'date' ? 'By Date' : 'By Amount'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          }
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
+            }
+            contentContainerStyle={{ paddingBottom: 40 }}
+          />
+        </>
       )}
 
       <TransactionDetailModal
@@ -609,5 +602,18 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     paddingHorizontal: spacing.lg,
+  },
+  monthTotals: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  monthTotalsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.lg,
+  },
+  monthTotalText: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
   },
 });
