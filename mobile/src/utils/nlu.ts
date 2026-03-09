@@ -12,10 +12,13 @@ import { Platform } from 'react-native';
 let loadTensorflowModel: typeof import('react-native-fast-tflite').loadTensorflowModel;
 type TensorflowModel = import('react-native-fast-tflite').TensorflowModel;
 
+let _tfliteImportError: string | null = null;
+
 try {
   loadTensorflowModel = require('react-native-fast-tflite').loadTensorflowModel;
-} catch {
-  // Native module unavailable — loadTensorflowModel stays undefined
+} catch (e: any) {
+  _tfliteImportError = e?.message ?? 'Unknown import error';
+  console.error('[NLU] Failed to import react-native-fast-tflite:', e);
 }
 
 // --- Model metadata (co-located in src/nlu/) ---
@@ -97,6 +100,31 @@ let intentModel: TensorflowModel | null = null;
 let entityModel: TensorflowModel | null = null;
 let _loading: Promise<void> | null = null;
 
+/**
+ * Try loading a TFLite model with delegate fallback.
+ * On iOS: try CoreML → Metal → CPU. On Android: try GPU → CPU.
+ */
+async function loadModelWithFallback(
+  source: number,
+): ReturnType<typeof loadTensorflowModel> {
+  const delegates =
+    Platform.OS === 'ios'
+      ? (['core-ml', 'metal', 'default'] as const)
+      : (['default'] as const);
+
+  for (const delegate of delegates) {
+    try {
+      const model = await loadTensorflowModel(source, delegate);
+      console.log(`[NLU] Model loaded with delegate: ${delegate}`);
+      return model;
+    } catch (e: any) {
+      console.warn(`[NLU] ${delegate} delegate failed: ${e?.message}`);
+    }
+  }
+
+  throw new Error('Failed to load TFLite model with any delegate');
+}
+
 /** Load both TFLite models. Safe to call multiple times. */
 export async function initNLU(): Promise<void> {
   if (intentModel && entityModel) return;
@@ -104,16 +132,20 @@ export async function initNLU(): Promise<void> {
 
   if (!loadTensorflowModel) {
     throw new Error(
-      Platform.OS === 'ios'
-        ? 'On-device NLU is not yet available on iOS. This feature works on Android.'
-        : 'TFLite native module not available.',
+      `TFLite native module not available. ${_tfliteImportError ? `Reason: ${_tfliteImportError}` : 'The native module was not found — did you rebuild the native app?'}`,
     );
   }
 
   _loading = (async () => {
+    if (typeof (global as any).__loadTensorflowModel !== 'function') {
+      throw new Error(
+        'TFLite JSI bindings failed to install. This may require New Architecture (RN 0.76+).',
+      );
+    }
+
     const [im, em] = await Promise.all([
-      loadTensorflowModel(require('../../assets/models/intent_model.tflite')),
-      loadTensorflowModel(require('../../assets/models/entity_model.tflite')),
+      loadModelWithFallback(require('../../assets/models/intent_model.tflite')),
+      loadModelWithFallback(require('../../assets/models/entity_model.tflite')),
     ]);
     intentModel = im;
     entityModel = em;

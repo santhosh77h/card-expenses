@@ -1,15 +1,52 @@
+diff --git a/node_modules/react-native-fast-tflite/ios/Tflite.mm b/node_modules/react-native-fast-tflite/ios/Tflite.mm
+index c76d3fa..d2ea6c5 100644
+--- a/node_modules/react-native-fast-tflite/ios/Tflite.mm
++++ b/node_modules/react-native-fast-tflite/ios/Tflite.mm
+@@ -15,12 +15,18 @@ @interface RCTBridge (RCTTurboModule)
+ using namespace facebook;
+ 
+ @implementation Tflite
++
++@synthesize bridge = _bridge;
++
+ RCT_EXPORT_MODULE(Tflite)
+ 
+-- (NSNumber *)install {
+-  RCTBridge* bridge = [RCTBridge currentBridge];
+-  RCTCxxBridge* cxxBridge = (RCTCxxBridge*)bridge;
+-  if (!cxxBridge.runtime) {
+++ (BOOL)requiresMainQueueSetup {
++  return YES;
++}
++
++RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install) {
++  RCTCxxBridge* cxxBridge = (RCTCxxBridge*)_bridge;
++  if (!cxxBridge || !cxxBridge.runtime) {
+     return @(false);
+   }
+   jsi::Runtime& runtime = *(jsi::Runtime*)cxxBridge.runtime;
+@@ -37,7 +43,7 @@ - (NSNumber *)install {
+   };
+ 
+   try {
+-    TensorflowPlugin::installToRuntime(runtime, [bridge jsCallInvoker], fetchByteDataFromUrl);
++    TensorflowPlugin::installToRuntime(runtime, [_bridge jsCallInvoker], fetchByteDataFromUrl);
+   } catch (std::exception& exc) {
+     NSLog(@"Failed to install TensorFlow Lite plugin to Runtime! %s", exc.what());
+     return @(false);
 diff --git a/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts b/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts
+index 5a4f275..3e513a6 100644
 --- a/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts
 +++ b/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts
-@@ -1,8 +1,14 @@
+@@ -1,8 +1,13 @@
  import type { TurboModule } from 'react-native'
 -import { TurboModuleRegistry } from 'react-native'
 +import { TurboModuleRegistry, NativeModules, Platform } from 'react-native'
-
+ 
  export interface Spec extends TurboModule {
    install(): boolean
  }
-
+ 
 -export default TurboModuleRegistry.getEnforcing<Spec>('Tflite')
 +// TurboModuleRegistry works on new arch; fall back to NativeModules for old arch
 +const module = TurboModuleRegistry.get<Spec>('Tflite') ?? NativeModules.Tflite
@@ -17,3 +54,34 @@ diff --git a/node_modules/react-native-fast-tflite/src/NativeRNTflite.ts b/node_
 +  console.warn(`[react-native-fast-tflite] Native module 'Tflite' not found (${Platform.OS}). TFLite models will not be available.`)
 +}
 +export default module as Spec
+diff --git a/node_modules/react-native-fast-tflite/src/TensorflowLite.ts b/node_modules/react-native-fast-tflite/src/TensorflowLite.ts
+index 967f46e..fc8f1e9 100644
+--- a/node_modules/react-native-fast-tflite/src/TensorflowLite.ts
++++ b/node_modules/react-native-fast-tflite/src/TensorflowLite.ts
+@@ -26,12 +26,20 @@ declare global {
+   ) => Promise<TensorflowModel>
+ }
+ // Installs the JSI bindings into the global namespace.
+-console.log('Installing bindings...')
+-const result = TensorflowModule.install() as boolean
+-if (result !== true)
+-  console.error('Failed to install Tensorflow Lite bindings!')
+-
+-console.log('Successfully installed!')
++if (TensorflowModule != null) {
++  console.log('Installing TFLite bindings...')
++  try {
++    const result = TensorflowModule.install() as boolean
++    if (result !== true)
++      console.error('Failed to install Tensorflow Lite bindings!')
++    else
++      console.log('TFLite bindings installed successfully!')
++  } catch (e) {
++    console.error('TFLite install() threw:', e)
++  }
++} else {
++  console.warn('[TFLite] Native module is null — skipping JSI binding installation')
++}
+ 
+ export type TensorflowModelDelegate =
+   | 'default'
