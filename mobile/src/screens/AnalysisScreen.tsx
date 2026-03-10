@@ -22,6 +22,7 @@ import { Card, StatRow, AmountText, Badge, SectionHeader, ProgressBar } from '..
 import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart';
 import TransactionDetailModal from '../components/TransactionDetailModal';
 import type { RootStackParamList } from '../navigation';
+import { capture, AnalyticsEvents } from '../utils/analytics';
 
 type Tab = 'overview' | 'transactions' | 'categories';
 
@@ -64,6 +65,7 @@ export default function AnalysisScreen() {
   const handleAddToTransactions = useCallback(() => {
     importStatementTransactions(statementId);
     setImported(true);
+    capture(AnalyticsEvents.TRANSACTIONS_IMPORTED, { transaction_count: transactions.length });
     Alert.alert(
       'Added Successfully',
       `${transactions.length} transactions have been added to your Transactions list.`,
@@ -113,6 +115,7 @@ export default function AnalysisScreen() {
   }, [transactions]);
 
   const handleExportCSV = async () => {
+    capture(AnalyticsEvents.CSV_EXPORTED);
     try {
       if (Platform.OS === 'web') {
         // Web: use share API

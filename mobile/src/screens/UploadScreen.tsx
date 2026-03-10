@@ -30,6 +30,7 @@ import { Badge, Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
+import { capture, AnalyticsEvents } from '../utils/analytics';
 
 const FREE_TIER_UPLOAD_LIMIT = 3;
 
@@ -119,6 +120,7 @@ export default function UploadScreen() {
 			if (result.canceled) return;
 
 			const file = result.assets[0];
+			capture(AnalyticsEvents.STATEMENT_UPLOAD_STARTED);
 			setState('uploading');
 			setError('');
 
@@ -154,7 +156,8 @@ export default function UploadScreen() {
 							// Fall through to show password modal
 						}
 					}
-					setPendingFile({ uri: file.uri, name: file.name });
+					capture(AnalyticsEvents.STATEMENT_PASSWORD_REQUIRED);
+				setPendingFile({ uri: file.uri, name: file.name });
 					setPasswordError(errorCode === 'incorrect_password' ? 'Incorrect password. Please try again.' : '');
 					setPassword('');
 					setSavePasswordChecked(false);
@@ -167,6 +170,7 @@ export default function UploadScreen() {
 					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
 					err?.message ||
 					'Failed to parse statement.';
+				capture(AnalyticsEvents.STATEMENT_UPLOAD_FAILED, { error_code: errorCode || 'unknown' });
 				setState('error');
 				setError(msg);
 			}
@@ -232,6 +236,7 @@ export default function UploadScreen() {
 	};
 
 	const handleDemo = async () => {
+		capture(AnalyticsEvents.DEMO_STATEMENT_LOADED);
 		setState('parsing');
 		setError('');
 
@@ -339,6 +344,11 @@ export default function UploadScreen() {
 		};
 
 		addStatement(cardId, statement);
+		capture(AnalyticsEvents.STATEMENT_UPLOAD_SUCCESS, {
+			bank: bankDetected,
+			transaction_count: parsed.transactions.length,
+			currency: detectedCurrency,
+		});
 
 		if (fileHash) {
 			insertFileHash(fileHash, statementId, cardId);

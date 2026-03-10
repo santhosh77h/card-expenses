@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import Constants from 'expo-constants';
 import { colors } from '../theme';
+import { setPostHogClient } from '../utils/analytics';
 import HomeScreen from '../screens/HomeScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import UploadScreen from '../screens/UploadScreen';
@@ -84,72 +87,107 @@ function TabNavigator() {
   );
 }
 
+function PostHogClientCapture() {
+  const posthog = usePostHog();
+  useEffect(() => {
+    if (posthog) {
+      console.log('[PostHog] Client initialized successfully');
+      setPostHogClient(posthog);
+    }
+  }, [posthog]);
+  return null;
+}
+
+const posthogApiKey = Constants.expoConfig?.extra?.posthogApiKey as string | undefined;
+const posthogHost = Constants.expoConfig?.extra?.posthogHost as string | undefined;
+
+if (__DEV__) {
+  console.log('[PostHog] API key present:', !!posthogApiKey);
+  console.log('[PostHog] Host:', posthogHost);
+}
+
 export default function Navigation() {
+  const navigator = (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <Stack.Screen name="Tabs" component={TabNavigator} />
+      <Stack.Screen
+        name="AddTransaction"
+        component={AddTransactionScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Add Transaction',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Analysis"
+        component={AnalysisScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Statement Analysis',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Backup"
+        component={BackupScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Data & Backup',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="CardList"
+        component={CardListScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'My Cards',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="EditCard"
+        component={EditCardScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Edit Card',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
+    </Stack.Navigator>
+  );
+
   return (
     <NavigationContainer theme={darkTheme}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        <Stack.Screen name="Tabs" component={TabNavigator} />
-        <Stack.Screen
-          name="AddTransaction"
-          component={AddTransactionScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Add Transaction',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.textPrimary,
-            headerShadowVisible: false,
-          }}
-        />
-        <Stack.Screen
-          name="Analysis"
-          component={AnalysisScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Statement Analysis',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.textPrimary,
-            headerShadowVisible: false,
-          }}
-        />
-        <Stack.Screen
-          name="Backup"
-          component={BackupScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Data & Backup',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.textPrimary,
-            headerShadowVisible: false,
-          }}
-        />
-        <Stack.Screen
-          name="CardList"
-          component={CardListScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'My Cards',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.textPrimary,
-            headerShadowVisible: false,
-          }}
-        />
-        <Stack.Screen
-          name="EditCard"
-          component={EditCardScreen}
-          options={{
-            headerShown: true,
-            headerTitle: 'Edit Card',
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.textPrimary,
-            headerShadowVisible: false,
-          }}
-        />
-      </Stack.Navigator>
+      {posthogApiKey ? (
+        <PostHogProvider
+          apiKey={posthogApiKey}
+          options={{ host: posthogHost, flushAt: 1, flushInterval: 0 }}
+          debug={__DEV__}
+          autocapture={{ captureScreens: true }}
+        >
+          <PostHogClientCapture />
+          {navigator}
+        </PostHogProvider>
+      ) : (
+        navigator
+      )}
     </NavigationContainer>
   );
 }

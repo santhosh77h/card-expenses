@@ -1,51 +1,51 @@
 {
-  "expo": {
-    "name": "Vector",
-    "slug": "cardlytics",
-    "version": "1.0.0",
-    "scheme": "vector",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A0E1A"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.cardlytics.app",
-      "backgroundColor": "#0A0E1A",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0E1A"
-      },
-      "minSdkVersion": 24,
-      "package": "com.cardlytics.app"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "backgroundColor": "#0A0E1A"
-    },
-    "plugins": [
-      "expo-font",
-      "expo-document-picker",
-      "expo-image-picker",
-      ["react-native-fast-tflite", { "enableCoreMLDelegate": true }]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "01f80520-dfae-453d-a23a-7c12fc7dcd87"
-      }
-    },
-    "owner": "santhosh7h"
-  }
+	"expo": {
+		"name": "Vector Expense",
+		"slug": "vector-expense",
+		"version": "1.0.0",
+		"scheme": "vector",
+		"orientation": "portrait",
+		"icon": "./assets/icon.png",
+		"userInterfaceStyle": "dark",
+		"splash": {
+			"image": "./assets/splash.png",
+			"resizeMode": "contain",
+			"backgroundColor": "#0A0E1A"
+		},
+		"assetBundlePatterns": ["**/*"],
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.cardlytics.app",
+			"backgroundColor": "#0A0E1A",
+			"infoPlist": {
+				"ITSAppUsesNonExemptEncryption": false
+			}
+		},
+		"android": {
+			"adaptiveIcon": {
+				"foregroundImage": "./assets/adaptive-icon.png",
+				"backgroundColor": "#0A0E1A"
+			},
+			"minSdkVersion": 24,
+			"package": "com.cardlytics.app"
+		},
+		"web": {
+			"favicon": "./assets/favicon.png",
+			"backgroundColor": "#0A0E1A"
+		},
+		"plugins": [
+			"expo-font",
+			"expo-document-picker",
+			"expo-image-picker",
+			["react-native-fast-tflite", { "enableCoreMLDelegate": true }]
+		],
+		"extra": {
+			"posthogApiKey": "phc_H2RGC5HdtLY7XJccoxAmpWdmPAm4BwfzddNOfwh7mYn",
+			"posthogHost": "https://us.i.posthog.com",
+			"eas": {
+				"projectId": "01f80520-dfae-453d-a23a-7c12fc7dcd87"
+			}
+		},
+		"owner": "santhosh7h"
+	}
 }

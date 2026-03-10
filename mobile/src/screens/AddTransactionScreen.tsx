@@ -15,6 +15,7 @@ import { colors, spacing, borderRadius, fontSize, CURRENCY_CONFIG } from '../the
 import { useStore, CreditCard } from '../store';
 import { categorizeTransaction } from '../utils/api';
 import { Badge, PrimaryButton } from '../components/ui';
+import { capture, AnalyticsEvents } from '../utils/analytics';
 
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
@@ -64,6 +65,11 @@ export default function AddTransactionScreen() {
     if (notes.trim()) {
       updateEnrichment(txnId, { notes: notes.trim() });
     }
+    capture(AnalyticsEvents.TRANSACTION_ADDED, {
+      category: categoryInfo.category,
+      type,
+      currency: cardCurrency,
+    });
     navigation.goBack();
   }
 

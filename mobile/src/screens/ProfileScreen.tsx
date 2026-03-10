@@ -9,6 +9,7 @@ import { useStore } from '../store';
 import { Card, Badge } from '../components/ui';
 import { presentPaywall } from '../utils/revenueCat';
 import type { RootStackParamList } from '../navigation';
+import { capture, AnalyticsEvents } from '../utils/analytics';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -43,7 +44,7 @@ export default function ProfileScreen() {
           ) : (
             <TouchableOpacity
               style={styles.upgradeBtn}
-              onPress={() => presentPaywall()}
+              onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_header' }); presentPaywall(); }}
               activeOpacity={0.8}
             >
               <Feather name="zap" size={14} color={colors.warning} style={{ marginRight: spacing.xs }} />
@@ -84,7 +85,7 @@ export default function ProfileScreen() {
             label="Upgrade to Pro"
             subtitle="Unlock all features"
             iconColor={colors.warning}
-            onPress={() => presentPaywall()}
+            onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' }); presentPaywall(); }}
           />
         )}
       </View>
