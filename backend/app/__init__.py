@@ -41,8 +41,9 @@ def _configure_logging() -> None:
 
     logging.root.setLevel(getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
 
-    # LLM parser gets debug-level logging for observability
+    # LLM parser and consensus engine get debug-level logging for observability
     logging.getLogger("app.llm_parser").setLevel(logging.DEBUG)
+    logging.getLogger("app.consensus").setLevel(logging.DEBUG)
 
 
 def create_app() -> FastAPI:

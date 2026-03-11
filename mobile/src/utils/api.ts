@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Transaction, StatementSummary } from '../store';
 import { categoryColors } from '../theme';
 
-const API_URL = 'http://192.168.0.203:8000';
+const API_URL = 'http://192.168.0.101:8000';
 
 export interface CardInfo {
 	card_last4: string | null;

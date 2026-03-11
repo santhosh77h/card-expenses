@@ -15,7 +15,9 @@ BASE_RULES = """\
 Rules:
 - date: Convert to YYYY-MM-DD.
 - description: Clean merchant/payee name. Remove reference numbers, transaction IDs, \
-terminal IDs, and noise. Keep just the merchant/payee name.
+terminal IDs, and noise. Also strip EMI eligibility tags like "EMI", "EMI AVAILABLE", \
+"EMI ELIGIBLE", "CONVERT TO EMI" — these are marketing labels, not part of the merchant name. \
+Keep just the merchant/payee name.
 - amount: Always a positive float. Strip currency symbols and commas.
 - type: Classify as "debit" or "credit" using these rules:
 
@@ -50,9 +52,11 @@ categories. Pick the best match; use "Other" only if nothing else fits.
   * "Utilities & Bills" -- Electricity, water, gas, internet, mobile/phone, broadband
   * "Travel" -- Flights, hotels, travel bookings, car rentals, railways
   * "Education" -- Tuition, courses, books, school/college fees, online learning
-  * "Finance & Investment" -- Investments, trading, active EMI installments \
-(with installment numbers), interest charges, annual fees, late payment fees, finance charges. \
-Do NOT put EMI-eligible purchases here.
+  * "Finance & Investment" -- Investments, trading, interest charges, annual fees, \
+late payment fees, finance charges, and ONLY active EMI installments that explicitly show \
+installment numbers (e.g., "EMI 3/12", "INST 5 OF 6"). \
+**WARNING: Most "EMI" labels on statements just mean the purchase CAN be converted to EMI — \
+they are regular purchases. Categorize by the merchant, NOT the EMI tag.**
   * "Transfers" -- Card payments, fund transfers, wallet top-ups, peer-to-peer transfers
   * "Other" -- Anything that does not clearly fit the above categories
 
@@ -75,8 +79,14 @@ Also extract **card metadata** from the statement header/summary section:
 - card_last4: Last 4 digits of the card number (look for "XXXX XXXX XXXX 1234" or "Card ending 1234")
 - card_network: Card network (Visa, Mastercard, American Express, RuPay, Discover)
 - credit_limit: Total credit limit
-- total_amount_due: Total outstanding/due
-- minimum_amount_due: Minimum payment due
+- total_amount_due: The **full outstanding balance** for the billing cycle. This is the larger \
+amount. Look for labels like "Total Amount Due", "Total Outstanding", "Total Due", \
+"Statement Balance", "Current Balance", "Total Dues". This is NOT the minimum payment. \
+It is always >= minimum_amount_due.
+- minimum_amount_due: The **minimum payment** required to avoid late fees. This is the smaller \
+amount. Look for labels like "Minimum Amount Due", "Min. Due", "MAD", "Minimum Payment Due". \
+**CRITICAL: total_amount_due and minimum_amount_due are DIFFERENT values. Do NOT put the same \
+number in both fields.** The total is the full balance; the minimum is a small fraction of it.
 - payment_due_date: Payment due date in YYYY-MM-DD
 - currency: Detect the ISO 4217 currency code. You MUST return one of: "INR", "USD", "EUR", "GBP".
 - If any field cannot be determined from the text, leave it as null.

@@ -36,20 +36,31 @@ AU Small Finance, BOB (Bank of Baroda), Canara, PNB
 - Only classify as "credit" when the description explicitly indicates a card payment \
 (e.g., "BPPY CC PAYMENT", "NEFT CR") or refund/cashback.
 
-**EMI handling (Indian statements):**
-Many Indian credit card statements show "EMI" next to a transaction. This usually \
-means the purchase is **eligible for EMI conversion**, NOT that it is an actual EMI \
-transaction. Categorize based on the merchant/description, not the EMI tag.
-  - "Amazon.in EMI" \u2192 Shopping (regular purchase, EMI-eligible)
-  - "Flipkart EMI" \u2192 Shopping
-  - "Croma Electronics EMI" \u2192 Shopping
-  - "Swiggy EMI" \u2192 Food & Dining
+**EMI handling (Indian statements) -- CRITICAL, READ CAREFULLY:**
+Indian credit card statements commonly print "EMI" next to transactions. \
+In the vast majority of cases this is a **marketing label** meaning the purchase \
+is eligible for EMI conversion. It is NOT an active EMI. Treat it as a **regular purchase**.
 
-Only classify as "Finance & Investment" if the description explicitly indicates an \
-active EMI installment, such as:
-  - "EMI - 3/12", "EMI INSTALLMENT", "EMI DEBIT"
-  - "LOAN EMI", "AUTO DEBIT EMI", "EMI CONVERSION"
-  - Descriptions with installment numbers like "3 OF 12", "INST 5/6"
+  Step 1: IGNORE the "EMI" tag entirely when choosing the category.
+  Step 2: REMOVE "EMI" from the description -- it is not part of the merchant name.
+  Step 3: Categorize purely by the merchant/description.
+
+  Examples -- these are all REGULAR PURCHASES, NOT Finance & Investment:
+  - "Amazon.in EMI" -> description: "Amazon.in", category: Shopping
+  - "Flipkart EMI" -> description: "Flipkart", category: Shopping
+  - "Croma Electronics EMI" -> description: "Croma Electronics", category: Shopping
+  - "Swiggy EMI" -> description: "Swiggy", category: Food & Dining
+  - "APPLE STORE EMI" -> description: "Apple Store", category: Shopping
+  - "MakeMyTrip EMI" -> description: "MakeMyTrip", category: Travel
+
+  The ONLY time you classify as "Finance & Investment" is when the description \
+explicitly contains an **installment number** proving it is an active EMI debit:
+  - "EMI - 3/12" or "EMI 3 OF 12" (has installment counter)
+  - "EMI INSTALLMENT", "EMI DEBIT", "AUTO DEBIT EMI"
+  - "LOAN EMI", "EMI CONVERSION"
+  - Pattern: any text with "N/M" or "INST N OF M" where N and M are numbers
+
+  If there is no installment number, it is NOT an active EMI -- categorize by merchant.
 
 **Foreign transactions (Indian cards):**
 - Extract the INR billed amount, NOT the original foreign currency amount.
@@ -65,6 +76,15 @@ active EMI installment, such as:
 **Statement sections to identify:**
 - "Account Summary", "Reward Points Summary", "Transaction Details", "Payment Due Date"
 - "Total Amount Due", "Minimum Amount Due", "Credit Limit", "Available Credit"
+
+**Total vs Minimum Amount Due (Indian statements) -- IMPORTANT:**
+Indian statements always show TWO separate due amounts. They are NOT the same:
+  - total_amount_due = "Total Amount Due" / "Total Dues" / "Total Outstanding" \
+(the full balance, usually a large number)
+  - minimum_amount_due = "Minimum Amount Due" / "Min Amount Due" / "MAD" \
+(a small fraction, typically 5% of total or a fixed minimum like Rs 200)
+  These are always different. If you find only one value, it is likely the total. \
+Do NOT copy the minimum into the total field.
 
 **Fees (Indian statements):**
 - GST on fees, annual fee, late payment charge, finance charge, over-limit charge

@@ -2,7 +2,10 @@
 API route handlers.
 """
 
+import json
 import logging
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -14,6 +17,28 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+DEBUG_DIR = Path(__file__).resolve().parent.parent / "debug"
+
+
+def _save_debug(filename: str, response: dict) -> None:
+    """Save filename + API response to debug/ for inspection."""
+    try:
+        DEBUG_DIR.mkdir(exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        stem = Path(filename).stem if filename else "unknown"
+        debug_path = DEBUG_DIR / f"{ts}_{stem}.json"
+
+        debug_data = {
+            "timestamp": datetime.now().isoformat(),
+            "filename": filename,
+            "response": response,
+        }
+
+        debug_path.write_text(json.dumps(debug_data, indent=2, default=str), encoding="utf-8")
+        logger.debug("[debug] Saved response to %s", debug_path)
+    except Exception:
+        logger.warning("[debug] Failed to save debug response", exc_info=True)
+
 
 @router.get("/health")
 async def health():
@@ -21,6 +46,7 @@ async def health():
         "status": "ok",
         "privacy": "no-data-stored",
         "llm_enabled": settings.llm_enabled,
+        "consensus_enabled": settings.consensus_capable,
     }
 
 
@@ -43,4 +69,9 @@ async def parse_statement(
             detail=f"File exceeds {settings.MAX_FILE_SIZE_MB} MB limit.",
         )
 
-    return parse_pdf(file_bytes, password=password)
+    result = await parse_pdf(file_bytes, password=password)
+
+    if settings.DEBUG_RESPONSES:
+        _save_debug(file.filename, result)
+
+    return result
