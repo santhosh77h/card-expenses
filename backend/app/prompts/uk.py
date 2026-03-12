@@ -76,6 +76,12 @@ Travelodge, Eurostar, National Express, Booking.com
 foreign usage fee, annual fee
 - These are all DEBIT type, category "Finance & Investment"
 
+**Transaction type hints (UK statements):**
+- "DIRECT DEBIT PAYMENT", "FASTER PAYMENT", "BACS" → transaction_type="payment"
+- "FOREIGN USAGE FEE", "ANNUAL FEE" → transaction_type="fee"
+- "INTEREST", "FINANCE CHARGE" → transaction_type="interest"
+- Instalment plan entries → transaction_type="emi"
+
 **Card networks:** Visa, Mastercard, American Express
 
 """

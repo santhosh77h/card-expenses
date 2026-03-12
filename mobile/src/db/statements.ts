@@ -1,7 +1,7 @@
 import { getDb } from './index';
 import { insertStatementTransactions, getTransactionsByStatementId } from './transactions';
 import type { StatementData, StatementSummary } from '../store';
-import type { CurrencyCode } from '../theme';
+import type { CurrencyCode, DateFormat } from '../theme';
 
 const EMPTY_SUMMARY: StatementSummary = {
   total_transactions: 0,
@@ -25,9 +25,9 @@ export function insertStatement(cardId: string, stmt: StatementData): void {
   db.executeSync('BEGIN');
   try {
     db.executeSync(
-      `INSERT OR REPLACE INTO statements (id, cardId, parsedAt, summary, csv, bankDetected, currency)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [stmt.id, cardId, stmt.parsedAt, JSON.stringify(stmt.summary), stmt.csv, stmt.bankDetected, stmt.currency ?? null],
+      `INSERT OR REPLACE INTO statements (id, cardId, parsedAt, summary, csv, bankDetected, currency, dateFormat)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [stmt.id, cardId, stmt.parsedAt, JSON.stringify(stmt.summary), stmt.csv, stmt.bankDetected, stmt.currency ?? null, stmt.dateFormat ?? null],
     );
     insertStatementTransactions(stmt.id, cardId, stmt.transactions);
     db.executeSync('COMMIT');
@@ -57,6 +57,7 @@ export function getAllStatements(): Record<string, StatementData[]> {
       csv: row.csv as string,
       bankDetected: row.bankDetected as string,
       currency: (row.currency as CurrencyCode | null) ?? undefined,
+      dateFormat: (row.dateFormat as DateFormat | null) ?? undefined,
     });
   }
   return grouped;

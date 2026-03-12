@@ -1,6 +1,6 @@
 import type { DB } from '@op-engineering/op-sqlite';
 
-export const LATEST_VERSION = 1;
+export const LATEST_VERSION = 3;
 
 export type MigrationFn = (db: DB) => void;
 
@@ -96,9 +96,15 @@ export const migrations: Record<number, MigrationFn> = {
     );
   },
 
-  // FUTURE EXAMPLE (not implemented now):
-  // 2: (db) => {
-  //   db.executeSync(`ALTER TABLE transactions ADD COLUMN tags TEXT DEFAULT ''`);
-  //   db.executeSync(`CREATE INDEX IF NOT EXISTS idx_txn_tags ON transactions(tags)`);
-  // },
+  // v1 → v2: Add dateFormat column to statements (Stage 1 Document Intelligence)
+  2: (db) => {
+    db.executeSync(`ALTER TABLE statements ADD COLUMN dateFormat TEXT`);
+  },
+
+  // v2 → v3: Add transaction_type column to transactions
+  3: (db) => {
+    db.executeSync(
+      `ALTER TABLE transactions ADD COLUMN transaction_type TEXT NOT NULL DEFAULT 'purchase'`,
+    );
+  },
 };

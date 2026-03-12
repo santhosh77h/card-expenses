@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import type { CurrencyCode } from '../theme';
+import type { CurrencyCode, DateFormat } from '../theme';
 import * as dbTxns from '../db/transactions';
 import * as dbStmts from '../db/statements';
 import * as dbEnrich from '../db/enrichments';
@@ -57,6 +57,10 @@ export interface MonthlyUsage {
   currency?: CurrencyCode;
 }
 
+export type TransactionType =
+  | 'purchase' | 'payment' | 'refund' | 'reversal' | 'cashback'
+  | 'emi' | 'fee' | 'tax' | 'interest' | 'adjustment' | 'transfer';
+
 export interface Transaction {
   id: string;
   date: string;
@@ -66,6 +70,7 @@ export interface Transaction {
   category_color: string;
   category_icon: string;
   type: 'debit' | 'credit';
+  transaction_type?: TransactionType;
   cardId?: string;
   currency?: CurrencyCode;
 }
@@ -98,6 +103,7 @@ export interface StatementData {
   csv: string;
   bankDetected: string;
   currency?: CurrencyCode;
+  dateFormat?: DateFormat;
 }
 
 // ---------------------------------------------------------------------------

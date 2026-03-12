@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     OPENROUTER_TIMEOUT: float = 45.0
 
+    # --- Stage 1: Document Intelligence ---
+    PROBE_MODEL: str = "gpt-4o-mini"
+    PROBE_TIMEOUT: float = 15.0
+
     # --- Consensus ---
     CONSENSUS_ENABLED: bool = True
     LLM2_MODEL: str = "anthropic/claude-3.5-haiku"

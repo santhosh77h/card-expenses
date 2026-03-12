@@ -136,6 +136,54 @@ export function formatINR(amount: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Date formatting (locale-aware based on Stage 1 intelligence)
+// ---------------------------------------------------------------------------
+
+export type DateFormat = 'DMY' | 'MDY' | 'YMD';
+
+/**
+ * Format an ISO date string (YYYY-MM-DD) into locale-appropriate display format.
+ * DMY → 15/03/2024 (India, UK, AU, EU)
+ * MDY → 03/15/2024 (US, Canada)
+ * YMD → 2024-03-15 (ISO, rare in statements)
+ */
+export function formatDate(isoDate: string, dateFormat: DateFormat = 'DMY'): string {
+  if (!isoDate || isoDate.length < 10) return isoDate || '';
+  const [year, month, day] = isoDate.substring(0, 10).split('-');
+  switch (dateFormat) {
+    case 'MDY': return `${month}/${day}/${year}`;
+    case 'YMD': return `${year}-${month}-${day}`;
+    case 'DMY':
+    default: return `${day}/${month}/${year}`;
+  }
+}
+
+/**
+ * Derive date format from currency when explicit format is unavailable.
+ */
+export function dateFormatForCurrency(currency: CurrencyCode): DateFormat {
+  return currency === 'USD' ? 'MDY' : 'DMY';
+}
+
+// ---------------------------------------------------------------------------
+// Transaction type metadata — label + icon for each transaction_type value
+// ---------------------------------------------------------------------------
+
+export const TRANSACTION_TYPE_META: Record<string, { label: string; icon: string }> = {
+  purchase:   { label: 'Purchase',   icon: 'shopping-bag' },
+  payment:    { label: 'Payment',    icon: 'credit-card' },
+  refund:     { label: 'Refund',     icon: 'rotate-ccw' },
+  reversal:   { label: 'Reversal',   icon: 'arrow-left-right' },
+  cashback:   { label: 'Cashback',   icon: 'gift' },
+  emi:        { label: 'EMI',        icon: 'calendar' },
+  fee:        { label: 'Fee',        icon: 'file-text' },
+  tax:        { label: 'Tax',        icon: 'percent' },
+  interest:   { label: 'Interest',   icon: 'trending-up' },
+  adjustment: { label: 'Adjustment', icon: 'sliders' },
+  transfer:   { label: 'Transfer',   icon: 'repeat' },
+};
+
+// ---------------------------------------------------------------------------
 // Chart palette — 10 high-contrast colors for multi-series charts on dark bg
 // ---------------------------------------------------------------------------
 

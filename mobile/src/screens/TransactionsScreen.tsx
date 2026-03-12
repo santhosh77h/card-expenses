@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, categoryColors, CurrencyCode } from '../theme';
 import { useStore, Transaction, CreditCard } from '../store';
 import { Badge, EmptyState, PrimaryButton } from '../components/ui';
 import TransactionDetailModal from '../components/TransactionDetailModal';
@@ -183,7 +183,7 @@ export default function TransactionsScreen() {
           {item.description}
         </Text>
         <View style={styles.rowMeta}>
-          <Text style={styles.rowDate}>{item.date}</Text>
+          <Text style={styles.rowDate}>{formatDate(item.date, dateFormatForCurrency(item.currency ?? txnCard?.currency ?? 'INR'))}</Text>
           <Badge text={item.category} color={item.category_color} />
           {txnCard && (
             <View style={styles.cardTag}>

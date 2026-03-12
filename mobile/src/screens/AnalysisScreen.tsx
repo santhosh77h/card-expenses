@@ -16,7 +16,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, categoryColors, CurrencyCode, DateFormat } from '../theme';
 import { useStore, Transaction, CreditCard, TransactionEnrichment } from '../store';
 import { Card, StatRow, AmountText, Badge, SectionHeader, ProgressBar } from '../components/ui';
 import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart';
@@ -55,6 +55,7 @@ export default function AnalysisScreen() {
 
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId]);
   const currency: CurrencyCode = card?.currency ?? 'INR';
+  const stmtDateFormat: DateFormat = statement?.dateFormat ?? dateFormatForCurrency(currency);
 
   const handleUpdateTransaction = useCallback((txnId: string, updates: Partial<Transaction>) => {
     updateStatementTransaction(cardId, statementId, txnId, updates);
@@ -162,6 +163,7 @@ export default function AnalysisScreen() {
             imported={imported}
             currency={currency}
             card={card}
+            dateFormat={stmtDateFormat}
             onUpdateCardFields={(cardUpdates, periodUpdates) =>
               updateStatementCardFields(cardId, statementId, cardUpdates, periodUpdates)
             }
@@ -181,6 +183,7 @@ export default function AnalysisScreen() {
             currency={currency}
             enrichments={enrichments}
             onSelectTransaction={setSelectedTxn}
+            dateFormat={stmtDateFormat}
           />
         )}
         {activeTab === 'categories' && (
@@ -198,6 +201,7 @@ export default function AnalysisScreen() {
         onPrev={handlePrev}
         onNext={handleNext}
         onUpdateTransaction={handleUpdateTransaction}
+        dateFormat={stmtDateFormat}
       />
     </View>
   );
@@ -215,6 +219,7 @@ function OverviewTab({
   imported,
   currency,
   card,
+  dateFormat,
   onUpdateCardFields,
 }: {
   summary: any;
@@ -224,6 +229,7 @@ function OverviewTab({
   imported: boolean;
   currency: CurrencyCode;
   card?: CreditCard;
+  dateFormat: DateFormat;
   onUpdateCardFields?: (
     cardUpdates?: Partial<Pick<CreditCard, 'totalAmountDue' | 'minimumAmountDue' | 'paymentDueDate'>>,
     periodUpdates?: { from?: string | null; to?: string | null },
@@ -343,7 +349,7 @@ function OverviewTab({
                 {card.paymentDueDate && (
                   <StatRow
                     label="Payment Due Date"
-                    value={card.paymentDueDate}
+                    value={formatDate(card.paymentDueDate, dateFormat)}
                     valueColor={colors.textPrimary}
                   />
                 )}
@@ -413,7 +419,7 @@ function OverviewTab({
           ) : (
             <StatRow
               label="Statement Period"
-              value={`${summary.statement_period.from || 'N/A'} to ${summary.statement_period.to || 'N/A'}`}
+              value={`${summary.statement_period.from ? formatDate(summary.statement_period.from, dateFormat) : 'N/A'} to ${summary.statement_period.to ? formatDate(summary.statement_period.to, dateFormat) : 'N/A'}`}
             />
           )}
         </View>
@@ -478,6 +484,7 @@ function TransactionsTab({
   currency,
   enrichments,
   onSelectTransaction,
+  dateFormat,
 }: {
   transactions: Transaction[];
   allCategories: string[];
@@ -491,6 +498,7 @@ function TransactionsTab({
   currency: CurrencyCode;
   enrichments: Record<string, TransactionEnrichment>;
   onSelectTransaction: (txn: Transaction) => void;
+  dateFormat: DateFormat;
 }) {
   return (
     <View style={{ padding: spacing.lg }}>
@@ -581,7 +589,7 @@ function TransactionsTab({
               {txn.description}
             </Text>
             <View style={styles.txnMeta}>
-              <Text style={styles.txnDate}>{txn.date}</Text>
+              <Text style={styles.txnDate}>{formatDate(txn.date, dateFormat)}</Text>
               <Text style={styles.txnCategory}>{txn.category}</Text>
               {card && (
                 <View style={styles.txnCardTag}>

@@ -20,7 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
-import { colors, spacing, borderRadius, fontSize, CurrencyCode, SUPPORTED_CURRENCIES, CURRENCY_CONFIG } from '../theme';
+import { colors, spacing, borderRadius, fontSize, CurrencyCode, DateFormat, SUPPORTED_CURRENCIES, CURRENCY_CONFIG } from '../theme';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { findByHash, insertFileHash } from '../db/fileHashes';
@@ -330,6 +330,9 @@ export default function UploadScreen() {
 	) => {
 		const bankDetected: string = parsed.bank_detected || 'generic';
 		const detectedCurrency = (parsed.card_info?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
+		const detectedDateFormat = (['DMY', 'MDY', 'YMD'].includes(parsed.date_format_detected ?? '')
+			? parsed.date_format_detected
+			: undefined) as DateFormat | undefined;
 
 		const statementId = Date.now().toString();
 		const statement: StatementData = {
@@ -341,6 +344,7 @@ export default function UploadScreen() {
 			csv: parsed.csv,
 			bankDetected: bankDetected,
 			currency: detectedCurrency,
+			dateFormat: detectedDateFormat,
 		};
 
 		addStatement(cardId, statement);

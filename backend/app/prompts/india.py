@@ -20,9 +20,12 @@ AU Small Finance, BOB (Bank of Baroda), Canara, PNB
 
 **Credit/Debit identification (Indian statements):**
 - Suffix markers: "Cr" or "CR" = credit, "Dr" or "DR" = debit
+- **Plus prefix: "+" before the amount = credit** (refund, payment, reversal). \
+No sign prefix = debit. This is common on HDFC, ICICI, and other Indian bank statements.
 - Arrow markers: "\u2190" next to amount = credit
 - Separate debit/credit amount columns: the column determines the type
 - Some statements have a single amount column with Cr/Dr suffix
+- Description keywords: "REVERSAL", "REFUND", "CREDIT", "REV PROC" in the description = credit
 
 **Payment indicators (CREDIT type):**
 - "BPPY CC PAYMENT", "CC PAYMENT", "CREDIT CARD PAYMENT"
@@ -86,9 +89,38 @@ Indian statements always show TWO separate due amounts. They are NOT the same:
   These are always different. If you find only one value, it is likely the total. \
 Do NOT copy the minimum into the total field.
 
+**Total Amount Due vs Total Credits/Debits (Indian statements) -- CRITICAL:**
+Indian statements show a "Transaction Summary" or "Domestic/International Transactions" section \
+with subtotals like "Total Debits" and "Total Credits". These are transaction CATEGORY TOTALS, \
+NOT the amount due:
+  - "Total Credits" / "Total Refunds" = sum of all refund/cashback/payment transactions. \
+This is NOT total_amount_due.
+  - "Total Debits" / "Total Purchases" = sum of all purchase/charge transactions. \
+This is NOT total_amount_due.
+  - total_amount_due is the NET balance from the "Account Summary" or "Payment Due" box, \
+usually labeled "Total Amount Due" or "Total Dues". It is calculated as: \
+previous balance + total debits - total credits + fees/interest. \
+It is typically close to (previous_balance + total_debits - total_credits). \
+It is NOT equal to any single transaction subtotal or the minimum due.
+  Do NOT use transaction subtotals as total_amount_due.
+  - **HDFC Bank specifically:** The account summary shows a formula like \
+"Previous Dues − Payments/Credits + Purchases/Debit + Finance Charges = Total Amount Due". \
+Extract the FINAL result ("Total Amount Due"), NOT the "Purchases/Debit (Current Billing Cycle)" \
+component — those are different values.
+
 **Fees (Indian statements):**
 - GST on fees, annual fee, late payment charge, finance charge, over-limit charge
 - These are all DEBIT type, category "Finance & Investment"
+
+**Transaction type hints (Indian statements):**
+- EMI lifecycle entries: "OFFUS EMI", "EMI CONVERSION", "LOAN CANCL", \
+"AGGREGATOR EMI" → transaction_type="emi"
+- Fee entries: "PROCNG FEE", "PROCESSING FEE", "ANNUAL FEE" → transaction_type="fee"
+- Tax entries: "IGST", "CGST", "SGST", "GST ON" → transaction_type="tax"
+- Reversal entries: "REV PROC", "GST REVERSAL", "FEE REVERSAL" → transaction_type="reversal"
+- Payment entries: "BPPY CC PAYMENT", "NEFT CR" → transaction_type="payment"
+- A purchase with "EMI" label is still transaction_type="purchase" — \
+only actual EMI lifecycle entries are "emi".
 
 **Card networks:** Visa, Mastercard, RuPay, American Express
 

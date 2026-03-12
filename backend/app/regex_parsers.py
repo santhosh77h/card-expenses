@@ -114,11 +114,35 @@ def _parse_indian_bank(text: str, pattern: re.Pattern) -> list[dict]:
 
 
 def parse_hdfc(text: str) -> list[dict]:
-    """HDFC Bank: DD/MM/YYYY  Description  Amount  Cr/Dr"""
-    return _parse_indian_bank(text, re.compile(
-        r"(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,]+\.\d{2})\s*(Cr|Dr)?",
+    """HDFC Bank: DD/MM/YYYY  Description  [+] [₹] Amount  [Cr/Dr]
+
+    HDFC statements use a '+' prefix before the amount for credit transactions
+    (refunds, payments, reversals). The ₹ symbol may appear between the sign
+    and the digits.
+    """
+    pattern = re.compile(
+        r"(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(\+)?\s*(?:[₹Rs.]+\s*)?([\d,]+\.\d{2})\s*(Cr|Dr)?",
         re.IGNORECASE,
-    ))
+    )
+    transactions = []
+    for m in pattern.finditer(text):
+        date = parse_indian_date(m.group(1))
+        if not date:
+            continue
+        desc = m.group(2).strip()
+        plus_sign = m.group(3)
+        amount = parse_amount(m.group(4))
+        if amount is None:
+            continue
+        cr_dr = m.group(5)
+        is_cr = (
+            (cr_dr and cr_dr.lower() == "cr")
+            or plus_sign == "+"
+            or _is_credit(desc)
+        )
+        tx_type = "credit" if is_cr else "debit"
+        transactions.append({"date": date, "description": desc, "amount": amount, "type": tx_type})
+    return transactions
 
 
 def parse_icici(text: str) -> list[dict]:
@@ -244,6 +268,77 @@ def parse_generic(text: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Transaction type inference (multi-language keyword patterns)
+# ---------------------------------------------------------------------------
+
+_TX_TYPE_PATTERNS: list[tuple[str, list[str]]] = [
+    # Order matters: more specific patterns first to avoid false matches.
+    # Tax before fee so "IGST on Processing Fee" matches tax, not fee.
+    ("payment", [
+        "payment received", "cc payment", "neft cr", "imps payment",
+        "autopay", "ach payment", "direct debit", "faster payment",
+        "bacs", "pago recibido", "zahlung erhalten", "pagamento recebido",
+        "payment thank you", "payment - thank you",
+        "online payment", "electronic payment",
+        "mobile payment", "bppy cc payment", "upi payment", "rtgs",
+    ]),
+    ("refund", [
+        "refund", "reembolso", "remboursement", "rückerstattung",
+        "rimborso", "返金", "استرداد",
+    ]),
+    ("reversal", [
+        "reversal", "rev proc", "dispute credit", "gst reversal",
+        "fee reversal", "chargeback", "storno", "charge reversal",
+        "credit adjustment",
+    ]),
+    ("cashback", [
+        "cashback", "cash back", "cb credit", "reward",
+        "promotional credit", "sign-up bonus",
+    ]),
+    ("emi", [
+        "emi debit", "emi conversion", "offus emi", "loan emi",
+        "loan cancl", "aggregator emi", "inst ", "installment",
+        "parcelamento", "taksit", "ratenzahlung", "mensualité",
+        "cuota mensual", "emi 1/", "emi 2/", "emi 3/", "emi 4/",
+        "emi 5/", "emi 6/", "emi 7/", "emi 8/", "emi 9/",
+        "my chase plan", "monthly installment",
+    ]),
+    ("tax", [
+        "igst", "cgst", "sgst", "gst on", "service tax", "vat on",
+        "iva ", "mwst", "impuesto", "taxe sur",
+    ]),
+    ("interest", [
+        "interest charge", "finance charge", "purchase interest",
+        "cash advance interest", "revolving interest",
+        "zinsen", "intérêt", "interés",
+    ]),
+    ("fee", [
+        "annual fee", "late payment fee", "processing fee", "procng fee",
+        "cash advance fee", "overlimit", "foreign transaction fee",
+        "foreign usage fee", "fuel surcharge", "convenience fee",
+        "late fee", "over-limit fee", "balance transfer fee",
+        "returned payment fee",
+        "jahresgebühr", "cuota anual", "tarifa",
+    ]),
+    ("adjustment", [
+        "adjustment", "correction", "write-off", "ajuste",
+    ]),
+    ("transfer", [
+        "balance transfer", "fund transfer", "bt-",
+    ]),
+]
+
+
+def infer_transaction_type(description: str, tx_type: str = "debit") -> str:
+    """Infer transaction_type from description keywords. Returns 'purchase' as default."""
+    desc_lower = description.lower()
+    for ttype, keywords in _TX_TYPE_PATTERNS:
+        if any(kw in desc_lower for kw in keywords):
+            return ttype
+    return "purchase"
+
 
 BANK_PARSERS: dict[str, Callable[[str], list[dict]]] = {
     "hdfc": parse_hdfc,

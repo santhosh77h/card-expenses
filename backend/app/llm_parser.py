@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.categories import CATEGORY_META
 from app.config import settings
@@ -27,8 +27,41 @@ MAX_TEXT_LENGTH = 100_000
 
 
 # ---------------------------------------------------------------------------
+# User message builder (enriched with Stage 1 intelligence)
+# ---------------------------------------------------------------------------
+
+def _build_user_message(
+    text: str,
+    bank_hint: str,
+    region: str,
+    country: str = "",
+    currency: str = "",
+    date_format: str = "",
+    statement_type: str = "",
+) -> str:
+    """Build the user message with optional Stage 1 intelligence context."""
+    header = f"Region: {region}\nBank detected: {bank_hint}"
+    if country:
+        header += f"\nCountry: {country}"
+    if currency:
+        header += f"\nCurrency detected: {currency}"
+    if date_format:
+        fmt_desc = {"DMY": "day first", "MDY": "month first", "YMD": "year first"}.get(date_format, date_format)
+        header += f"\nDate format convention: {date_format} ({fmt_desc})"
+    if statement_type:
+        header += f"\nStatement type: {statement_type}"
+    return f"{header}\n\n--- STATEMENT TEXT ---\n{text[:MAX_TEXT_LENGTH]}"
+
+
+# ---------------------------------------------------------------------------
 # Pydantic models for structured output
 # ---------------------------------------------------------------------------
+
+TransactionType = Literal[
+    "purchase", "payment", "refund", "reversal", "cashback",
+    "emi", "fee", "tax", "interest", "adjustment", "transfer",
+]
+
 
 class LLMTransaction(BaseModel):
     date: str = Field(description="Transaction date in YYYY-MM-DD format")
@@ -36,6 +69,10 @@ class LLMTransaction(BaseModel):
     amount: float = Field(description="Transaction amount as a positive number")
     type: Literal["debit", "credit"]
     category: str = Field(description="Spending category from the allowed list")
+    transaction_type: TransactionType = Field(
+        default="purchase",
+        description="Nature of the transaction: purchase, payment, refund, reversal, cashback, emi, fee, tax, interest, adjustment, transfer",
+    )
 
 
 class LLMCardInfo(BaseModel):
@@ -46,6 +83,35 @@ class LLMCardInfo(BaseModel):
     minimum_amount_due: Optional[float] = Field(default=None, description="Minimum amount due for this billing cycle")
     payment_due_date: Optional[str] = Field(default=None, description="Payment due date in YYYY-MM-DD format")
     currency: Optional[str] = Field(default=None, description="ISO 4217 currency code: INR, USD, EUR, GBP")
+
+    @model_validator(mode="after")
+    def _check_consistency(self) -> "LLMCardInfo":
+        """Catch self-contradictions at parse time before data leaves the LLM layer."""
+        total = self.total_amount_due
+        minimum = self.minimum_amount_due
+
+        # Negative values are nonsensical for dues
+        if total is not None and total < 0:
+            logger.warning("[LLMCardInfo] total_amount_due is negative (%.2f) — nulling", total)
+            self.total_amount_due = None
+            total = None
+        if minimum is not None and minimum < 0:
+            logger.warning("[LLMCardInfo] minimum_amount_due is negative (%.2f) — nulling", minimum)
+            self.minimum_amount_due = None
+            minimum = None
+
+        # total == minimum → null out total (minimum is more distinctive/reliable)
+        if total is not None and minimum is not None and total == minimum:
+            logger.warning("[LLMCardInfo] total == minimum (%.2f) — nulling total", total)
+            self.total_amount_due = None
+
+        # total < minimum → swap (unambiguous error)
+        elif total is not None and minimum is not None and total < minimum:
+            logger.warning("[LLMCardInfo] total (%.2f) < minimum (%.2f) — swapping", total, minimum)
+            self.total_amount_due = minimum
+            self.minimum_amount_due = total
+
+        return self
 
 
 class LLMExtractionResult(BaseModel):
@@ -65,7 +131,7 @@ class LLMExtractionResult(BaseModel):
 # Public API
 # ---------------------------------------------------------------------------
 
-def llm_parse_transactions(text: str, bank_hint: str = "generic", region: str = "IN") -> Optional[dict]:
+def llm_parse_transactions(text: str, bank_hint: str = "generic", region: str = "IN", **intel_kwargs) -> Optional[dict]:
     """
     Parse transactions from PDF text using OpenAI structured output.
 
@@ -82,8 +148,7 @@ def llm_parse_transactions(text: str, bank_hint: str = "generic", region: str = 
         logger.warning("openai package not installed — skipping LLM parser")
         return None
 
-    truncated_text = text[:MAX_TEXT_LENGTH]
-    user_message = f"Region: {region}\nBank detected: {bank_hint}\n\n--- STATEMENT TEXT ---\n{truncated_text}"
+    user_message = _build_user_message(text, bank_hint, region, **intel_kwargs)
 
     system_prompt = get_system_prompt(region)
     logger.info("LLM parse: model=%s, bank=%s, region=%s, text_len=%d", settings.OPENAI_MODEL, bank_hint, region, len(user_message))
@@ -133,13 +198,14 @@ def _format_result(result: LLMExtractionResult) -> dict:
             "category": tx.category if tx.category in CATEGORY_META else "Other",
             "category_color": meta["color"],
             "category_icon": meta["icon"],
+            "transaction_type": tx.transaction_type,
         })
 
     logger.info("LLM extracted %d transactions", len(transactions))
     for i, tx in enumerate(transactions):
         logger.debug(
-            "  [%d] %s | %s | %s | %.2f | %s",
-            i + 1, tx["date"], tx["type"], tx["description"], tx["amount"], tx["category"],
+            "  [%d] %s | %s | %s | %.2f | %s | %s",
+            i + 1, tx["date"], tx["type"], tx["description"], tx["amount"], tx["category"], tx["transaction_type"],
         )
 
     card_info = {
@@ -204,7 +270,8 @@ IMPORTANT: You MUST respond with valid JSON matching this exact schema:
       "description": "string",
       "amount": 0.00,
       "type": "debit" | "credit",
-      "category": "string"
+      "category": "string",
+      "transaction_type": "purchase" | "payment" | "refund" | "reversal" | "cashback" | "emi" | "fee" | "tax" | "interest" | "adjustment" | "transfer"
     }
   ],
   "statement_period_from": "YYYY-MM-DD" or null,
@@ -239,7 +306,7 @@ def _llm_result_from_formatted(formatted: dict, provider: LLMProvider, model: st
 # Async OpenAI parser
 # ---------------------------------------------------------------------------
 
-async def async_llm_parse_openai(text: str, bank_hint: str = "generic", region: str = "IN") -> LLMResult:
+async def async_llm_parse_openai(text: str, bank_hint: str = "generic", region: str = "IN", **intel_kwargs) -> LLMResult:
     """Parse using AsyncOpenAI with structured output (same as sync version)."""
     model = settings.OPENAI_MODEL
     provider = LLMProvider.OPENAI
@@ -252,8 +319,7 @@ async def async_llm_parse_openai(text: str, bank_hint: str = "generic", region: 
                          transactions=[], statement_period=None, card_info=None,
                          success=False, error="openai package not installed")
 
-    truncated_text = text[:MAX_TEXT_LENGTH]
-    user_message = f"Region: {region}\nBank detected: {bank_hint}\n\n--- STATEMENT TEXT ---\n{truncated_text}"
+    user_message = _build_user_message(text, bank_hint, region, **intel_kwargs)
     system_prompt = get_system_prompt(region)
 
     logger.info("[async_openai] model=%s, bank=%s, region=%s, text_len=%d",
@@ -298,6 +364,7 @@ async def async_llm_parse_openrouter(
     region: str = "IN",
     model: str = "",
     provider: LLMProvider = LLMProvider.CLAUDE,
+    **intel_kwargs,
 ) -> LLMResult:
     """Parse using OpenRouter API (JSON mode, not Pydantic structured output)."""
     provider_model = model
@@ -309,8 +376,7 @@ async def async_llm_parse_openrouter(
                          transactions=[], statement_period=None, card_info=None,
                          success=False, error="openai package not installed")
 
-    truncated_text = text[:MAX_TEXT_LENGTH]
-    user_message = f"Region: {region}\nBank detected: {bank_hint}\n\n--- STATEMENT TEXT ---\n{truncated_text}"
+    user_message = _build_user_message(text, bank_hint, region, **intel_kwargs)
     system_prompt = get_system_prompt(region) + _build_json_schema_prompt()
 
     logger.info("[async_openrouter] model=%s, bank=%s, region=%s, text_len=%d",
@@ -363,7 +429,7 @@ async def async_llm_parse_openrouter(
 # Parallel multi-provider orchestrator
 # ---------------------------------------------------------------------------
 
-async def async_llm_parse_all(text: str, bank_hint: str = "generic", region: str = "IN") -> list[LLMResult]:
+async def async_llm_parse_all(text: str, bank_hint: str = "generic", region: str = "IN", **intel_kwargs) -> list[LLMResult]:
     """
     Run all configured LLM providers in parallel.
 
@@ -373,7 +439,7 @@ async def async_llm_parse_all(text: str, bank_hint: str = "generic", region: str
 
     if settings.llm_enabled:
         tasks.append(asyncio.create_task(
-            async_llm_parse_openai(text, bank_hint, region),
+            async_llm_parse_openai(text, bank_hint, region, **intel_kwargs),
             name="llm-openai",
         ))
 
@@ -381,13 +447,15 @@ async def async_llm_parse_all(text: str, bank_hint: str = "generic", region: str
         tasks.append(asyncio.create_task(
             async_llm_parse_openrouter(text, bank_hint, region,
                                        model=settings.LLM2_MODEL,
-                                       provider=LLMProvider.CLAUDE),
+                                       provider=LLMProvider.CLAUDE,
+                                       **intel_kwargs),
             name="llm-claude",
         ))
         tasks.append(asyncio.create_task(
             async_llm_parse_openrouter(text, bank_hint, region,
                                        model=settings.LLM3_MODEL,
-                                       provider=LLMProvider.GEMINI),
+                                       provider=LLMProvider.GEMINI,
+                                       **intel_kwargs),
             name="llm-gemini",
         ))
 

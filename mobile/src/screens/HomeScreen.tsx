@@ -11,7 +11,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
 import { useStore, StatementData } from '../store';
 import { Card, SectionHeader, ProgressBar, EmptyState, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
@@ -151,7 +151,7 @@ export default function HomeScreen() {
                       {formatCurrency(c.totalAmountDue!, c.currency ?? 'INR')}
                     </Text>
                     {c.paymentDueDate && (
-                      <Text style={styles.dueCardDate}>Due {c.paymentDueDate}</Text>
+                      <Text style={styles.dueCardDate}>Due {formatDate(c.paymentDueDate!, dateFormatForCurrency(c.currency ?? 'INR'))}</Text>
                     )}
                   </View>
                 </View>
@@ -320,8 +320,8 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.statementCard}>{stmt.cardNickname}</Text>
                 <Text style={styles.statementDate}>
-                  {stmt.summary.statement_period.from} to{' '}
-                  {stmt.summary.statement_period.to}
+                  {formatDate(stmt.summary.statement_period.from ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))} to{' '}
+                  {formatDate(stmt.summary.statement_period.to ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>

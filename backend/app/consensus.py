@@ -14,6 +14,7 @@ from difflib import SequenceMatcher
 from statistics import median
 
 from app.categories import CATEGORY_META, categorize
+from app.regex_parsers import infer_transaction_type
 
 logger = logging.getLogger(__name__)
 
@@ -274,8 +275,9 @@ def _deduplicate_groups(groups: list[list[dict]], provider_count: int) -> list[l
     Handle within-provider duplicate detection.
 
     If a (date, amount) appears in duplicate groups:
-    - All providers show it → real duplicate, keep
-    - Only 1 provider shows it → likely hallucination, drop the extra
+    - Groups have different majority types (credit vs debit) → keep both (real distinct transactions)
+    - All providers show it with same type → real duplicate, keep
+    - Only 1 provider shows it with same type → likely hallucination, drop the extra
     """
     key_to_groups: dict[tuple, list[int]] = {}
     for i, group in enumerate(groups):
@@ -286,7 +288,24 @@ def _deduplicate_groups(groups: list[list[dict]], provider_count: int) -> list[l
     for key, group_indices in key_to_groups.items():
         if len(group_indices) <= 1:
             continue
-        # Multiple groups with the same key — check provider coverage
+
+        # Determine the majority type for each group
+        group_types = []
+        for gi in group_indices:
+            types = [tx.get("type", "debit") for tx in groups[gi]]
+            majority_type = Counter(types).most_common(1)[0][0]
+            group_types.append(majority_type)
+
+        # If groups have different types (e.g. one credit, one debit), they
+        # represent genuinely different transactions — keep all of them.
+        if len(set(group_types)) > 1:
+            logger.debug(
+                "[dedup] Keeping groups with different types for key %s: %s",
+                key, group_types,
+            )
+            continue
+
+        # Same type — original logic: drop single-provider extras as hallucinations
         for gi in group_indices[1:]:  # Keep the first, evaluate the rest
             group = groups[gi]
             if len(group) == 1:
@@ -347,6 +366,15 @@ def _vote_transaction(group: list[dict], provider_count: int) -> tuple[dict, flo
             keyword_cat = categorize(desc)
             cat_winner = keyword_cat["name"]
 
+    # Transaction type: majority vote, tiebreak with keyword inference
+    tx_types = [tx.get("transaction_type", "purchase") for tx in group]
+    tx_type_counter = Counter(tx_types)
+    tx_type_winner, tx_type_votes = tx_type_counter.most_common(1)[0]
+    if tx_type_votes == 1 and len(tx_types) > 1:
+        # All different — tiebreak with keyword inference
+        desc_for_infer = max((tx.get("description", "") for tx in group), key=len, default="")
+        tx_type_winner = infer_transaction_type(desc_for_infer, type_winner)
+
     # Description: pick the longest
     descriptions = [tx.get("description", "") for tx in group]
     desc_winner = max(descriptions, key=len, default="")
@@ -362,6 +390,7 @@ def _vote_transaction(group: list[dict], provider_count: int) -> tuple[dict, flo
         "category": cat_winner,
         "category_color": meta["color"],
         "category_icon": meta["icon"],
+        "transaction_type": tx_type_winner,
     }
 
     # Confidence scoring
@@ -381,6 +410,7 @@ def _score_confidence(group: list[dict], merged: dict, provider_count: int) -> f
             and _normalize_date(tx.get("date", "")) == merged["date"]
             and tx.get("type") == merged["type"]
             and tx.get("category") == merged["category"]
+            and tx.get("transaction_type", "purchase") == merged.get("transaction_type", "purchase")
             for tx in group
         )
         if all_agree:
@@ -405,6 +435,7 @@ def _vote_card_info(card_infos: list[dict]) -> dict | None:
 
     fields = ["card_last4", "card_network", "credit_limit", "total_amount_due",
               "minimum_amount_due", "payment_due_date", "currency"]
+    numeric_fields = {"credit_limit", "total_amount_due", "minimum_amount_due"}
 
     merged = {}
     for f in fields:
@@ -419,6 +450,23 @@ def _vote_card_info(card_infos: list[dict]) -> dict | None:
             if str(ci.get(f)) == winner_str:
                 merged[f] = ci[f]
                 break
+
+    # Variance check for numeric fields: if providers disagree by >10%, null it out
+    if len(card_infos) >= 2:
+        for f in numeric_fields:
+            numeric_values = [
+                float(ci[f]) for ci in card_infos
+                if ci.get(f) is not None
+            ]
+            if len(numeric_values) >= 2:
+                max_val = max(numeric_values)
+                min_val = min(numeric_values)
+                if max_val > 0 and (max_val - min_val) / max_val > 0.10:
+                    logger.warning(
+                        "[consensus] Providers disagree on %s (values: %s) — nulling for safety",
+                        f, numeric_values,
+                    )
+                    merged[f] = None
 
     return merged
 

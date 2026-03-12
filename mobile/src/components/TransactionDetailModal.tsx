@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
 import { useStore, Transaction, CreditCard } from '../store';
 import { Badge } from './ui';
 import { pickReceiptImage, captureReceiptPhoto, saveReceipt, deleteReceipt } from '../utils/receipts';
@@ -28,6 +28,7 @@ interface Props {
   onNext?: () => void;
   onPrev?: () => void;
   onUpdateTransaction?: (txnId: string, updates: Partial<Transaction>) => void;
+  dateFormat?: DateFormat;
 }
 
 export default function TransactionDetailModal({
@@ -39,6 +40,7 @@ export default function TransactionDetailModal({
   onNext,
   onPrev,
   onUpdateTransaction,
+  dateFormat: dateFormatProp,
 }: Props) {
   const { enrichments, updateEnrichment, toggleFlag, removeTransaction, removeEnrichment } = useStore();
 
@@ -189,6 +191,7 @@ export default function TransactionDetailModal({
   if (!transaction) return null;
 
   const currency: CurrencyCode = transaction.currency ?? card?.currency ?? 'INR';
+  const resolvedDateFormat = dateFormatProp ?? dateFormatForCurrency(currency);
   const isFlagged = enrichment?.flagged ?? false;
 
   return (
@@ -328,7 +331,7 @@ export default function TransactionDetailModal({
                     placeholderTextColor={colors.textMuted}
                   />
                 ) : (
-                  <Text style={styles.detailText}>{transaction.date}</Text>
+                  <Text style={styles.detailText}>{formatDate(transaction.date, resolvedDateFormat)}</Text>
                 )}
               </View>
               <View style={[styles.detailRow, isEditing && { flexDirection: 'column', alignItems: 'flex-start' }]}>

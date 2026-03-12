@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Transaction, StatementSummary } from '../store';
 import { categoryColors } from '../theme';
 
-const API_URL = 'http://192.168.0.101:8000';
+const API_URL = 'http://192.168.0.202:8000';
 
 export interface CardInfo {
 	card_last4: string | null;
@@ -21,6 +21,7 @@ interface ParseResult {
 	bank_detected: string;
 	card_info: CardInfo | null;
 	currency_detected?: string;
+	date_format_detected?: string;
 }
 
 export async function parseStatement(fileUri: string, fileName: string, password?: string): Promise<ParseResult> {
@@ -566,6 +567,7 @@ function validateParseResult(data: any): ParseResult {
 				category_color: t.category_color || categoryColors['Other'],
 				category_icon: t.category_icon || 'help-circle',
 				type: t.type === 'credit' ? 'credit' : 'debit',
+				transaction_type: t.transaction_type || 'purchase',
 				cardId: t.cardId,
 				currency: t.currency,
 			}))
@@ -587,6 +589,7 @@ function validateParseResult(data: any): ParseResult {
 		bank_detected: data.bank_detected || 'generic',
 		card_info: data.card_info ?? null,
 		currency_detected: data.currency_detected,
+		date_format_detected: data.date_format_detected,
 	};
 }
 

@@ -72,6 +72,13 @@ Hilton, Expedia, Hertz
 returned payment fee, cash advance fee, balance transfer fee
 - These are all DEBIT type, category "Finance & Investment"
 
+**Transaction type hints (US statements):**
+- "PAYMENT - THANK YOU", "AUTOPAY", "ACH PAYMENT" → transaction_type="payment"
+- "INTEREST CHARGE", "FINANCE CHARGE" → transaction_type="interest"
+- "ANNUAL FEE", "LATE FEE", "FOREIGN TRANSACTION FEE" → transaction_type="fee"
+- "BALANCE TRANSFER" → transaction_type="transfer"
+- Installment plan entries (Apple Card Monthly Installments, My Chase Plan) → transaction_type="emi"
+
 **Card networks:** Visa, Mastercard, American Express, Discover
 
 """

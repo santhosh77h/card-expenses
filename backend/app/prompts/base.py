@@ -79,10 +79,22 @@ Also extract **card metadata** from the statement header/summary section:
 - card_last4: Last 4 digits of the card number (look for "XXXX XXXX XXXX 1234" or "Card ending 1234")
 - card_network: Card network (Visa, Mastercard, American Express, RuPay, Discover)
 - credit_limit: Total credit limit
-- total_amount_due: The **full outstanding balance** for the billing cycle. This is the larger \
-amount. Look for labels like "Total Amount Due", "Total Outstanding", "Total Due", \
-"Statement Balance", "Current Balance", "Total Dues". This is NOT the minimum payment. \
-It is always >= minimum_amount_due.
+- total_amount_due: The **net outstanding balance the cardholder must pay** for this billing cycle. \
+**WHERE TO FIND IT:** Look in the "Account Summary", "Payment Summary", or "Payment Due" box, \
+usually on page 1, near payment_due_date and minimum_amount_due. \
+Look for labels like "Total Amount Due", "Total Outstanding", "Total Dues", "New Balance", "Amount Payable". \
+**CRITICAL — total_amount_due is NOT any of these:**
+  * NOT the "Total Credits" or "Total Refunds" (sum of payments/cashback/refunds received)
+  * NOT the "Total Debits" or "Total Purchases" (sum of all purchases/charges)
+  * NOT the "Previous Balance" or "Opening Balance" (last cycle's balance)
+  * NOT the same value as minimum_amount_due (they are always different)
+  It is the FINAL net amount owed after all debits and credits are applied. \
+On most statements, this appears in the "Account Summary" or "Payment Due" section, NOT in transaction totals. \
+NOTE: total_amount_due CAN legitimately be close to Total Debits when the previous balance was fully paid off. \
+Extract the value from the Account Summary section regardless. \
+It is always >= minimum_amount_due. \
+**SELF-CHECK:** Before returning, verify total_amount_due > minimum_amount_due. If they are equal \
+or you are not confident, return null for total_amount_due.
 - minimum_amount_due: The **minimum payment** required to avoid late fees. This is the smaller \
 amount. Look for labels like "Minimum Amount Due", "Min. Due", "MAD", "Minimum Payment Due". \
 **CRITICAL: total_amount_due and minimum_amount_due are DIFFERENT values. Do NOT put the same \
@@ -90,6 +102,47 @@ number in both fields.** The total is the full balance; the minimum is a small f
 - payment_due_date: Payment due date in YYYY-MM-DD
 - currency: Detect the ISO 4217 currency code. You MUST return one of: "INR", "USD", "EUR", "GBP".
 - If any field cannot be determined from the text, leave it as null.
+
+"""
+
+TRANSACTION_TYPE_RULES = """\
+- transaction_type: Classify the NATURE of each transaction. This is independent of \
+both `type` (debit/credit) and `category` (merchant category). Assign exactly one:
+
+  * "purchase" — DEFAULT. Regular merchant purchases, subscriptions, online/POS spends. \
+Use this when no other type fits.
+  * "payment" — Payment made towards the card balance to reduce outstanding dues. \
+Always type="credit". Look for: payment received, autopay, direct debit towards card.
+  * "refund" — Merchant-initiated return of money for a previous purchase. \
+Always type="credit".
+  * "reversal" — Bank-initiated reversal of a charge, dispute credit, chargeback, \
+or reversal of a fee/tax. Always type="credit".
+  * "cashback" — Cashback rewards, reward point credits, promotional credits, sign-up bonuses. \
+Always type="credit".
+  * "emi" — Installment plan entries: the converted loan amount, offset credits, \
+installment debits, or loan cancellations. This includes EMI (India), parcelamento \
+(Brazil), taksit (Turkey), Ratenzahlung (Germany), BNPL conversions, and any \
+installment-based lending on the card. Can be debit or credit. \
+NOTE: A purchase that merely has an "EMI" marketing label is still "purchase" — \
+only classify as "emi" when the entry is part of the actual installment/loan lifecycle.
+  * "fee" — Any charge by the bank that is not a purchase: annual fee, late payment fee, \
+processing fee, cash advance fee, foreign transaction fee, overlimit fee, \
+balance transfer fee, convenience fee, fuel surcharge. \
+Always type="debit".
+  * "tax" — Government tax applied to fees or charges: GST, IGST, CGST, SGST (India), \
+VAT (Europe/UK), sales tax, service tax, IVA (Latin America), MwSt (Germany). \
+Always type="debit".
+  * "interest" — Finance charges on revolving/unpaid balance: interest charge, \
+finance charge, purchase interest, cash advance interest. \
+Always type="debit".
+  * "adjustment" — Account corrections, balance adjustments, write-offs that don't \
+fit other categories. Can be debit or credit.
+  * "transfer" — Balance transfers between cards/accounts, fund transfers. \
+Can be debit or credit.
+
+  CRITICAL: The statement may be in ANY language. Classify by the SEMANTIC MEANING \
+of the transaction, not by specific English keywords. A fee is a fee whether \
+it says "Annual Fee", "Jahresgebühr", "Cuota anual", or "年会費".
 
 """
 

@@ -5,9 +5,9 @@ export function insertTransaction(txn: Transaction): void {
   const db = getDb();
   db.executeSync(
     `INSERT OR REPLACE INTO transactions
-      (id, date, description, amount, category, category_color, category_icon, type, cardId, currency, source, statementId, isImported, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NULL, 0, strftime('%s','now'))`,
-    [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, txn.cardId ?? null, txn.currency ?? null],
+      (id, date, description, amount, category, category_color, category_icon, type, transaction_type, cardId, currency, source, statementId, isImported, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', NULL, 0, strftime('%s','now'))`,
+    [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, txn.transaction_type ?? 'purchase', txn.cardId ?? null, txn.currency ?? null],
   );
 }
 
@@ -50,9 +50,9 @@ export function insertStatementTransactions(
   for (const txn of txns) {
     db.executeSync(
       `INSERT OR REPLACE INTO transactions
-        (id, date, description, amount, category, category_color, category_icon, type, cardId, currency, source, statementId, isImported, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'statement', ?, 0, strftime('%s','now'))`,
-      [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, cardId, txn.currency ?? null, statementId],
+        (id, date, description, amount, category, category_color, category_icon, type, transaction_type, cardId, currency, source, statementId, isImported, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'statement', ?, 0, strftime('%s','now'))`,
+      [txn.id, txn.date, txn.description, txn.amount, txn.category, txn.category_color, txn.category_icon, txn.type, txn.transaction_type ?? 'purchase', cardId, txn.currency ?? null, statementId],
     );
   }
 }
@@ -83,11 +83,11 @@ export function isStatementImported(statementId: string): boolean {
 
 export function updateTransaction(
   id: string,
-  updates: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'category_color' | 'category_icon' | 'type'>>,
+  updates: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'category_color' | 'category_icon' | 'type' | 'transaction_type'>>,
 ): void {
   const fields: string[] = [];
   const values: any[] = [];
-  const allowed = ['date', 'description', 'amount', 'category', 'category_color', 'category_icon', 'type'] as const;
+  const allowed = ['date', 'description', 'amount', 'category', 'category_color', 'category_icon', 'type', 'transaction_type'] as const;
   for (const key of allowed) {
     if (key in updates) {
       fields.push(`${key} = ?`);
@@ -109,6 +109,7 @@ function rowToTransaction(row: Record<string, any>): Transaction {
     category_color: row.category_color,
     category_icon: row.category_icon,
     type: row.type,
+    transaction_type: row.transaction_type ?? 'purchase',
     cardId: row.cardId ?? undefined,
     currency: row.currency ?? undefined,
   };
