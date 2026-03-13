@@ -11,6 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.dashboard_db import init_dashboard_db
+from app.dashboard_routes import router as dashboard_router
 from app.exceptions import register_exception_handlers
 from app.routes import router
 
@@ -69,6 +71,10 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(router)
+    app.include_router(dashboard_router)
+
+    # Initialize dashboard storage
+    init_dashboard_db()
 
     return app
 

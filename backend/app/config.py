@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     LLM2_MODEL: str = "anthropic/claude-3.5-haiku"
     LLM3_MODEL: str = "google/gemini-2.0-flash-001"
 
+    # --- Dashboard ---
+    DASHBOARD_ENABLED: bool = True
+    DASHBOARD_DB_PATH: str = "data/dashboard.db"
+
+    # --- LangSmith ---
+    LANGCHAIN_TRACING_V2: bool = False
+    LANGCHAIN_API_KEY: str = ""
+    LANGCHAIN_PROJECT: str = "vector-statement-parser"
+
     @property
     def max_file_size_bytes(self) -> int:
         return self.MAX_FILE_SIZE_MB * 1024 * 1024

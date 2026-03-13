@@ -1,11 +1,11 @@
 """
-LLM-powered transaction extraction using OpenAI structured output.
+LLM-powered transaction extraction using LangChain ChatModels.
 
 Supports both synchronous single-LLM parsing and async multi-provider
-parallel parsing for the consensus pipeline.
+parallel parsing for the consensus pipeline. All LLM calls go through
+LangChain, giving automatic LangSmith tracing when enabled.
 
-Falls back gracefully when the API key is missing, the openai package
-isn't installed, or the LLM call fails.
+Falls back gracefully when the API key is missing or the LLM call fails.
 """
 
 import asyncio
@@ -15,11 +15,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal, Optional
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, model_validator
 
 from app.categories import CATEGORY_META
 from app.config import settings
+from app.models import get_openai_model, get_openrouter_model
 from app.prompts import get_system_prompt
+from app.telemetry import LLMCallRecord, Timer, record_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +136,7 @@ class LLMExtractionResult(BaseModel):
 
 def llm_parse_transactions(text: str, bank_hint: str = "generic", region: str = "IN", **intel_kwargs) -> Optional[dict]:
     """
-    Parse transactions from PDF text using OpenAI structured output.
+    Parse transactions from PDF text using LangChain ChatOpenAI with structured output.
 
     Returns dict with keys: transactions, statement_period, card_info.
     Returns None if the LLM path is unavailable or fails.
@@ -142,33 +145,31 @@ def llm_parse_transactions(text: str, bank_hint: str = "generic", region: str = 
         logger.debug("OPENAI_API_KEY not set — skipping LLM parser")
         return None
 
-    try:
-        from openai import OpenAI
-    except ImportError:
-        logger.warning("openai package not installed — skipping LLM parser")
-        return None
-
     user_message = _build_user_message(text, bank_hint, region, **intel_kwargs)
-
     system_prompt = get_system_prompt(region)
     logger.info("LLM parse: model=%s, bank=%s, region=%s, text_len=%d", settings.OPENAI_MODEL, bank_hint, region, len(user_message))
 
     try:
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
+        model = get_openai_model()
+        structured_model = model.with_structured_output(LLMExtractionResult)
 
-        client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_TIMEOUT)
+        with Timer() as timer:
+            result = structured_model.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_message),
+            ])
 
-        completion = client.beta.chat.completions.parse(
-            model=settings.OPENAI_MODEL,
-            temperature=0.0,
-            messages=messages,
-            response_format=LLMExtractionResult,
-        )
-
-        result = completion.choices[0].message.parsed
+        record_llm_call(LLMCallRecord(
+            stage="parsing",
+            provider="openai",
+            provider_model=f"openai/{settings.OPENAI_MODEL}",
+            system_prompt=system_prompt,
+            user_message=user_message,
+            raw_response=result.model_dump_json() if result else None,
+            parsed_response=result.model_dump() if result else None,
+            success=result is not None and bool(result.transactions),
+            latency_ms=timer.elapsed_ms,
+        ))
 
         if result is None or not result.transactions:
             logger.warning("LLM returned no transactions")
@@ -176,7 +177,16 @@ def llm_parse_transactions(text: str, bank_hint: str = "generic", region: str = 
 
         return _format_result(result)
 
-    except Exception:
+    except Exception as e:
+        record_llm_call(LLMCallRecord(
+            stage="parsing",
+            provider="openai",
+            provider_model=f"openai/{settings.OPENAI_MODEL}",
+            system_prompt=system_prompt,
+            user_message=user_message,
+            success=False,
+            error=str(e),
+        ))
         logger.warning("LLM parsing failed — falling back to regex", exc_info=True)
         return None
 
@@ -307,37 +317,39 @@ def _llm_result_from_formatted(formatted: dict, provider: LLMProvider, model: st
 # ---------------------------------------------------------------------------
 
 async def async_llm_parse_openai(text: str, bank_hint: str = "generic", region: str = "IN", **intel_kwargs) -> LLMResult:
-    """Parse using AsyncOpenAI with structured output (same as sync version)."""
-    model = settings.OPENAI_MODEL
+    """Parse using LangChain ChatOpenAI with structured output."""
+    model_name = settings.OPENAI_MODEL
     provider = LLMProvider.OPENAI
-    provider_model = f"openai/{model}"
-
-    try:
-        from openai import AsyncOpenAI
-    except ImportError:
-        return LLMResult(provider=provider, provider_model=provider_model,
-                         transactions=[], statement_period=None, card_info=None,
-                         success=False, error="openai package not installed")
+    provider_model = f"openai/{model_name}"
 
     user_message = _build_user_message(text, bank_hint, region, **intel_kwargs)
     system_prompt = get_system_prompt(region)
 
     logger.info("[async_openai] model=%s, bank=%s, region=%s, text_len=%d",
-                model, bank_hint, region, len(user_message))
+                model_name, bank_hint, region, len(user_message))
 
     try:
-        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_TIMEOUT)
-        completion = await client.beta.chat.completions.parse(
-            model=model,
-            temperature=0.0,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            response_format=LLMExtractionResult,
-        )
+        model = get_openai_model()
+        structured_model = model.with_structured_output(LLMExtractionResult)
 
-        result = completion.choices[0].message.parsed
+        with Timer() as timer:
+            result = await structured_model.ainvoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_message),
+            ])
+
+        record_llm_call(LLMCallRecord(
+            stage="parsing",
+            provider="openai",
+            provider_model=provider_model,
+            system_prompt=system_prompt,
+            user_message=user_message,
+            raw_response=result.model_dump_json() if result else None,
+            parsed_response=result.model_dump() if result else None,
+            success=result is not None and bool(result.transactions),
+            latency_ms=timer.elapsed_ms,
+        ))
+
         if result is None or not result.transactions:
             return LLMResult(provider=provider, provider_model=provider_model,
                              transactions=[], statement_period=None, card_info=None,
@@ -348,6 +360,15 @@ async def async_llm_parse_openai(text: str, bank_hint: str = "generic", region: 
         return _llm_result_from_formatted(formatted, provider, provider_model)
 
     except Exception as e:
+        record_llm_call(LLMCallRecord(
+            stage="parsing",
+            provider="openai",
+            provider_model=provider_model,
+            system_prompt=system_prompt,
+            user_message=user_message,
+            success=False,
+            error=str(e),
+        ))
         logger.warning("[async_openai] failed: %s", e, exc_info=True)
         return LLMResult(provider=provider, provider_model=provider_model,
                          transactions=[], statement_period=None, card_info=None,
@@ -366,15 +387,8 @@ async def async_llm_parse_openrouter(
     provider: LLMProvider = LLMProvider.CLAUDE,
     **intel_kwargs,
 ) -> LLMResult:
-    """Parse using OpenRouter API (JSON mode, not Pydantic structured output)."""
+    """Parse using LangChain ChatOpenAI pointed at OpenRouter (JSON mode)."""
     provider_model = model
-
-    try:
-        from openai import AsyncOpenAI
-    except ImportError:
-        return LLMResult(provider=provider, provider_model=provider_model,
-                         transactions=[], statement_period=None, card_info=None,
-                         success=False, error="openai package not installed")
 
     user_message = _build_user_message(text, bank_hint, region, **intel_kwargs)
     system_prompt = get_system_prompt(region) + _build_json_schema_prompt()
@@ -382,31 +396,50 @@ async def async_llm_parse_openrouter(
     logger.info("[async_openrouter] model=%s, bank=%s, region=%s, text_len=%d",
                 model, bank_hint, region, len(user_message))
 
+    timer = Timer()
     try:
-        client = AsyncOpenAI(
-            base_url=settings.OPENROUTER_BASE_URL,
-            api_key=settings.OPENROUTER_API_KEY,
-            timeout=settings.OPENROUTER_TIMEOUT,
-        )
+        llm = get_openrouter_model(model)
+        # OpenRouter models don't support native structured output —
+        # use JSON mode via model_kwargs
+        llm_with_json = llm.bind(response_format={"type": "json_object"})
 
-        completion = await client.chat.completions.create(
-            model=model,
-            temperature=0.0,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            response_format={"type": "json_object"},
-        )
+        with timer:
+            response = await llm_with_json.ainvoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_message),
+            ])
 
-        raw_content = completion.choices[0].message.content
+        raw_content = response.content
+
         if not raw_content:
+            record_llm_call(LLMCallRecord(
+                stage="parsing",
+                provider=provider.value,
+                provider_model=provider_model,
+                system_prompt=system_prompt,
+                user_message=user_message,
+                success=False,
+                error="Empty response from OpenRouter",
+                latency_ms=timer.elapsed_ms,
+            ))
             return LLMResult(provider=provider, provider_model=provider_model,
                              transactions=[], statement_period=None, card_info=None,
                              success=False, error="Empty response from OpenRouter")
 
         # Parse raw JSON into Pydantic model for validation
         result = LLMExtractionResult.model_validate_json(raw_content)
+
+        record_llm_call(LLMCallRecord(
+            stage="parsing",
+            provider=provider.value,
+            provider_model=provider_model,
+            system_prompt=system_prompt,
+            user_message=user_message,
+            raw_response=raw_content,
+            parsed_response=result.model_dump(),
+            success=bool(result.transactions),
+            latency_ms=timer.elapsed_ms,
+        ))
 
         if not result.transactions:
             return LLMResult(provider=provider, provider_model=provider_model,
@@ -419,6 +452,16 @@ async def async_llm_parse_openrouter(
         return _llm_result_from_formatted(formatted, provider, provider_model)
 
     except Exception as e:
+        record_llm_call(LLMCallRecord(
+            stage="parsing",
+            provider=provider.value,
+            provider_model=provider_model,
+            system_prompt=system_prompt,
+            user_message=user_message,
+            success=False,
+            error=str(e),
+            latency_ms=timer.elapsed_ms,
+        ))
         logger.warning("[async_openrouter/%s] failed: %s", provider.value, e, exc_info=True)
         return LLMResult(provider=provider, provider_model=provider_model,
                          transactions=[], statement_period=None, card_info=None,

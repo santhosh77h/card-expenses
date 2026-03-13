@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #0A0E1A;
+  --color-foreground: #E2E8F0;
+  --color-accent: #00E5A0;
+  --color-accent-dim: #00E5A033;
+  --color-surface: #111827;
+  --color-surface-hover: #1F2937;
+  --color-border: #1E293B;
+  --color-muted: #64748B;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(30, 41, 59, 0.5);
+}
+
+.glass-hover:hover {
+  background: rgba(31, 41, 55, 0.6);
+  border-color: rgba(0, 229, 160, 0.2);
+}
+
+/* JSON code blocks */
+.json-viewer {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.json-viewer .json-key {
+  color: #00E5A0;
+}
+.json-viewer .json-string {
+  color: #FCD34D;
+}
+.json-viewer .json-number {
+  color: #60A5FA;
+}
+.json-viewer .json-boolean {
+  color: #F472B6;
+}
+.json-viewer .json-null {
+  color: #64748B;
+}

@@ -69,7 +69,7 @@ async def parse_statement(
             detail=f"File exceeds {settings.MAX_FILE_SIZE_MB} MB limit.",
         )
 
-    result = await parse_pdf(file_bytes, password=password)
+    result = await parse_pdf(file_bytes, password=password, filename=file.filename or "")
 
     if settings.DEBUG_RESPONSES:
         _save_debug(file.filename, result)
