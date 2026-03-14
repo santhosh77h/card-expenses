@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A0E1A"/>
+      <stop offset="100%" stop-color="#0F1629"/>
+    </linearGradient>
+    <linearGradient id="accentLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00E5A0" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#00E5A0" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#00E5A0" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="35%">
+      <stop offset="0%" stop-color="#00E5A0" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#00E5A0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Subtle glow behind text -->
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Geometric accent: top-left corner lines -->
+  <line x1="60" y1="60" x2="60" y2="120" stroke="#00E5A0" stroke-width="2" stroke-opacity="0.3"/>
+  <line x1="60" y1="60" x2="120" y2="60" stroke="#00E5A0" stroke-width="2" stroke-opacity="0.3"/>
+
+  <!-- Geometric accent: bottom-right corner lines -->
+  <line x1="1140" y1="510" x2="1140" y2="570" stroke="#00E5A0" stroke-width="2" stroke-opacity="0.3"/>
+  <line x1="1080" y1="570" x2="1140" y2="570" stroke="#00E5A0" stroke-width="2" stroke-opacity="0.3"/>
+
+  <!-- Diagonal geometric lines -->
+  <line x1="100" y1="530" x2="200" y2="580" stroke="#1E293B" stroke-width="1"/>
+  <line x1="1000" y1="50" x2="1100" y2="100" stroke="#1E293B" stroke-width="1"/>
+
+  <!-- Small diamond shapes -->
+  <polygon points="150,300 160,310 150,320 140,310" fill="#00E5A0" fill-opacity="0.15"/>
+  <polygon points="1050,320 1060,330 1050,340 1040,330" fill="#00E5A0" fill-opacity="0.15"/>
+
+  <!-- Directional dots pattern -->
+  <circle cx="300" cy="480" r="2" fill="#00E5A0" fill-opacity="0.2"/>
+  <circle cx="320" cy="480" r="2" fill="#00E5A0" fill-opacity="0.15"/>
+  <circle cx="340" cy="480" r="2" fill="#00E5A0" fill-opacity="0.1"/>
+  <circle cx="860" cy="150" r="2" fill="#00E5A0" fill-opacity="0.1"/>
+  <circle cx="880" cy="150" r="2" fill="#00E5A0" fill-opacity="0.15"/>
+  <circle cx="900" cy="150" r="2" fill="#00E5A0" fill-opacity="0.2"/>
+
+  <!-- V icon mark -->
+  <g transform="translate(540, 200)">
+    <path d="M0 0 L30 75 L60 0" fill="none" stroke="#00E5A0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M30 60 L30 85" stroke="#00E5A0" stroke-width="4" stroke-linecap="round"/>
+    <path d="M22 78 L30 86 L38 78" fill="none" stroke="#00E5A0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- VECTOR text -->
+  <text x="600" y="345" text-anchor="middle" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="72" font-weight="800" letter-spacing="12" fill="#00E5A0">
+    VECTOR
+  </text>
+
+  <!-- Accent line separator -->
+  <line x1="400" y1="375" x2="800" y2="375" stroke="url(#accentLine)" stroke-width="1.5"/>
+
+  <!-- Tagline -->
+  <text x="600" y="420" text-anchor="middle" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="400" letter-spacing="3" fill="#E2E8F0">
+    Your Money. Directed.
+  </text>
+</svg>

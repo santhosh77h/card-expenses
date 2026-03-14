@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#0A0E1A"/>
+
+  <!-- Status bar -->
+  <rect x="20" y="12" width="40" height="6" rx="3" fill="#1E293B"/>
+  <rect x="330" y="12" width="40" height="6" rx="3" fill="#1E293B"/>
+
+  <!-- Header -->
+  <text x="30" y="70" font-family="'Inter', Arial, sans-serif" font-size="24" font-weight="700" fill="#E2E8F0">Transactions</text>
+
+  <!-- Search bar -->
+  <rect x="20" y="85" width="350" height="44" rx="12" fill="#111827"/>
+  <circle cx="44" cy="107" r="10" fill="none" stroke="#1E293B" stroke-width="2"/>
+  <line x1="51" y1="114" x2="56" y2="119" stroke="#1E293B" stroke-width="2" stroke-linecap="round"/>
+  <rect x="65" y="103" width="80" height="7" rx="3.5" fill="#1E293B" fill-opacity="0.5"/>
+
+  <!-- Filter pills -->
+  <rect x="20" y="142" width="60" height="28" rx="14" fill="#00E5A0"/>
+  <rect x="32" y="152" width="36" height="7" rx="3.5" fill="#0A0E1A"/>
+  <rect x="88" y="142" width="70" height="28" rx="14" fill="#111827"/>
+  <rect x="100" y="152" width="46" height="7" rx="3.5" fill="#1E293B"/>
+  <rect x="166" y="142" width="65" height="28" rx="14" fill="#111827"/>
+  <rect x="178" y="152" width="41" height="7" rx="3.5" fill="#1E293B"/>
+  <rect x="239" y="142" width="75" height="28" rx="14" fill="#111827"/>
+  <rect x="251" y="152" width="51" height="7" rx="3.5" fill="#1E293B"/>
+
+  <!-- Date header -->
+  <rect x="20" y="186" width="80" height="6" rx="3" fill="#64748B" fill-opacity="0.5"/>
+
+  <!-- Transaction 1 -->
+  <rect x="20" y="202" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="236" r="20" fill="#00E5A0" fill-opacity="0.12"/>
+  <text x="56" y="242" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#00E5A0">A</text>
+  <rect x="86" y="222" width="120" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="238" width="70" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="232" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#EF4444">-$42.50</text>
+  <rect x="300" y="240" width="50" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Transaction 2 -->
+  <rect x="20" y="280" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="314" r="20" fill="#3B82F6" fill-opacity="0.12"/>
+  <text x="56" y="320" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#3B82F6">N</text>
+  <rect x="86" y="300" width="140" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="316" width="60" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="310" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#EF4444">-$15.99</text>
+  <rect x="305" y="318" width="45" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Transaction 3 -->
+  <rect x="20" y="358" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="392" r="20" fill="#F59E0B" fill-opacity="0.12"/>
+  <text x="56" y="398" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#F59E0B">U</text>
+  <rect x="86" y="378" width="100" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="394" width="80" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="388" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#EF4444">-$89.00</text>
+  <rect x="310" y="396" width="40" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Date header 2 -->
+  <rect x="20" y="442" width="70" height="6" rx="3" fill="#64748B" fill-opacity="0.5"/>
+
+  <!-- Transaction 4 -->
+  <rect x="20" y="458" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="492" r="20" fill="#8B5CF6" fill-opacity="0.12"/>
+  <text x="56" y="498" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#8B5CF6">S</text>
+  <rect x="86" y="478" width="110" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="494" width="55" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="488" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#EF4444">-$125.00</text>
+  <rect x="298" y="496" width="52" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Transaction 5 -->
+  <rect x="20" y="536" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="570" r="20" fill="#EC4899" fill-opacity="0.12"/>
+  <text x="56" y="576" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#EC4899">G</text>
+  <rect x="86" y="556" width="95" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="572" width="65" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="566" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#EF4444">-$34.75</text>
+  <rect x="308" y="574" width="42" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Transaction 6 -->
+  <rect x="20" y="614" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="648" r="20" fill="#06B6D4" fill-opacity="0.12"/>
+  <text x="56" y="654" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#06B6D4">P</text>
+  <rect x="86" y="634" width="130" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="650" width="50" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="644" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#00E5A0">+$500.00</text>
+  <rect x="308" y="652" width="42" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Transaction 7 -->
+  <rect x="20" y="692" width="350" height="68" rx="14" fill="#111827"/>
+  <circle cx="56" cy="726" r="20" fill="#64748B" fill-opacity="0.12"/>
+  <text x="56" y="732" text-anchor="middle" font-family="'Inter', Arial, sans-serif" font-size="14" fill="#64748B">M</text>
+  <rect x="86" y="712" width="105" height="9" rx="4.5" fill="#1E293B"/>
+  <rect x="86" y="728" width="75" height="6" rx="3" fill="#1E293B" fill-opacity="0.5"/>
+  <text x="350" y="722" text-anchor="end" font-family="'Inter', Arial, sans-serif" font-size="15" font-weight="600" fill="#EF4444">-$67.30</text>
+  <rect x="310" y="730" width="40" height="5" rx="2.5" fill="#1E293B" fill-opacity="0.4"/>
+
+  <!-- Bottom nav bar -->
+  <rect x="0" y="784" width="390" height="60" fill="#111827"/>
+  <circle cx="65" cy="810" r="12" fill="#1E293B"/>
+  <rect x="53" y="826" width="24" height="4" rx="2" fill="#1E293B"/>
+  <circle cx="150" cy="810" r="12" fill="#00E5A0" fill-opacity="0.3"/>
+  <rect x="138" y="826" width="24" height="4" rx="2" fill="#00E5A0"/>
+  <circle cx="235" cy="810" r="12" fill="#1E293B"/>
+  <rect x="223" y="826" width="24" height="4" rx="2" fill="#1E293B"/>
+  <circle cx="320" cy="810" r="12" fill="#1E293B"/>
+  <rect x="308" y="826" width="24" height="4" rx="2" fill="#1E293B"/>
+</svg>
