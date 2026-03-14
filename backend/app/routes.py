@@ -8,10 +8,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.config import settings
 from app.parser import parse_pdf
+from app.rate_limiter import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,11 @@ async def health():
 
 @router.post("/parse-statement/json")
 async def parse_statement(
+    request: Request,
     file: UploadFile = File(...),
     password: Optional[str] = Form(None),
 ):
+    await check_rate_limit(request)
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
@@ -69,7 +72,7 @@ async def parse_statement(
             detail=f"File exceeds {settings.MAX_FILE_SIZE_MB} MB limit.",
         )
 
-    result = await parse_pdf(file_bytes, password=password)
+    result = await parse_pdf(file_bytes, password=password, filename=file.filename or "")
 
     if settings.DEBUG_RESPONSES:
         _save_debug(file.filename, result)

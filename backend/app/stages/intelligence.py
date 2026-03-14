@@ -3,15 +3,19 @@ Stage 1: Document Intelligence — LLM probe + heuristic fallback.
 
 Analyzes the document header to determine locale, currency, date format,
 statement type, and issuing bank before transaction parsing begins.
+Uses LangChain ChatModel for automatic LangSmith tracing.
 """
 
 import logging
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.detector import BANK_KEYWORDS, detect_bank, detect_currency, detect_region
+from app.models import get_probe_model
 from app.pipeline import DocumentIntelligence, PipelineContext
+from app.telemetry import LLMCallRecord, Timer, record_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -115,26 +119,32 @@ async def run_intelligence_stage(ctx: PipelineContext) -> None:
 
 async def _llm_probe(text: str) -> DocumentIntelligence | None:
     """Run LLM probe on document header to detect locale."""
-    from openai import AsyncOpenAI
-
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.PROBE_TIMEOUT)
+    model = get_probe_model()
+    structured = model.with_structured_output(DocumentIntelligenceResponse)
     sample = text[:PROBE_TEXT_LENGTH]
 
     logger.info(
         "[stage1] LLM probe: model=%s, sample_len=%d", settings.PROBE_MODEL, len(sample)
     )
 
-    completion = await client.beta.chat.completions.parse(
-        model=settings.PROBE_MODEL,
-        temperature=0.0,
-        messages=[
-            {"role": "system", "content": INTELLIGENCE_SYSTEM_PROMPT},
-            {"role": "user", "content": sample},
-        ],
-        response_format=DocumentIntelligenceResponse,
-    )
+    with Timer() as timer:
+        result = await structured.ainvoke([
+            SystemMessage(content=INTELLIGENCE_SYSTEM_PROMPT),
+            HumanMessage(content=sample),
+        ])
 
-    result = completion.choices[0].message.parsed
+    record_llm_call(LLMCallRecord(
+        stage="intelligence",
+        provider="openai",
+        provider_model=f"openai/{settings.PROBE_MODEL}",
+        system_prompt=INTELLIGENCE_SYSTEM_PROMPT,
+        user_message=sample,
+        raw_response=result.model_dump_json() if result else None,
+        parsed_response=result.model_dump() if result else None,
+        success=result is not None,
+        latency_ms=timer.elapsed_ms,
+    ))
+
     if not result:
         return None
 

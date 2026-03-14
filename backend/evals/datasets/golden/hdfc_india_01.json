@@ -1,0 +1,63 @@
+{
+  "metadata": {
+    "bank": "hdfc",
+    "region": "IN",
+    "currency": "INR",
+    "pdf_file": "hdfc_india_01.pdf",
+    "description": "HDFC Infinia, Dec 2025, 15 txns with EMI + fee + tax"
+  },
+  "expected": {
+    "intelligence": {
+      "country": "IN",
+      "currency": "INR",
+      "bank": "hdfc"
+    },
+    "transaction_count": 15,
+    "transactions": [
+      {
+        "date": "2025-12-11",
+        "description": "SWIGGY",
+        "amount": 450.0,
+        "type": "debit",
+        "category": "Food & Dining",
+        "transaction_type": "purchase"
+      },
+      {
+        "date": "2025-12-13",
+        "description": "AMAZON.IN",
+        "amount": 2999.0,
+        "type": "debit",
+        "category": "Shopping",
+        "transaction_type": "purchase"
+      },
+      {
+        "date": "2025-12-15",
+        "description": "EMI 3/12 LAPTOP",
+        "amount": 5833.0,
+        "type": "debit",
+        "category": "Shopping",
+        "transaction_type": "emi"
+      },
+      {
+        "date": "2025-12-20",
+        "description": "LATE PAYMENT FEE",
+        "amount": 1300.0,
+        "type": "debit",
+        "category": "Other",
+        "transaction_type": "fee"
+      },
+      {
+        "date": "2025-12-22",
+        "description": "GST ON FEE",
+        "amount": 234.0,
+        "type": "debit",
+        "category": "Other",
+        "transaction_type": "tax"
+      }
+    ],
+    "card_info": {
+      "card_last4": "1234",
+      "total_amount_due": 45000.0
+    }
+  }
+}

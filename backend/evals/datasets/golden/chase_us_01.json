@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "bank": "chase",
+    "region": "US",
+    "currency": "USD",
+    "pdf_file": "chase_us_01.pdf",
+    "description": "Chase Sapphire, Jan 2026, 10 txns with payment + refund"
+  },
+  "expected": {
+    "intelligence": {
+      "country": "US",
+      "currency": "USD",
+      "bank": "chase"
+    },
+    "transaction_count": 10,
+    "transactions": [
+      {
+        "date": "2026-01-05",
+        "description": "UBER TRIP",
+        "amount": 24.50,
+        "type": "debit",
+        "category": "Transportation",
+        "transaction_type": "purchase"
+      },
+      {
+        "date": "2026-01-10",
+        "description": "AUTOPAY PAYMENT",
+        "amount": 3500.0,
+        "type": "credit",
+        "category": "Transfers",
+        "transaction_type": "payment"
+      },
+      {
+        "date": "2026-01-15",
+        "description": "AMAZON REFUND",
+        "amount": 49.99,
+        "type": "credit",
+        "category": "Shopping",
+        "transaction_type": "refund"
+      }
+    ],
+    "card_info": {
+      "card_last4": "5678",
+      "total_amount_due": 2150.0
+    }
+  }
+}

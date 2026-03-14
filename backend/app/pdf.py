@@ -7,6 +7,7 @@ All processing happens in-memory — no files are written to disk.
 
 import io
 import logging
+from dataclasses import dataclass
 from typing import Optional
 
 import pdfplumber
@@ -14,6 +15,13 @@ import pdfplumber
 from app.exceptions import PDFEncryptedError
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExtractionResult:
+    """Text extraction result with optional layout supplement for LLM."""
+    text: str
+    table_supplement: str
 
 # First 5 bytes of a valid PDF file.
 _PDF_MAGIC = b"%PDF-"
@@ -77,6 +85,47 @@ def extract_text(file_bytes: bytes, password: Optional[str] = None) -> str:
         logger.info("[extract_text] pypdf result: %d chars", len(text.strip()))
 
     return text
+
+
+def extract_text_and_tables(
+    file_bytes: bytes, password: Optional[str] = None
+) -> ExtractionResult:
+    """
+    Extract text and a layout-preserved supplement from a PDF.
+
+    Returns both the compact text (for regex parsers) and a layout-preserved
+    version of the first 2 pages (for LLM parsing). The layout text preserves
+    spatial relationships in tabular sections (e.g. account summary boxes)
+    that are lost by the default compact extraction.
+    """
+    text = extract_text(file_bytes, password)
+    table_supplement = _extract_table_supplement(file_bytes, password)
+    return ExtractionResult(text=text, table_supplement=table_supplement)
+
+
+def _extract_table_supplement(
+    file_bytes: bytes, password: Optional[str] = None, max_pages: int = 2
+) -> str:
+    """Extract layout-preserved text from the first N pages for LLM context."""
+    try:
+        with pdfplumber.open(io.BytesIO(file_bytes), password=password) as pdf:
+            pages = []
+            for page in pdf.pages[:max_pages]:
+                layout_text = page.extract_text(layout=True)
+                if layout_text:
+                    pages.append(layout_text)
+        if pages:
+            header = (
+                "\n--- ACCOUNT SUMMARY (Layout-Preserved, Pages 1-{}) ---\n"
+                "Below is a spatial rendering of the first {} page(s) with column "
+                "alignment preserved. Use this to extract card metadata "
+                "(total_amount_due, minimum_amount_due, credit_limit, "
+                "payment_due_date). Do NOT extract transactions from this section.\n\n"
+            ).format(len(pages), len(pages))
+            return header + "\n--- PAGE BREAK ---\n".join(pages)
+    except Exception:
+        logger.warning("[table_supplement] Layout extraction failed", exc_info=True)
+    return ""
 
 
 def _extract_with_pdfplumber(file_bytes: bytes, password: Optional[str]) -> str:

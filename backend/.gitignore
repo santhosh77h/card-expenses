@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Debug response dumps
+debug/
+
+# Runtime data (uploaded PDFs, SQLite DBs)
+data/dashboard.db
+data/pdfs/*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
