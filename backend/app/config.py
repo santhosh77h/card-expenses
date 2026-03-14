@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     LLM2_MODEL: str = "anthropic/claude-3.5-haiku"
     LLM3_MODEL: str = "google/gemini-2.0-flash-001"
 
+    # --- Redis ---
+    REDIS_URL: str = ""
+
+    # --- Rate Limiting ---
+    RATE_LIMIT_REQUESTS: int = 10
+    RATE_LIMIT_WINDOW: int = 60  # seconds
+
     # --- Dashboard ---
     DASHBOARD_ENABLED: bool = True
     DASHBOARD_DB_PATH: str = "data/dashboard.db"

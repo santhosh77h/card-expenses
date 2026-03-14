@@ -7,19 +7,11 @@ dist/
 build/
 *.egg
 
-# Virtual environments
-backend/venv/
-backend/.venv/
-
 # Environment variables
 .env
 
-# Debug response dumps
-backend/debug/
-
 # Node / React Native
 node_modules/
-mobile/node_modules/
 
 # Expo
 mobile/.expo/

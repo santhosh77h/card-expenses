@@ -10,10 +10,13 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from contextlib import asynccontextmanager
+
 from app.config import settings
 from app.dashboard_db import init_dashboard_db
 from app.dashboard_routes import router as dashboard_router
 from app.exceptions import register_exception_handlers
+from app.rate_limiter import close_redis
 from app.routes import router
 
 
@@ -49,6 +52,16 @@ def _configure_logging() -> None:
     logging.getLogger("app.stages.intelligence").setLevel(logging.DEBUG)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage startup/shutdown resources."""
+    # Initialize dashboard storage
+    init_dashboard_db()
+    yield
+    # Cleanup
+    await close_redis()
+
+
 def create_app() -> FastAPI:
     """Application factory."""
     _configure_logging()
@@ -59,6 +72,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/docs" if not settings.is_production else None,
         redoc_url=None,
+        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -72,9 +86,6 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(router)
     app.include_router(dashboard_router)
-
-    # Initialize dashboard storage
-    init_dashboard_db()
 
     return app
 
