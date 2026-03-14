@@ -13,6 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import settings
+from app.blog_db import init_blog_db
+from app.blog_routes import router as blog_router
 from app.dashboard_db import init_dashboard_db
 from app.dashboard_routes import router as dashboard_router
 from app.exceptions import register_exception_handlers
@@ -57,6 +59,8 @@ async def lifespan(app: FastAPI):
     """Manage startup/shutdown resources."""
     # Initialize dashboard storage
     init_dashboard_db()
+    # Initialize blog storage
+    init_blog_db()
     yield
     # Cleanup
     await close_redis()
@@ -86,6 +90,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(router)
     app.include_router(dashboard_router)
+    app.include_router(blog_router)
 
     return app
 

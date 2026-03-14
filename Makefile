@@ -5,6 +5,7 @@
 
 MOBILE_DIR   := mobile
 BACKEND_DIR  := backend
+LANDING_DIR  := customer-webpage
 ANDROID_DIR  := $(MOBILE_DIR)/android
 IOS_DIR      := $(MOBILE_DIR)/ios
 APK_OUTPUT   := $(ANDROID_DIR)/app/build/outputs/apk/release/app-release.apk
@@ -15,7 +16,7 @@ SCHEME       := Vector
 WORKSPACE    := $(IOS_DIR)/Vector.xcworkspace
 ARCHIVE_PATH := $(DIST_DIR)/Vector.xcarchive
 
-.PHONY: help dev dev-mobile dev-backend prebuild prebuild-clean \
+.PHONY: help dev dev-mobile dev-backend dev-landing dev-all prebuild prebuild-clean \
         apk aab apk-debug ios ios-sim ios-device ios-archive ipa \
         install-deps typecheck clean clean-android clean-ios \
         eas-apk eas-aab eas-ios clean-all
@@ -28,7 +29,7 @@ help: ## Show this help
 	@echo "  ────────────────────────────────────────"
 	@echo ""
 	@echo "  \033[33mDevelopment\033[0m"
-	@grep -E '^(dev|dev-mobile|dev-backend|typecheck|install-deps):.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^(dev|dev-mobile|dev-backend|dev-landing|dev-all|typecheck|install-deps):.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "  \033[33mAndroid (local builds — free, no queue)\033[0m"
@@ -59,6 +60,13 @@ dev-mobile: ## Start Metro bundler (dev-client mode)
 
 dev-backend: ## Start FastAPI backend with hot reload
 	cd $(BACKEND_DIR) && uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+dev-landing: ## Start landing page dev server
+	cd $(LANDING_DIR) && npm run dev
+
+dev-all: ## Start backend + mobile + landing in parallel
+	@echo "Starting backend, mobile, and landing page..."
+	@make -j3 dev-backend dev-mobile dev-landing
 
 # ── Type Check ──────────────────────────────────────────────────────────────
 

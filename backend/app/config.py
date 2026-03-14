@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     DASHBOARD_ENABLED: bool = True
     DASHBOARD_DB_PATH: str = "data/dashboard.db"
 
+    # --- Blog Admin ---
+    BLOG_API_KEY: str = ""
+
     # --- LangSmith ---
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str = ""
