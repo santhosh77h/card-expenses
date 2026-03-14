@@ -110,10 +110,18 @@ async def extract_text_node(state: PipelineState) -> dict:
     text = re.sub(r'\(cid:\d+\)', ' ', result.text)
     text = re.sub(r'[^\S\n]+', ' ', text)
 
-    # Build LLM text: cleaned text + layout-preserved supplement
+    # Build LLM text: layout-preserved supplement FIRST, then cleaned text.
+    # Supplement goes first so that MAX_TEXT_LENGTH truncation (in llm_parser.py)
+    # cuts from the end of the transaction list, not the account summary metadata.
     text_for_llm = text
     if result.table_supplement:
-        text_for_llm = text + "\n" + result.table_supplement
+        text_for_llm = result.table_supplement + "\n\n" + text
+        if len(text_for_llm) > 80_000:
+            logger.warning(
+                "[extract_text] text_for_llm is %d chars (supplement=%d, text=%d)"
+                " — may be truncated at 100K by LLM parser",
+                len(text_for_llm), len(result.table_supplement), len(text),
+            )
 
     return {"text": text, "text_for_llm": text_for_llm}
 

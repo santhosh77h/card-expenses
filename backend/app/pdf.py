@@ -115,9 +115,14 @@ def _extract_table_supplement(
                 if layout_text:
                     pages.append(layout_text)
         if pages:
-            return "\n--- LAYOUT-PRESERVED TEXT (Pages 1-{}) ---\n{}".format(
-                len(pages), "\n--- PAGE BREAK ---\n".join(pages)
-            )
+            header = (
+                "\n--- ACCOUNT SUMMARY (Layout-Preserved, Pages 1-{}) ---\n"
+                "Below is a spatial rendering of the first {} page(s) with column "
+                "alignment preserved. Use this to extract card metadata "
+                "(total_amount_due, minimum_amount_due, credit_limit, "
+                "payment_due_date). Do NOT extract transactions from this section.\n\n"
+            ).format(len(pages), len(pages))
+            return header + "\n--- PAGE BREAK ---\n".join(pages)
     except Exception:
         logger.warning("[table_supplement] Layout extraction failed", exc_info=True)
     return ""
