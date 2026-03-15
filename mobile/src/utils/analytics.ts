@@ -16,6 +16,10 @@ export const AnalyticsEvents = {
   // Transactions
   TRANSACTION_ADDED: 'transaction_added',
 
+  // Batch upload
+  BATCH_UPLOAD_STARTED: 'batch_upload_started',
+  BATCH_UPLOAD_COMPLETE: 'batch_upload_complete',
+
   // Analysis
   TRANSACTIONS_IMPORTED: 'transactions_imported',
   CSV_EXPORTED: 'csv_exported',

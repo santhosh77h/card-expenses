@@ -17,6 +17,7 @@ import AddTransactionScreen from '../screens/AddTransactionScreen';
 import BackupScreen from '../screens/BackupScreen';
 import CardListScreen from '../screens/CardListScreen';
 import EditCardScreen from '../screens/EditCardScreen';
+import AskScreen from '../screens/AskScreen';
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
@@ -25,6 +26,7 @@ export type RootStackParamList = {
   Backup: undefined;
   CardList: undefined;
   EditCard: { cardId: string };
+  Ask: undefined;
 };
 
 export type TabParamList = {
@@ -168,6 +170,13 @@ export default function Navigation() {
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.textPrimary,
           headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Ask"
+        component={AskScreen}
+        options={{
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

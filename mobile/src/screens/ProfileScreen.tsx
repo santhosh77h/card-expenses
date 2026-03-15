@@ -68,6 +68,13 @@ export default function ProfileScreen() {
       {/* Menu Items */}
       <View style={styles.menuSection}>
         <MenuItem
+          icon="message-circle"
+          label="Ask Vector"
+          subtitle="Query your expenses with AI"
+          iconColor={colors.accent}
+          onPress={() => navigation.navigate('Ask')}
+        />
+        <MenuItem
           icon="credit-card"
           label="My Cards"
           subtitle={`${cards.length} card${cards.length !== 1 ? 's' : ''}`}

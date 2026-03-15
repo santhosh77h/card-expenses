@@ -392,6 +392,80 @@ export function getActiveCurrencies(
 }
 
 // ---------------------------------------------------------------------------
+// Monthly Portfolio (swipeable home card)
+// ---------------------------------------------------------------------------
+
+export interface MonthlyPortfolioEntry {
+  month: string;           // "YYYY-MM"
+  label: string;           // "March 2026"
+  totalDue: number;        // sum of totalDebits across all cards
+  cards: Array<{
+    cardId: string;
+    nickname: string;
+    last4: string;
+    color: string;
+    amount: number;
+    currency: CurrencyCode;
+  }>;
+  totalLimit: number;
+  utilization: number;     // totalDue / totalLimit (0-1)
+  currency: CurrencyCode;
+}
+
+export function getMonthlyPortfolioData(
+  cards: CreditCard[],
+  monthlyUsage: MonthlyUsage[],
+): MonthlyPortfolioEntry[] {
+  const months = getAvailableMonths(monthlyUsage); // newest first
+  if (months.length === 0) return [];
+
+  // Build lookup: "cardId|month" -> MonthlyUsage
+  const lookup = new Map<string, MonthlyUsage>();
+  for (const u of monthlyUsage) {
+    lookup.set(`${u.cardId}|${u.month}`, u);
+  }
+
+  const cardMap = new Map(cards.map((c) => [c.id, c]));
+  const defaultCurrency = (cards[0]?.currency || 'INR') as CurrencyCode;
+
+  return months.map((month) => {
+    const cardEntries: MonthlyPortfolioEntry['cards'] = [];
+    let totalDue = 0;
+    let totalLimit = 0;
+
+    for (const card of cards) {
+      const usage = lookup.get(`${card.id}|${month}`);
+      const amount = usage?.totalDebits ?? 0;
+      if (amount > 0) {
+        cardEntries.push({
+          cardId: card.id,
+          nickname: card.nickname,
+          last4: card.last4,
+          color: card.color,
+          amount,
+          currency: (card.currency || 'INR') as CurrencyCode,
+        });
+      }
+      totalDue += amount;
+      totalLimit += card.creditLimit;
+    }
+
+    // Sort cards by amount descending
+    cardEntries.sort((a, b) => b.amount - a.amount);
+
+    return {
+      month,
+      label: monthLabelFull(month),
+      totalDue,
+      cards: cardEntries,
+      totalLimit,
+      utilization: totalLimit > 0 ? Math.min(totalDue / totalLimit, 1) : 0,
+      currency: defaultCurrency,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // 12-Month Period Analytics
 // ---------------------------------------------------------------------------
 

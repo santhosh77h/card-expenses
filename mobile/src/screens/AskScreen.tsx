@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, fontSize, formatCurrency } from '../theme';
 import type { CurrencyCode } from '../theme';
+import { StructuredAnswer } from '../components/AskResultViews';
 import { getDb } from '../db';
 import { useNLU } from '../utils/useNLU';
 import type { NLUResult } from '../utils/nlu';
@@ -248,7 +249,7 @@ export default function AskScreen() {
               <Text style={styles.questionText}>{qa.question}</Text>
             </View>
             {/* Answer */}
-            <View style={styles.answerCard}>
+            <View style={[styles.answerCard, qa.rows && qa.rows.length > 0 && styles.answerCardWide]}>
               <View style={styles.intentBadge}>
                 <Text style={styles.intentText}>
                   {qa.result.intent.replace(/_/g, ' ')}
@@ -257,7 +258,7 @@ export default function AskScreen() {
                   {Math.round(qa.result.confidence * 100)}%
                 </Text>
               </View>
-              <Text style={styles.answerText}>{qa.answer}</Text>
+              <StructuredAnswer intent={qa.result.intent} answer={qa.answer} rows={qa.rows} />
               {/* Debug: entities */}
               {Object.keys(qa.result.entities).length > 0 && (
                 <View style={styles.entitiesRow}>
@@ -416,6 +417,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderBottomLeftRadius: borderRadius.sm,
     gap: spacing.sm,
+  },
+  answerCardWide: {
+    maxWidth: '100%',
+    alignSelf: 'stretch',
   },
   intentBadge: {
     flexDirection: 'row',

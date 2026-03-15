@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
 	View,
 	Text,
@@ -19,22 +19,34 @@ import * as Crypto from 'expo-crypto';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { colors, spacing, borderRadius, fontSize, CurrencyCode, DateFormat, SUPPORTED_CURRENCIES, CURRENCY_CONFIG } from '../theme';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { findByHash, insertFileHash } from '../db/fileHashes';
 import { isStatementImported } from '../db/transactions';
-import { ENTITLEMENT_ID } from '../utils/revenueCat';
-import { Badge, Card, PrimaryButton } from '../components/ui';
+import { Badge, Card, PrimaryButton, ProgressBar } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 import { capture, AnalyticsEvents } from '../utils/analytics';
 
 const FREE_TIER_UPLOAD_LIMIT = 3;
+const MAX_BATCH_SIZE = 10;
+const NEW_CARD_ID = '__new__';
 
-type UploadState = 'idle' | 'uploading' | 'parsing' | 'error';
+type FileStatus = 'pending' | 'hashing' | 'parsing' | 'success' | 'failed' | 'duplicate' | 'skipped';
+
+interface BatchFileItem {
+	uri: string;
+	name: string;
+	status: FileStatus;
+	error?: string;
+	fileHash?: string;
+	parseResult?: any;
+	statementId?: string;
+}
+
+type UploadState = 'idle' | 'uploading' | 'parsing' | 'error' | 'batch';
 
 export default function UploadScreen() {
 	const insets = useSafeAreaInsets();
@@ -52,7 +64,7 @@ export default function UploadScreen() {
 	} = useStore();
 	const [state, setState] = useState<UploadState>('idle');
 	const [error, setError] = useState<string>('');
-	const [selectedCardId, setSelectedCardId] = useState<string>(activeCardId || cards[0]?.id || '');
+	const [selectedCardId, setSelectedCardId] = useState<string>(activeCardId || cards[0]?.id || NEW_CARD_ID);
 	const [passwordModalVisible, setPasswordModalVisible] = useState(false);
 	const [password, setPassword] = useState('');
 	const [passwordError, setPasswordError] = useState('');
@@ -70,11 +82,31 @@ export default function UploadScreen() {
 	const [confirmCreditLimit, setConfirmCreditLimit] = useState('');
 	const [confirmCurrency, setConfirmCurrency] = useState<CurrencyCode>('INR');
 
+	// Batch state
+	const [batchFiles, setBatchFiles] = useState<BatchFileItem[]>([]);
+	const [batchIndex, setBatchIndex] = useState(0);
+	const [batchCardId, setBatchCardId] = useState<string | null>(null);
+	const [batchPassword, setBatchPassword] = useState<string | null>(null);
+	const [batchComplete, setBatchComplete] = useState(false);
+	const [isNewCardFlow, setIsNewCardFlow] = useState(false);
+	const batchCancelledRef = useRef(false);
+	const batchFilesRef = useRef<BatchFileItem[]>([]);
+	// Track which batch index needs password retry
+	const batchPasswordIndexRef = useRef<number>(0);
+
 	const computeFileHash = async (fileUri: string): Promise<string> => {
 		const base64 = await FileSystem.readAsStringAsync(fileUri, {
 			encoding: FileSystem.EncodingType.Base64,
 		});
 		return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, base64);
+	};
+
+	const checkDuplicateSilent = (hash: string): { isDuplicate: boolean; cardName?: string } => {
+		if (__DEV__) return { isDuplicate: false };
+		const existing = findByHash(hash);
+		if (!existing) return { isDuplicate: false };
+		const cardName = cards.find((c) => c.id === existing.cardId)?.nickname ?? 'a card';
+		return { isDuplicate: true, cardName };
 	};
 
 	const checkDuplicate = (hash: string): boolean => {
@@ -96,238 +128,41 @@ export default function UploadScreen() {
 	};
 
 	const checkUploadAllowed = async (): Promise<boolean> => {
-		if (__DEV__ || isPremium) return true;
-		_refreshUploadCount();
-		const current = useStore.getState().uploadsThisMonth;
-		if (current < FREE_TIER_UPLOAD_LIMIT) return true;
-		// Show paywall
-		const result = await RevenueCatUI.presentPaywallIfNeeded({
-			requiredEntitlementIdentifier: ENTITLEMENT_ID,
-		});
-		return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
+		return true;
 	};
 
-	const handlePick = async () => {
-		try {
-			const allowed = await checkUploadAllowed();
-			if (!allowed) return;
+	// -----------------------------------------------------------------------
+	// Batch helpers
+	// -----------------------------------------------------------------------
 
-			const result = await DocumentPicker.getDocumentAsync({
-				type: 'application/pdf',
-				copyToCacheDirectory: true,
-			});
-
-			if (result.canceled) return;
-
-			const file = result.assets[0];
-			capture(AnalyticsEvents.STATEMENT_UPLOAD_STARTED);
-			setState('uploading');
-			setError('');
-
-			let fileHash: string | undefined;
-			try {
-				fileHash = await computeFileHash(file.uri);
-				if (checkDuplicate(fileHash)) return;
-
-				setState('parsing');
-				const parsed = await parseStatement(file.uri, file.name);
-				saveAndNavigate(parsed, fileHash);
-			} catch (err: any) {
-				const respData = err?.response?.data;
-				console.log('[Upload] error status:', err?.response?.status);
-				console.log('[Upload] error body:', JSON.stringify(respData));
-				const errorCode = respData?.error_code || respData?.detail?.error_code;
-				console.log('[Upload] resolved errorCode:', errorCode);
-				if (errorCode === 'password_required' || errorCode === 'incorrect_password') {
-					// Auto-retry with saved password if available
-					const selectedCard = cards.find((c) => c.id === selectedCardId);
-					if (errorCode === 'password_required' && selectedCard?.pdfPassword) {
-						try {
-							setState('parsing');
-							const parsed = await parseStatement(file.uri, file.name, selectedCard.pdfPassword);
-							saveAndNavigate(parsed, fileHash);
-							return;
-						} catch (retryErr: any) {
-							const retryData = retryErr?.response?.data;
-							const retryCode = retryData?.error_code || retryData?.detail?.error_code;
-							if (retryCode === 'incorrect_password') {
-								updateCard(selectedCard.id, { pdfPassword: undefined });
-							}
-							// Fall through to show password modal
-						}
-					}
-					capture(AnalyticsEvents.STATEMENT_PASSWORD_REQUIRED);
-				setPendingFile({ uri: file.uri, name: file.name });
-					setPasswordError(errorCode === 'incorrect_password' ? 'Incorrect password. Please try again.' : '');
-					setPassword('');
-					setSavePasswordChecked(false);
-					setPasswordModalVisible(true);
-					setState('idle');
-					return;
-				}
-				const msg =
-					respData?.message ||
-					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
-					err?.message ||
-					'Failed to parse statement.';
-				capture(AnalyticsEvents.STATEMENT_UPLOAD_FAILED, { error_code: errorCode || 'unknown' });
-				setState('error');
-				setError(msg);
-			}
-		} catch {
-			setState('error');
-			setError('Could not open file picker.');
-		}
-	};
-
-	const handlePasswordSubmit = async () => {
-		if (!pendingFile || !password.trim()) return;
-		const usedPwd = password;
-		const shouldSave = savePasswordChecked;
-		setPasswordModalVisible(false);
-		setState('parsing');
-		setError('');
-		try {
-			const fileHash = await computeFileHash(pendingFile.uri);
-			if (checkDuplicate(fileHash)) {
-				setPendingFile(null);
-				setPassword('');
-				setPasswordError('');
-				setSavePasswordChecked(false);
-				return;
-			}
-
-			const parsed = await parseStatement(pendingFile.uri, pendingFile.name, usedPwd);
-			setPendingFile(null);
-			setPassword('');
-			setPasswordError('');
-			setSavePasswordChecked(false);
-			saveAndNavigate(parsed, fileHash, shouldSave ? usedPwd : undefined);
-		} catch (err: any) {
-			const respData = err?.response?.data;
-			const errorCode = respData?.error_code || respData?.detail?.error_code;
-			if (errorCode === 'incorrect_password') {
-				setPasswordError('Incorrect password. Please try again.');
-				setPassword('');
-				setPasswordModalVisible(true);
-				setState('idle');
-			} else {
-				setPendingFile(null);
-				setPassword('');
-				setPasswordError('');
-				setSavePasswordChecked(false);
-				const msg =
-					respData?.message ||
-					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
-					err?.message ||
-					'Failed to parse statement.';
-				setState('error');
-				setError(msg);
-			}
-		}
-	};
-
-	const handlePasswordCancel = () => {
-		setPasswordModalVisible(false);
-		setPendingFile(null);
-		setPassword('');
-		setPasswordError('');
-		setSavePasswordChecked(false);
-	};
-
-	const handleDemo = async () => {
-		capture(AnalyticsEvents.DEMO_STATEMENT_LOADED);
-		setState('parsing');
-		setError('');
-
-		const demoHash = await Crypto.digestStringAsync(
-			Crypto.CryptoDigestAlgorithm.SHA256,
-			'vector-demo-statement-v1',
+	const updateBatchFile = (index: number, updates: Partial<BatchFileItem>) => {
+		batchFilesRef.current = batchFilesRef.current.map((f, i) =>
+			i === index ? { ...f, ...updates } : f,
 		);
-		if (checkDuplicate(demoHash)) return;
-
-		// Small delay to show parsing state
-		setTimeout(() => {
-			try {
-				const parsed = parseDemoStatement();
-				saveAndNavigate(parsed, demoHash);
-			} catch {
-				setState('error');
-				setError('Demo failed unexpectedly.');
-			}
-		}, 800);
+		setBatchFiles([...batchFilesRef.current]);
 	};
 
-	const saveAndNavigate = (parsed: any, fileHash?: string, passwordToSave?: string) => {
-		const cardInfo: CardInfo | null = parsed.card_info ?? null;
-		const bankDetected: string = parsed.bank_detected || 'generic';
-		const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
-		const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
-
-		if (cardInfo?.card_last4) {
-			// Try to find existing card by last4 + issuer
-			const existing = cards.find(
-				(c) => c.last4 === cardInfo.card_last4 && c.issuer.toLowerCase() === issuerName.toLowerCase(),
-			);
-
-			if (existing) {
-				// Existing card matched — update metadata and proceed directly
-				const updates: Partial<CreditCard> = {};
-				if (cardInfo.credit_limit != null) updates.creditLimit = cardInfo.credit_limit;
-				if (cardInfo.total_amount_due != null) updates.totalAmountDue = cardInfo.total_amount_due;
-				if (cardInfo.minimum_amount_due != null) updates.minimumAmountDue = cardInfo.minimum_amount_due;
-				if (cardInfo.payment_due_date) updates.paymentDueDate = cardInfo.payment_due_date;
-				if (passwordToSave) updates.pdfPassword = passwordToSave;
-				if (Object.keys(updates).length > 0) updateCard(existing.id, updates);
-				finalizeSave(existing.id, existing, false, parsed, fileHash);
-			} else {
-				// New card detected — show confirmation modal
-				const network = normalizeNetwork(cardInfo.card_network);
-				const newCard: CreditCard = {
-					id: `auto-${Date.now()}`,
-					nickname: `${issuerName} •${cardInfo.card_last4}`,
-					last4: cardInfo.card_last4,
-					issuer: issuerName,
-					network,
-					creditLimit: cardInfo.credit_limit ?? 0,
-					billingCycle: '1',
-					color: pickUnusedColor(cards),
-					totalAmountDue: cardInfo.total_amount_due ?? undefined,
-					minimumAmountDue: cardInfo.minimum_amount_due ?? undefined,
-					paymentDueDate: cardInfo.payment_due_date ?? undefined,
-					autoCreated: true,
-					currency: detectedCurrency,
-				};
-				// Populate confirmation fields
-				setConfirmNickname(newCard.nickname);
-				setConfirmLast4(newCard.last4);
-				setConfirmIssuer(newCard.issuer);
-				setConfirmNetwork(newCard.network);
-				setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
-				setConfirmCurrency(detectedCurrency);
-				setPendingCardData(newCard);
-				setPendingParseResult({ parsed, fileHash, passwordToSave });
-				setState('idle');
-				setCardConfirmVisible(true);
-			}
-		} else {
-			// Fallback to selected card
-			const cardId = selectedCardId || 'demo';
-			const matched = cards.find((c) => c.id === cardId);
-			if (passwordToSave && matched) {
-				updateCard(matched.id, { pdfPassword: passwordToSave });
-			}
-			finalizeSave(cardId, matched, false, parsed, fileHash);
-		}
+	const resetBatch = () => {
+		setBatchFiles([]);
+		setBatchIndex(0);
+		setBatchCardId(null);
+		setBatchPassword(null);
+		setBatchComplete(false);
+		setIsNewCardFlow(false);
+		batchCancelledRef.current = false;
+		batchFilesRef.current = [];
+		setState('idle');
 	};
 
-	const finalizeSave = (
+	// -----------------------------------------------------------------------
+	// finalizeSaveForBatch — saves statement + returns statementId, no nav
+	// -----------------------------------------------------------------------
+
+	const finalizeSaveForBatch = (
 		cardId: string,
-		matched: CreditCard | undefined,
-		wasAutoCreated: boolean,
 		parsed: any,
 		fileHash?: string,
-	) => {
+	): string => {
 		const bankDetected: string = parsed.bank_detected || 'generic';
 		const detectedCurrency = (parsed.card_info?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
 		const detectedDateFormat = (['DMY', 'MDY', 'YMD'].includes(parsed.date_format_detected ?? '')
@@ -358,6 +193,18 @@ export default function UploadScreen() {
 			insertFileHash(fileHash, statementId, cardId);
 		}
 
+		// Update card metadata from parsed card_info (credit limit, due amounts, etc.)
+		const cardInfo: CardInfo | null = parsed.card_info ?? null;
+		const matched = cards.find((c) => c.id === cardId);
+		if (matched && cardInfo) {
+			const updates: Partial<CreditCard> = {};
+			if (cardInfo.credit_limit != null) updates.creditLimit = cardInfo.credit_limit;
+			if (cardInfo.total_amount_due != null) updates.totalAmountDue = cardInfo.total_amount_due;
+			if (cardInfo.minimum_amount_due != null) updates.minimumAmountDue = cardInfo.minimum_amount_due;
+			if (cardInfo.payment_due_date) updates.paymentDueDate = cardInfo.payment_due_date;
+			if (Object.keys(updates).length > 0) updateCard(matched.id, updates);
+		}
+
 		// --- Track monthly usage ---
 		const periodTo = parsed.summary?.statement_period?.to;
 		if (periodTo) {
@@ -378,12 +225,418 @@ export default function UploadScreen() {
 			});
 		}
 
-		setState('idle');
-		navigation.navigate('Analysis', { statementId: statement.id, cardId });
+		return statementId;
 	};
 
+	// -----------------------------------------------------------------------
+	// finalizeSave — single-file path (demo + legacy), saves + navigates
+	// -----------------------------------------------------------------------
+
+	const finalizeSave = (
+		cardId: string,
+		matched: CreditCard | undefined,
+		wasAutoCreated: boolean,
+		parsed: any,
+		fileHash?: string,
+	) => {
+		if (matched && pendingParseResult?.passwordToSave) {
+			updateCard(matched.id, { pdfPassword: pendingParseResult.passwordToSave });
+		}
+		const statementId = finalizeSaveForBatch(cardId, parsed, fileHash);
+		setState('idle');
+		navigation.navigate('Analysis', { statementId, cardId });
+	};
+
+	// -----------------------------------------------------------------------
+	// processBatch — sequential processing loop
+	// -----------------------------------------------------------------------
+
+	const processBatch = async (startIndex: number, cardIdOverride?: string, passwordOverride?: string | null) => {
+		const currentCardId = cardIdOverride ?? batchCardId;
+		const currentPassword = passwordOverride !== undefined ? passwordOverride : batchPassword;
+		const files = batchFilesRef.current;
+
+		for (let i = startIndex; i < files.length; i++) {
+			// Check cancelled
+			if (batchCancelledRef.current) {
+				for (let j = i; j < files.length; j++) {
+					updateBatchFile(j, { status: 'skipped' });
+				}
+				break;
+			}
+
+			setBatchIndex(i);
+
+			// Hash
+			updateBatchFile(i, { status: 'hashing' });
+			let fileHash: string | undefined;
+			try {
+				fileHash = await computeFileHash(files[i].uri);
+				const { isDuplicate } = checkDuplicateSilent(fileHash);
+				if (isDuplicate) {
+					updateBatchFile(i, { status: 'duplicate', fileHash });
+					continue;
+				}
+			} catch {
+				updateBatchFile(i, { status: 'failed', error: 'Failed to read file' });
+				continue;
+			}
+
+			// Parse
+			updateBatchFile(i, { status: 'parsing', fileHash });
+
+			// Determine password: batch password > card saved password
+			let pwd = currentPassword || undefined;
+			if (!pwd && currentCardId) {
+				const selectedCard = cards.find((c) => c.id === currentCardId);
+				if (selectedCard?.pdfPassword) pwd = selectedCard.pdfPassword;
+			}
+
+			try {
+				const parsed = await parseStatement(files[i].uri, files[i].name, pwd);
+
+				// New card flow — first successful parse, no card created yet
+				if (isNewCardFlow && !currentCardId) {
+					// Pause batch: show card confirmation
+					const cardInfo: CardInfo | null = parsed.card_info ?? null;
+					const bankDetected: string = parsed.bank_detected || 'generic';
+					const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+					const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
+					const network = normalizeNetwork(cardInfo?.card_network ?? null);
+
+					const newCard: CreditCard = {
+						id: `auto-${Date.now()}`,
+						nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
+						last4: cardInfo?.card_last4 || '',
+						issuer: issuerName,
+						network,
+						creditLimit: cardInfo?.credit_limit ?? 0,
+						billingCycle: '1',
+						color: pickUnusedColor(cards),
+						totalAmountDue: cardInfo?.total_amount_due ?? undefined,
+						minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
+						paymentDueDate: cardInfo?.payment_due_date ?? undefined,
+						autoCreated: true,
+						currency: detectedCurrency,
+					};
+
+					setConfirmNickname(newCard.nickname);
+					setConfirmLast4(newCard.last4);
+					setConfirmIssuer(newCard.issuer);
+					setConfirmNetwork(newCard.network);
+					setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
+					setConfirmCurrency(detectedCurrency);
+					setPendingCardData(newCard);
+
+					// Store parse result for this file
+					updateBatchFile(i, { status: 'parsing', fileHash, parseResult: parsed });
+					setPendingParseResult({ parsed, fileHash, passwordToSave: currentPassword || undefined });
+
+					setCardConfirmVisible(true);
+					return; // Pause — handleCardConfirm will resume
+				}
+
+				// Normal flow — save
+				const stmtId = finalizeSaveForBatch(currentCardId!, parsed, fileHash);
+				updateBatchFile(i, { status: 'success', fileHash, parseResult: parsed, statementId: stmtId });
+			} catch (err: any) {
+				const respData = err?.response?.data;
+				const errorCode = respData?.error_code || respData?.detail?.error_code;
+
+				if (errorCode === 'password_required' || errorCode === 'incorrect_password') {
+					// First time needing password in batch — no batch password set yet
+					if (!currentPassword) {
+						capture(AnalyticsEvents.STATEMENT_PASSWORD_REQUIRED);
+						batchPasswordIndexRef.current = i;
+						setPendingFile({ uri: files[i].uri, name: files[i].name });
+						setPasswordError(errorCode === 'incorrect_password' ? 'Incorrect password. Please try again.' : '');
+						setPassword('');
+						setSavePasswordChecked(false);
+						setPasswordModalVisible(true);
+						return; // Pause — handlePasswordSubmit will resume
+					}
+					// Already have a batch password but it failed for this file
+					updateBatchFile(i, { status: 'failed', error: 'Wrong password', fileHash });
+					continue;
+				}
+
+				const msg =
+					respData?.message ||
+					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
+					err?.message ||
+					'Failed to parse statement.';
+				capture(AnalyticsEvents.STATEMENT_UPLOAD_FAILED, { error_code: errorCode || 'unknown' });
+				updateBatchFile(i, { status: 'failed', error: msg, fileHash });
+			}
+		}
+
+		// Batch complete
+		setBatchComplete(true);
+
+		const successCount = batchFilesRef.current.filter((f) => f.status === 'success').length;
+		const totalCount = batchFilesRef.current.length;
+		capture(AnalyticsEvents.BATCH_UPLOAD_COMPLETE, {
+			total: totalCount,
+			success: successCount,
+			failed: batchFilesRef.current.filter((f) => f.status === 'failed').length,
+			duplicate: batchFilesRef.current.filter((f) => f.status === 'duplicate').length,
+			skipped: batchFilesRef.current.filter((f) => f.status === 'skipped').length,
+		});
+
+		// Single file success → auto-navigate
+		if (totalCount === 1 && successCount === 1) {
+			const file = batchFilesRef.current[0];
+			setState('idle');
+			navigation.navigate('Analysis', { statementId: file.statementId!, cardId: currentCardId ?? batchCardId! });
+		}
+	};
+
+	// -----------------------------------------------------------------------
+	// handlePick — file picker (batch-aware)
+	// -----------------------------------------------------------------------
+
+	const handlePick = async () => {
+		try {
+			const allowed = await checkUploadAllowed();
+			if (!allowed) return;
+
+			const result = await DocumentPicker.getDocumentAsync({
+				type: 'application/pdf',
+				copyToCacheDirectory: true,
+				multiple: true,
+			});
+
+			if (result.canceled || !result.assets?.length) return;
+
+			if (result.assets.length > MAX_BATCH_SIZE) {
+				Alert.alert('Too Many Files', `Please select up to ${MAX_BATCH_SIZE} files at a time.`);
+				return;
+			}
+
+			// Build batch items
+			const items: BatchFileItem[] = result.assets.map((a) => ({
+				uri: a.uri,
+				name: a.name || 'statement.pdf',
+				status: 'pending' as FileStatus,
+			}));
+
+			batchFilesRef.current = items;
+			setBatchFiles(items);
+			setBatchIndex(0);
+			setBatchComplete(false);
+			setBatchPassword(null);
+			batchCancelledRef.current = false;
+
+			capture(AnalyticsEvents.BATCH_UPLOAD_STARTED, { file_count: items.length });
+
+			if (selectedCardId === NEW_CARD_ID) {
+				setIsNewCardFlow(true);
+				setBatchCardId(null);
+				setState('batch');
+				processBatch(0, undefined, null);
+			} else {
+				setIsNewCardFlow(false);
+				setBatchCardId(selectedCardId);
+				setState('batch');
+				processBatch(0, selectedCardId, null);
+			}
+		} catch {
+			setState('error');
+			setError('Could not open file picker.');
+		}
+	};
+
+	// -----------------------------------------------------------------------
+	// handlePasswordSubmit — batch-aware
+	// -----------------------------------------------------------------------
+
+	const handlePasswordSubmit = async () => {
+		if (!password.trim()) return;
+		const usedPwd = password;
+		const shouldSave = savePasswordChecked;
+		setPasswordModalVisible(false);
+		setPassword('');
+		setPasswordError('');
+		setSavePasswordChecked(false);
+
+		if (state === 'batch') {
+			// Batch mode — retry current file with password, then continue
+			const idx = batchPasswordIndexRef.current;
+			const file = batchFilesRef.current[idx];
+
+			updateBatchFile(idx, { status: 'parsing' });
+
+			try {
+				const parsed = await parseStatement(file.uri, file.name, usedPwd);
+
+				// Set batch password for remaining files
+				setBatchPassword(usedPwd);
+
+				// If new card flow and no card yet
+				const currentCardId = batchCardId;
+				if (isNewCardFlow && !currentCardId) {
+					const cardInfo: CardInfo | null = parsed.card_info ?? null;
+					const bankDetected: string = parsed.bank_detected || 'generic';
+					const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+					const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
+					const network = normalizeNetwork(cardInfo?.card_network ?? null);
+
+					const newCard: CreditCard = {
+						id: `auto-${Date.now()}`,
+						nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
+						last4: cardInfo?.card_last4 || '',
+						issuer: issuerName,
+						network,
+						creditLimit: cardInfo?.credit_limit ?? 0,
+						billingCycle: '1',
+						color: pickUnusedColor(cards),
+						totalAmountDue: cardInfo?.total_amount_due ?? undefined,
+						minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
+						paymentDueDate: cardInfo?.payment_due_date ?? undefined,
+						autoCreated: true,
+						currency: detectedCurrency,
+					};
+
+					setConfirmNickname(newCard.nickname);
+					setConfirmLast4(newCard.last4);
+					setConfirmIssuer(newCard.issuer);
+					setConfirmNetwork(newCard.network);
+					setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
+					setConfirmCurrency(detectedCurrency);
+					setPendingCardData(newCard);
+					updateBatchFile(idx, { status: 'parsing', parseResult: parsed });
+					setPendingParseResult({ parsed, fileHash: file.fileHash, passwordToSave: shouldSave ? usedPwd : undefined });
+					setCardConfirmVisible(true);
+					return;
+				}
+
+				// Save this file
+				const stmtId = finalizeSaveForBatch(currentCardId!, parsed, file.fileHash);
+				updateBatchFile(idx, { status: 'success', parseResult: parsed, statementId: stmtId });
+
+				// Save password to card if requested
+				if (shouldSave && currentCardId) {
+					updateCard(currentCardId, { pdfPassword: usedPwd });
+				}
+
+				// Continue batch from next file
+				processBatch(idx + 1, currentCardId ?? undefined, usedPwd);
+			} catch (retryErr: any) {
+				const retryData = retryErr?.response?.data;
+				const retryCode = retryData?.error_code || retryData?.detail?.error_code;
+				if (retryCode === 'incorrect_password') {
+					setPasswordError('Incorrect password. Please try again.');
+					setPassword('');
+					setPasswordModalVisible(true);
+				} else {
+					const msg =
+						retryData?.message ||
+						(typeof retryData?.detail === 'string' ? retryData.detail : retryData?.detail?.message) ||
+						retryErr?.message ||
+						'Failed to parse statement.';
+					updateBatchFile(idx, { status: 'failed', error: msg });
+					// Continue batch from next file
+					processBatch(idx + 1, batchCardId ?? undefined, usedPwd);
+				}
+			}
+			return;
+		}
+
+		// Non-batch (legacy single-file) path
+		if (!pendingFile) return;
+		setState('parsing');
+		setError('');
+		try {
+			const fileHash = await computeFileHash(pendingFile.uri);
+			if (checkDuplicate(fileHash)) {
+				setPendingFile(null);
+				return;
+			}
+
+			const parsed = await parseStatement(pendingFile.uri, pendingFile.name, usedPwd);
+			setPendingFile(null);
+
+			// For single-file non-batch, go through the card selection flow
+			const cardId = selectedCardId || 'demo';
+			const matched = cards.find((c) => c.id === cardId);
+			if (shouldSave && matched) {
+				updateCard(matched.id, { pdfPassword: usedPwd });
+			}
+			finalizeSave(cardId, matched, false, parsed, fileHash);
+		} catch (err: any) {
+			const respData = err?.response?.data;
+			const errorCode = respData?.error_code || respData?.detail?.error_code;
+			if (errorCode === 'incorrect_password') {
+				setPasswordError('Incorrect password. Please try again.');
+				setPassword('');
+				setPasswordModalVisible(true);
+				setState('idle');
+			} else {
+				setPendingFile(null);
+				const msg =
+					respData?.message ||
+					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
+					err?.message ||
+					'Failed to parse statement.';
+				setState('error');
+				setError(msg);
+			}
+		}
+	};
+
+	const handlePasswordCancel = () => {
+		setPasswordModalVisible(false);
+		setPendingFile(null);
+		setPassword('');
+		setPasswordError('');
+		setSavePasswordChecked(false);
+
+		if (state === 'batch') {
+			// Mark current file as failed, continue batch
+			const idx = batchPasswordIndexRef.current;
+			updateBatchFile(idx, { status: 'failed', error: 'Password required' });
+			// Mark remaining as skipped (user chose to cancel)
+			for (let j = idx + 1; j < batchFilesRef.current.length; j++) {
+				updateBatchFile(j, { status: 'skipped' });
+			}
+			setBatchComplete(true);
+		}
+	};
+
+	// -----------------------------------------------------------------------
+	// handleDemo — unchanged single-file flow
+	// -----------------------------------------------------------------------
+
+	const handleDemo = async () => {
+		capture(AnalyticsEvents.DEMO_STATEMENT_LOADED);
+		setState('parsing');
+		setError('');
+
+		const demoHash = await Crypto.digestStringAsync(
+			Crypto.CryptoDigestAlgorithm.SHA256,
+			'vector-demo-statement-v1',
+		);
+		if (checkDuplicate(demoHash)) return;
+
+		setTimeout(() => {
+			try {
+				const parsed = parseDemoStatement();
+				const statementId = finalizeSaveForBatch('demo', parsed, demoHash);
+				setState('idle');
+				navigation.navigate('Analysis', { statementId, cardId: 'demo' });
+			} catch {
+				setState('error');
+				setError('Demo failed unexpectedly.');
+			}
+		}, 800);
+	};
+
+	// -----------------------------------------------------------------------
+	// handleCardConfirm — batch-aware
+	// -----------------------------------------------------------------------
+
 	const handleCardConfirm = () => {
-		if (!pendingCardData || !pendingParseResult) return;
+		if (!pendingCardData) return;
 		const confirmedCard: CreditCard = {
 			...pendingCardData,
 			nickname: confirmNickname.trim() || pendingCardData.nickname,
@@ -392,11 +645,32 @@ export default function UploadScreen() {
 			network: confirmNetwork,
 			creditLimit: parseFloat(confirmCreditLimit) || 0,
 			currency: confirmCurrency,
-			pdfPassword: pendingParseResult.passwordToSave,
+			pdfPassword: batchPassword || pendingParseResult?.passwordToSave || undefined,
 		};
 		addCard(confirmedCard);
 		setCardConfirmVisible(false);
-		finalizeSave(confirmedCard.id, confirmedCard, true, pendingParseResult.parsed, pendingParseResult.fileHash);
+
+		if (state === 'batch') {
+			// Batch mode — save the first file, then resume
+			const idx = batchFilesRef.current.findIndex((f) => f.status === 'parsing' && f.parseResult);
+			if (idx !== -1 && pendingParseResult) {
+				const stmtId = finalizeSaveForBatch(confirmedCard.id, pendingParseResult.parsed, pendingParseResult.fileHash);
+				updateBatchFile(idx, { status: 'success', statementId: stmtId });
+			}
+			setBatchCardId(confirmedCard.id);
+			setPendingCardData(null);
+			setPendingParseResult(null);
+
+			// Resume from next file
+			const nextIdx = (idx !== -1 ? idx : 0) + 1;
+			processBatch(nextIdx, confirmedCard.id, batchPassword);
+			return;
+		}
+
+		// Non-batch legacy path
+		if (pendingParseResult) {
+			finalizeSave(confirmedCard.id, confirmedCard, true, pendingParseResult.parsed, pendingParseResult.fileHash);
+		}
 		setPendingCardData(null);
 		setPendingParseResult(null);
 	};
@@ -405,8 +679,83 @@ export default function UploadScreen() {
 		setCardConfirmVisible(false);
 		setPendingCardData(null);
 		setPendingParseResult(null);
-		setState('idle');
+
+		if (state === 'batch') {
+			// Cancel entire batch
+			batchCancelledRef.current = true;
+			for (let j = 0; j < batchFilesRef.current.length; j++) {
+				if (batchFilesRef.current[j].status !== 'success') {
+					updateBatchFile(j, { status: 'skipped' });
+				}
+			}
+			setBatchComplete(true);
+		} else {
+			setState('idle');
+		}
 	};
+
+	// -----------------------------------------------------------------------
+	// Cancel batch
+	// -----------------------------------------------------------------------
+
+	const handleCancelBatch = () => {
+		batchCancelledRef.current = true;
+	};
+
+	// -----------------------------------------------------------------------
+	// Batch UI helpers
+	// -----------------------------------------------------------------------
+
+	const getStatusIcon = (status: FileStatus): React.ReactNode => {
+		switch (status) {
+			case 'success':
+				return <Feather name="check-circle" size={18} color={colors.accent} />;
+			case 'failed':
+				return <Feather name="x-circle" size={18} color={colors.debit} />;
+			case 'duplicate':
+				return <Feather name="copy" size={18} color={colors.textMuted} />;
+			case 'skipped':
+				return <Feather name="minus-circle" size={18} color={colors.textMuted} />;
+			case 'hashing':
+			case 'parsing':
+				return <ActivityIndicator size="small" color={colors.accent} />;
+			case 'pending':
+			default:
+				return <Feather name="clock" size={18} color={colors.textMuted} />;
+		}
+	};
+
+	const getStatusLabel = (file: BatchFileItem): string | undefined => {
+		switch (file.status) {
+			case 'failed':
+				return file.error || 'Failed';
+			case 'duplicate':
+				return 'Duplicate';
+			case 'skipped':
+				return 'Skipped';
+			default:
+				return undefined;
+		}
+	};
+
+	const batchProgress = useMemo(() => {
+		if (batchFiles.length === 0) return 0;
+		const done = batchFiles.filter((f) =>
+			['success', 'failed', 'duplicate', 'skipped'].includes(f.status),
+		).length;
+		return done / batchFiles.length;
+	}, [batchFiles]);
+
+	const batchSuccessCount = useMemo(
+		() => batchFiles.filter((f) => f.status === 'success').length,
+		[batchFiles],
+	);
+
+	const isProcessing = state === 'uploading' || state === 'parsing';
+
+	// -----------------------------------------------------------------------
+	// Render
+	// -----------------------------------------------------------------------
 
 	return (
 		<>
@@ -421,52 +770,8 @@ export default function UploadScreen() {
 					<Badge text="Your PDF is processed in memory and never stored" color={colors.accent} />
 				</View>
 
-				{/* Free tier usage indicator */}
-				{!__DEV__ && !isPremium && (
-					<View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
-						<Card>
-							<View style={styles.usageRow}>
-								<View style={{ flex: 1 }}>
-									<Text style={styles.usageTitle}>
-										{Math.max(0, FREE_TIER_UPLOAD_LIMIT - uploadsThisMonth)} of{' '}
-										{FREE_TIER_UPLOAD_LIMIT} uploads remaining
-									</Text>
-									<Text style={styles.usageSubtitle}>Resets monthly</Text>
-								</View>
-								<TouchableOpacity
-									style={styles.upgradeBtn}
-									onPress={async () => {
-										try {
-											await RevenueCatUI.presentPaywallIfNeeded({
-												requiredEntitlementIdentifier: ENTITLEMENT_ID,
-											});
-										} catch {}
-									}}
-								>
-									<Feather name="zap" size={14} color="#fff" />
-									<Text style={styles.upgradeBtnText}>Upgrade</Text>
-								</TouchableOpacity>
-							</View>
-							<View style={styles.usageBarBg}>
-								<View
-									style={[
-										styles.usageBarFill,
-										{
-											width: `${Math.min(100, (uploadsThisMonth / FREE_TIER_UPLOAD_LIMIT) * 100)}%`,
-											backgroundColor:
-												uploadsThisMonth >= FREE_TIER_UPLOAD_LIMIT
-													? colors.debit
-													: colors.accent,
-										},
-									]}
-								/>
-							</View>
-						</Card>
-					</View>
-				)}
-
-				{/* Card selector */}
-				{cards.length > 1 && (
+				{/* Card selector — always visible */}
+				{state !== 'batch' && (
 					<View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
 						<Text style={styles.label}>Select Card</Text>
 						<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
@@ -482,85 +787,219 @@ export default function UploadScreen() {
 											selectedCardId === card.id && styles.cardChipTextActive,
 										]}
 									>
-										{card.nickname} (*{card.last4})
+										{card.nickname} {card.last4 ? `(*${card.last4})` : ''}
 									</Text>
 								</TouchableOpacity>
 							))}
+							<TouchableOpacity
+								style={[styles.cardChip, selectedCardId === NEW_CARD_ID && styles.cardChipActive]}
+								onPress={() => setSelectedCardId(NEW_CARD_ID)}
+							>
+								<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+									<Feather
+										name="plus"
+										size={14}
+										color={selectedCardId === NEW_CARD_ID ? colors.accent : colors.textSecondary}
+									/>
+									<Text
+										style={[
+											styles.cardChipText,
+											selectedCardId === NEW_CARD_ID && styles.cardChipTextActive,
+										]}
+									>
+										New Card
+									</Text>
+								</View>
+							</TouchableOpacity>
 						</ScrollView>
 					</View>
 				)}
 
 				{/* Upload area */}
 				<View style={{ paddingHorizontal: spacing.lg }}>
-					<TouchableOpacity
-						style={[
-							styles.uploadArea,
-							state === 'error' && { borderColor: colors.debit },
-							(state === 'uploading' || state === 'parsing') && { borderColor: colors.accent },
-						]}
-						onPress={state === 'idle' || state === 'error' ? handlePick : undefined}
-						activeOpacity={0.8}
-						disabled={state === 'uploading' || state === 'parsing'}
-					>
-						{state === 'idle' && (
-							<>
-								<Feather name="upload-cloud" size={48} color={colors.textMuted} />
-								<Text style={styles.uploadTitle}>Tap to Upload PDF</Text>
-								<Text style={styles.uploadSubtitle}>Select your credit card statement (max 10 MB)</Text>
-							</>
-						)}
-						{(state === 'uploading' || state === 'parsing') && (
-							<>
-								<ActivityIndicator size="large" color={colors.accent} />
-								<Text style={[styles.uploadTitle, { color: colors.accent }]}>
-									{state === 'uploading' ? 'Uploading...' : 'Parsing Statement...'}
-								</Text>
-								<Text style={styles.uploadSubtitle}>Your data is being processed securely</Text>
-							</>
-						)}
-						{state === 'error' && (
-							<>
-								<Feather name="alert-circle" size={48} color={colors.debit} />
-								<Text style={[styles.uploadTitle, { color: colors.debit }]}>Upload Failed</Text>
-								<Text style={styles.uploadSubtitle}>{error}</Text>
-								<Text style={[styles.uploadSubtitle, { color: colors.accent, marginTop: spacing.sm }]}>
-									Tap to try again
-								</Text>
-							</>
-						)}
-					</TouchableOpacity>
+					{/* Batch progress UI */}
+					{state === 'batch' && !batchComplete && (
+						<View style={[styles.uploadArea, { borderColor: colors.accent, paddingVertical: spacing.xl }]}>
+							<Feather name="upload-cloud" size={40} color={colors.accent} />
+							<Text style={[styles.uploadTitle, { color: colors.accent }]}>Processing Statements</Text>
+							<Text style={styles.uploadSubtitle}>
+								{batchFiles.filter((f) => ['success', 'failed', 'duplicate', 'skipped'].includes(f.status)).length} of {batchFiles.length}
+							</Text>
+
+							<View style={{ width: '100%', marginTop: spacing.lg, marginBottom: spacing.md }}>
+								<ProgressBar progress={batchProgress} />
+							</View>
+
+							{/* File list */}
+							{batchFiles.map((file, idx) => (
+								<View key={`${file.name}-${idx}`} style={styles.batchFileRow}>
+									{getStatusIcon(file.status)}
+									<Text
+										style={[
+											styles.batchFileName,
+											file.status === 'success' && { color: colors.accent },
+											(file.status === 'failed') && { color: colors.debit },
+											(file.status === 'duplicate' || file.status === 'skipped') && { color: colors.textMuted },
+										]}
+										numberOfLines={1}
+									>
+										{file.name}
+									</Text>
+								</View>
+							))}
+
+							{/* Cancel button */}
+							<TouchableOpacity
+								style={[styles.cancelBatchBtn, { marginTop: spacing.lg }]}
+								onPress={handleCancelBatch}
+								activeOpacity={0.7}
+							>
+								<Text style={styles.cancelBatchText}>Cancel</Text>
+							</TouchableOpacity>
+						</View>
+					)}
+
+					{/* Batch completion UI */}
+					{state === 'batch' && batchComplete && batchFiles.length > 1 && (
+						<View style={[styles.uploadArea, { borderColor: colors.accent, paddingVertical: spacing.xl }]}>
+							<Feather name="check-circle" size={48} color={colors.accent} />
+							<Text style={[styles.uploadTitle, { color: colors.accent }]}>Upload Complete</Text>
+							<Text style={styles.uploadSubtitle}>
+								{batchSuccessCount} of {batchFiles.length} statements processed
+							</Text>
+
+							{/* File results */}
+							<View style={{ width: '100%', marginTop: spacing.lg }}>
+								{batchFiles.map((file, idx) => {
+									const label = getStatusLabel(file);
+									const canNavigate = file.status === 'success' && file.statementId;
+									return (
+										<TouchableOpacity
+											key={`${file.name}-${idx}`}
+											style={styles.batchFileRow}
+											disabled={!canNavigate}
+											onPress={() => {
+												if (canNavigate) {
+													resetBatch();
+													navigation.navigate('Analysis', {
+														statementId: file.statementId!,
+														cardId: batchCardId!,
+													});
+												}
+											}}
+											activeOpacity={canNavigate ? 0.7 : 1}
+										>
+											{getStatusIcon(file.status)}
+											<View style={{ flex: 1 }}>
+												<Text
+													style={[
+														styles.batchFileName,
+														file.status === 'success' && { color: colors.accent },
+														file.status === 'failed' && { color: colors.debit },
+														(file.status === 'duplicate' || file.status === 'skipped') && { color: colors.textMuted },
+													]}
+													numberOfLines={1}
+												>
+													{file.name}
+												</Text>
+												{label && (
+													<Text style={styles.batchFileError} numberOfLines={1}>
+														{label}
+													</Text>
+												)}
+											</View>
+											{canNavigate && (
+												<Feather name="chevron-right" size={16} color={colors.textMuted} />
+											)}
+										</TouchableOpacity>
+									);
+								})}
+							</View>
+
+							{/* Done button */}
+							<View style={{ width: '100%', marginTop: spacing.xl }}>
+								<PrimaryButton title="Done" icon="check" onPress={resetBatch} />
+							</View>
+						</View>
+					)}
+
+					{/* Normal upload area (idle / single uploading / parsing / error) */}
+					{state !== 'batch' && (
+						<TouchableOpacity
+							style={[
+								styles.uploadArea,
+								state === 'error' && { borderColor: colors.debit },
+								isProcessing && { borderColor: colors.accent },
+							]}
+							onPress={state === 'idle' || state === 'error' ? handlePick : undefined}
+							activeOpacity={0.8}
+							disabled={isProcessing}
+						>
+							{state === 'idle' && (
+								<>
+									<Feather name="upload-cloud" size={48} color={colors.textMuted} />
+									<Text style={styles.uploadTitle}>Tap to Upload PDF</Text>
+									<Text style={styles.uploadSubtitle}>Select one or more credit card statements (max 10 MB each)</Text>
+								</>
+							)}
+							{isProcessing && (
+								<>
+									<ActivityIndicator size="large" color={colors.accent} />
+									<Text style={[styles.uploadTitle, { color: colors.accent }]}>
+										{state === 'uploading' ? 'Uploading...' : 'Parsing Statement...'}
+									</Text>
+									<Text style={styles.uploadSubtitle}>Your data is being processed securely</Text>
+								</>
+							)}
+							{state === 'error' && (
+								<>
+									<Feather name="alert-circle" size={48} color={colors.debit} />
+									<Text style={[styles.uploadTitle, { color: colors.debit }]}>Upload Failed</Text>
+									<Text style={styles.uploadSubtitle}>{error}</Text>
+									<Text style={[styles.uploadSubtitle, { color: colors.accent, marginTop: spacing.sm }]}>
+										Tap to try again
+									</Text>
+								</>
+							)}
+						</TouchableOpacity>
+					)}
 				</View>
 
 				{/* Demo button */}
-				<View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
-					<PrimaryButton
-						title="Try Demo"
-						icon="play"
-						variant="outline"
-						onPress={handleDemo}
-						disabled={state === 'uploading' || state === 'parsing'}
-					/>
-				</View>
+				{state !== 'batch' && (
+					<View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
+						<PrimaryButton
+							title="Try Demo"
+							icon="play"
+							variant="outline"
+							onPress={handleDemo}
+							disabled={isProcessing}
+						/>
+					</View>
+				)}
 
 				{/* Privacy info */}
-				<View style={{ padding: spacing.lg, marginTop: spacing.lg }}>
-					<Card>
-						<View style={styles.privacyRow}>
-							<Feather name="shield" size={20} color={colors.accent} />
-							<View style={{ flex: 1, marginLeft: spacing.md }}>
-								<Text style={styles.privacyTitle}>Privacy First</Text>
-								<Text style={styles.privacyText}>
-									Your PDF is parsed in-memory on our server and immediately discarded. No financial
-									data is ever stored, logged, or shared.
-								</Text>
+				{state !== 'batch' && (
+					<View style={{ padding: spacing.lg, marginTop: spacing.lg }}>
+						<Card>
+							<View style={styles.privacyRow}>
+								<Feather name="shield" size={20} color={colors.accent} />
+								<View style={{ flex: 1, marginLeft: spacing.md }}>
+									<Text style={styles.privacyTitle}>Privacy First</Text>
+									<Text style={styles.privacyText}>
+										Your PDF is parsed in-memory on our server and immediately discarded. No financial
+										data is ever stored, logged, or shared.
+									</Text>
+								</View>
 							</View>
-						</View>
-					</Card>
-				</View>
+						</Card>
+					</View>
+				)}
 
 				<View style={{ height: 40 }} />
 			</ScrollView>
 
+			{/* Password Modal */}
 			<Modal
 				visible={passwordModalVisible}
 				transparent
@@ -646,7 +1085,7 @@ export default function UploadScreen() {
 									card={{
 										id: pendingCardData?.id ?? '',
 										nickname: confirmNickname || 'New Card',
-										last4: confirmLast4 || '••••',
+										last4: confirmLast4 || '\u2022\u2022\u2022\u2022',
 										issuer: confirmIssuer,
 										network: confirmNetwork,
 										creditLimit: parseFloat(confirmCreditLimit) || 0,
@@ -662,7 +1101,7 @@ export default function UploadScreen() {
 							<Text style={styles.confirmFieldLabel}>Nickname</Text>
 							<TextInput
 								style={styles.modalInput}
-								placeholder="e.g. HDFC •1234"
+								placeholder="e.g. HDFC \u20221234"
 								placeholderTextColor={colors.textMuted}
 								value={confirmNickname}
 								onChangeText={setConfirmNickname}
@@ -882,49 +1321,41 @@ const styles = StyleSheet.create({
 		marginTop: spacing.xs,
 		lineHeight: 18,
 	},
-	usageRow: {
+	// Batch file row
+	batchFileRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		justifyContent: 'space-between',
+		gap: spacing.sm,
+		paddingVertical: spacing.sm,
+		paddingHorizontal: spacing.sm,
+		width: '100%',
 	},
-	usageTitle: {
+	batchFileName: {
+		flex: 1,
 		color: colors.textPrimary,
 		fontSize: fontSize.sm,
-		fontWeight: '600',
+		fontWeight: '500',
 		lineHeight: 18,
 	},
-	usageSubtitle: {
+	batchFileError: {
 		color: colors.textMuted,
 		fontSize: fontSize.xs,
-		marginTop: 2,
 		lineHeight: 16,
+		marginTop: 2,
 	},
-	upgradeBtn: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 4,
-		paddingHorizontal: spacing.md,
+	cancelBatchBtn: {
 		paddingVertical: spacing.sm,
-		borderRadius: borderRadius.full,
-		backgroundColor: colors.accent,
+		paddingHorizontal: spacing.xl,
+		borderRadius: borderRadius.lg,
+		backgroundColor: colors.surfaceElevated,
 	},
-	upgradeBtnText: {
-		color: '#fff',
-		fontSize: fontSize.sm,
+	cancelBatchText: {
+		color: colors.textSecondary,
+		fontSize: fontSize.md,
 		fontWeight: '600',
-		lineHeight: 18,
+		lineHeight: 20,
 	},
-	usageBarBg: {
-		height: 4,
-		borderRadius: 2,
-		backgroundColor: colors.border,
-		marginTop: spacing.md,
-		overflow: 'hidden' as const,
-	},
-	usageBarFill: {
-		height: '100%',
-		borderRadius: 2,
-	},
+	// Modals
 	modalOverlay: {
 		flex: 1,
 		backgroundColor: 'rgba(0,0,0,0.7)',

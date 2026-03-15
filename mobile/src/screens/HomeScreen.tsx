@@ -1,27 +1,235 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useCallback, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  FlatList,
+  Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
-import { useStore, StatementData } from '../store';
+import { useStore, StatementData, CreditCard } from '../store';
 import { Card, SectionHeader, EmptyState, PrimaryButton, ProgressBar } from '../components/ui';
 import ManageCardsSection from '../components/ManageCardsSection';
+import { getMonthlyPortfolioData, MonthlyPortfolioEntry } from '../utils/cardAnalytics';
 import type { RootStackParamList, TabParamList } from '../navigation';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_WIDTH = SCREEN_WIDTH - spacing.lg * 2;
 
 type NavProp = CompositeNavigationProp<
   BottomTabNavigationProp<TabParamList, 'Home'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
+
+// ---------------------------------------------------------------------------
+// Swipeable Monthly Portfolio Card
+// ---------------------------------------------------------------------------
+
+interface PortfolioCardProps {
+  cards: CreditCard[];
+  monthlyUsage: import('../store').MonthlyUsage[];
+  primaryCurrency: CurrencyCode;
+  totalAmountDue: number;
+  paymentDueCards: CreditCard[];
+  utilization: number;
+  isSingleCurrency: boolean;
+  primaryGroup: { totalSpent: number; totalLimit: number };
+  currencyGroups: Record<string, { totalSpent: number; totalLimit: number }>;
+  currencyKeys: CurrencyCode[];
+}
+
+function MonthlyPortfolioCard({
+  cards,
+  monthlyUsage,
+  primaryCurrency,
+  totalAmountDue,
+  paymentDueCards,
+  utilization,
+  isSingleCurrency,
+  primaryGroup,
+  currencyGroups,
+  currencyKeys,
+}: PortfolioCardProps) {
+  const portfolioData = useMemo(
+    () => getMonthlyPortfolioData(cards, monthlyUsage),
+    [cards, monthlyUsage],
+  );
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setActiveIndex(viewableItems[0].index);
+      }
+    },
+  ).current;
+
+  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+
+  // Fallback: no monthly data → show static card like before
+  if (portfolioData.length === 0) {
+    return (
+      <View style={styles.paddedSection}>
+        <Card>
+          <Text style={styles.portfolioLabel}>
+            {totalAmountDue > 0 ? 'Total Amount Due' : 'Total Outstanding'}
+          </Text>
+          {totalAmountDue > 0 ? (
+            <Text style={styles.portfolioAmount}>
+              {formatCurrency(totalAmountDue, primaryCurrency)}
+            </Text>
+          ) : isSingleCurrency ? (
+            <Text style={styles.portfolioAmount}>
+              {formatCurrency(primaryGroup.totalSpent, primaryCurrency)}
+            </Text>
+          ) : (
+            <View style={{ marginTop: spacing.sm }}>
+              {currencyKeys.map((cur) => (
+                <Text key={cur} style={styles.portfolioAmount}>
+                  {formatCurrency(currencyGroups[cur].totalSpent, cur)}
+                </Text>
+              ))}
+            </View>
+          )}
+          <View style={styles.utilizationRow}>
+            <Text style={styles.utilizationLabel}>Credit Utilization</Text>
+            <Text style={styles.utilizationPct}>{(utilization * 100).toFixed(0)}%</Text>
+          </View>
+          <ProgressBar
+            progress={utilization}
+            color={utilization > 0.6 ? colors.debit : utilization > 0.3 ? colors.warning : colors.accent}
+            height={8}
+          />
+        </Card>
+      </View>
+    );
+  }
+
+  const renderPage = ({ item }: { item: MonthlyPortfolioEntry }) => (
+    <View style={{ width: CARD_WIDTH, paddingHorizontal: 0 }}>
+      <Card>
+        {/* Month label */}
+        <Text style={portfolioStyles.monthLabel}>{item.label}</Text>
+
+        {/* Total */}
+        <Text style={styles.portfolioLabel}>Total Amount Due</Text>
+        <Text style={styles.portfolioAmount}>
+          {formatCurrency(item.totalDue, item.currency)}
+        </Text>
+
+        {/* Per-card breakdown */}
+        {item.cards.map((c) => (
+          <View key={c.cardId} style={styles.dueCardRow}>
+            <View style={[styles.dueCardDot, { backgroundColor: c.color }]} />
+            <Text style={styles.dueCardName} numberOfLines={1}>{c.nickname}</Text>
+            <Text style={styles.dueCardAmount}>
+              {formatCurrency(c.amount, c.currency)}
+            </Text>
+          </View>
+        ))}
+
+        {/* Utilization */}
+        <View style={styles.utilizationRow}>
+          <Text style={styles.utilizationLabel}>Credit Utilization</Text>
+          <Text style={styles.utilizationPct}>
+            {(item.utilization * 100).toFixed(0)}%
+          </Text>
+        </View>
+        <ProgressBar
+          progress={item.utilization}
+          color={
+            item.utilization > 0.6
+              ? colors.debit
+              : item.utilization > 0.3
+              ? colors.warning
+              : colors.accent
+          }
+          height={8}
+        />
+      </Card>
+    </View>
+  );
+
+  return (
+    <View>
+      <FlatList
+        data={portfolioData}
+        renderItem={renderPage}
+        keyExtractor={(item) => item.month}
+        horizontal
+        pagingEnabled
+        snapToInterval={CARD_WIDTH}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg }}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        getItemLayout={(_, index) => ({
+          length: CARD_WIDTH,
+          offset: CARD_WIDTH * index,
+          index,
+        })}
+      />
+      {/* Pagination dots */}
+      {portfolioData.length > 1 && (
+        <View style={portfolioStyles.dotsRow}>
+          {portfolioData.map((entry, idx) => (
+            <View
+              key={entry.month}
+              style={[
+                portfolioStyles.dot,
+                idx === activeIndex && portfolioStyles.dotActive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const portfolioStyles = StyleSheet.create({
+  monthLabel: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+    lineHeight: 18,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.textMuted,
+    opacity: 0.4,
+  },
+  dotActive: {
+    backgroundColor: colors.accent,
+    opacity: 1,
+    width: 18,
+    borderRadius: 3,
+  },
+});
+
+// ---------------------------------------------------------------------------
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
@@ -115,113 +323,19 @@ export default function HomeScreen() {
         <Text style={styles.subtitle}>Your Money. Directed.</Text>
       </View>
 
-      {/* Portfolio Card */}
-      <View style={styles.paddedSection}>
-        <Card>
-          <Text style={styles.portfolioLabel}>
-            {totalAmountDue > 0 ? 'Total Amount Due' : 'Total Outstanding'}
-          </Text>
-          {totalAmountDue > 0 ? (
-            <>
-              <Text style={styles.portfolioAmount}>
-                {formatCurrency(totalAmountDue, primaryCurrency)}
-              </Text>
-              {paymentDueCards.map((c) => (
-                <View key={c.id} style={styles.dueCardRow}>
-                  <View style={[styles.dueCardDot, { backgroundColor: c.color }]} />
-                  <Text style={styles.dueCardName} numberOfLines={1}>{c.nickname}</Text>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.dueCardAmount}>
-                      {formatCurrency(c.totalAmountDue!, c.currency ?? 'INR')}
-                    </Text>
-                    {c.paymentDueDate && (
-                      <Text style={styles.dueCardDate}>Due {formatDate(c.paymentDueDate!, dateFormatForCurrency(c.currency ?? 'INR'))}</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
-              {paymentDueCards.some((c) => c.minimumAmountDue != null && c.minimumAmountDue > 0) && (
-                <View style={styles.minDueRow}>
-                  <Feather name="alert-circle" size={12} color={colors.warning} />
-                  <Text style={styles.minDueText}>
-                    Min. due: {formatCurrency(
-                      paymentDueCards.reduce((s, c) => s + (c.minimumAmountDue ?? 0), 0),
-                      primaryCurrency
-                    )}
-                  </Text>
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              {isSingleCurrency ? (
-                <Text style={styles.portfolioAmount}>
-                  {formatCurrency(primaryGroup.totalSpent, primaryCurrency)}
-                </Text>
-              ) : (
-                <View style={{ marginTop: spacing.sm }}>
-                  {currencyKeys.map((cur) => (
-                    <Text key={cur} style={styles.portfolioAmount}>
-                      {formatCurrency(currencyGroups[cur].totalSpent, cur)}
-                    </Text>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-
-          {isSingleCurrency && (
-            <>
-              <View style={styles.utilizationRow}>
-                <Text style={styles.utilizationLabel}>Credit Utilization</Text>
-                <Text style={styles.utilizationPct}>
-                  {(utilization * 100).toFixed(0)}%
-                </Text>
-              </View>
-              <ProgressBar
-                progress={utilization}
-                color={
-                  utilization > 0.6
-                    ? colors.debit
-                    : utilization > 0.3
-                    ? colors.warning
-                    : colors.accent
-                }
-                height={8}
-              />
-              {/* Threshold markers */}
-              <View style={styles.thresholds}>
-                <Text style={styles.thresholdText}>0%</Text>
-                <Text style={[styles.thresholdText, { left: '30%' }]}>30%</Text>
-                <Text style={[styles.thresholdText, { left: '60%' }]}>60%</Text>
-                <Text style={[styles.thresholdText, { textAlign: 'right' }]}>100%</Text>
-              </View>
-            </>
-          )}
-
-          {!isSingleCurrency && (
-            <View style={{ marginTop: spacing.md }}>
-              {currencyKeys.map((cur) => {
-                const grp = currencyGroups[cur];
-                const util = grp.totalLimit > 0 ? grp.totalSpent / grp.totalLimit : 0;
-                return (
-                  <View key={cur} style={{ marginBottom: spacing.sm }}>
-                    <View style={styles.utilizationRow}>
-                      <Text style={styles.utilizationLabel}>{cur} Utilization</Text>
-                      <Text style={styles.utilizationPct}>{(util * 100).toFixed(0)}%</Text>
-                    </View>
-                    <ProgressBar
-                      progress={util}
-                      color={util > 0.6 ? colors.debit : util > 0.3 ? colors.warning : colors.accent}
-                      height={6}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </Card>
-      </View>
+      {/* Portfolio Card — swipeable by month */}
+      <MonthlyPortfolioCard
+        cards={cards}
+        monthlyUsage={monthlyUsage}
+        primaryCurrency={primaryCurrency}
+        totalAmountDue={totalAmountDue}
+        paymentDueCards={paymentDueCards}
+        utilization={utilization}
+        isSingleCurrency={isSingleCurrency}
+        primaryGroup={primaryGroup}
+        currencyGroups={currencyGroups}
+        currencyKeys={currencyKeys}
+      />
 
       {/* Manage Cards */}
       <SectionHeader title="Your Cards" />
