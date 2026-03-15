@@ -3,6 +3,7 @@ import { Transaction, StatementSummary } from '../store';
 import { categoryColors } from '../theme';
 
 const API_URL = 'http://192.168.0.202:8000';
+const VECTOR_API_KEY = 'nPmWYZpppvV3JBUjky9LSkUtXoH1my';
 
 export interface CardInfo {
 	card_last4: string | null;
@@ -36,7 +37,7 @@ export async function parseStatement(fileUri: string, fileName: string, password
 	}
 
 	const response = await axios.post<ParseResult>(`${API_URL}/parse-statement/json`, formData, {
-		headers: { 'Content-Type': 'multipart/form-data' },
+		headers: { 'Content-Type': 'multipart/form-data', 'X-Vector-API-Key': VECTOR_API_KEY },
 		timeout: 60000,
 	});
 

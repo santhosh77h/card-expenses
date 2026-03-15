@@ -1,21 +1,17 @@
-name: cardlytics
+name: vector
 
 services:
   backend:
     build: ./backend
-    container_name: cardlytics-backend
+    container_name: vector-backend
     ports:
       - "8000:8000"
     restart: unless-stopped
-    environment:
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
-      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      LOG_JSON: ${LOG_JSON:-false}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-45.0}
+    env_file:
+      - .env
+    volumes:
+      - backend-data:/app/data
+      - backend-debug:/app/debug
     deploy:
       resources:
         limits:
@@ -26,3 +22,9 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+
+volumes:
+  backend-data:
+    driver: local
+  backend-debug:
+    driver: local

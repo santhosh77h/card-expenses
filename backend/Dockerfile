@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS base
+FROM python:3.13-slim AS base
 
 RUN groupadd -r vector && useradd -r -g vector vector
 
@@ -9,9 +9,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN chown -R vector:vector /app
+RUN mkdir -p /app/data/pdfs /app/debug && chown -R vector:vector /app
 
 USER vector
+
+# Persistent data: dashboard.db, blog.db, uploaded PDFs
+VOLUME ["/app/data"]
 
 EXPOSE 8000
 

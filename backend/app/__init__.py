@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from contextlib import asynccontextmanager
 
+from app.auth import APIKeyMiddleware
 from app.config import settings
 from app.blog_db import init_blog_db
 from app.blog_routes import router as blog_router
@@ -86,6 +87,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.add_middleware(APIKeyMiddleware)
 
     register_exception_handlers(app)
     app.include_router(router)

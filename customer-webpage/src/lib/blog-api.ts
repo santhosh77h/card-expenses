@@ -23,6 +23,7 @@ export interface BlogCategory {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const BLOG_API_KEY = process.env.NEXT_PUBLIC_BLOG_API_KEY || "";
+const VECTOR_API_KEY = process.env.NEXT_PUBLIC_VECTOR_API_KEY || "";
 const FETCH_TIMEOUT = 5000; // 5s timeout to avoid hanging during static builds
 
 function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
@@ -47,6 +48,7 @@ export async function getBlogPosts(
     if (category) params.set("category", category);
 
     const res = await fetchWithTimeout(`${API_BASE}/api/blog/posts?${params}`, {
+      headers: { "X-Vector-API-Key": VECTOR_API_KEY },
       next: { revalidate: 3600 },
     } as RequestInit);
 
@@ -63,6 +65,7 @@ export async function getBlogPosts(
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   try {
     const res = await fetchWithTimeout(`${API_BASE}/api/blog/posts/${slug}`, {
+      headers: { "X-Vector-API-Key": VECTOR_API_KEY },
       next: { revalidate: 3600 },
     } as RequestInit);
 
@@ -87,7 +90,9 @@ export async function getAdminBlogPosts(
     offset: offset.toString(),
     status,
   });
-  const res = await fetch(`${API_BASE}/api/blog/posts?${params}`);
+  const res = await fetch(`${API_BASE}/api/blog/posts?${params}`, {
+    headers: { "X-Vector-API-Key": VECTOR_API_KEY },
+  });
   if (!res.ok) throw new Error(`Failed to fetch posts: ${res.status}`);
   return res.json();
 }
@@ -97,7 +102,7 @@ export async function createBlogPost(
 ): Promise<BlogPost> {
   const res = await fetch(`${API_BASE}/api/blog/posts`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Blog-API-Key": BLOG_API_KEY },
+    headers: { "Content-Type": "application/json", "X-Vector-API-Key": VECTOR_API_KEY, "X-Blog-API-Key": BLOG_API_KEY },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(`Failed to create post: ${res.status}`);
@@ -110,7 +115,7 @@ export async function updateBlogPost(
 ): Promise<BlogPost> {
   const res = await fetch(`${API_BASE}/api/blog/posts/${postId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", "X-Blog-API-Key": BLOG_API_KEY },
+    headers: { "Content-Type": "application/json", "X-Vector-API-Key": VECTOR_API_KEY, "X-Blog-API-Key": BLOG_API_KEY },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(`Failed to update post: ${res.status}`);
@@ -120,7 +125,7 @@ export async function updateBlogPost(
 export async function deleteBlogPost(postId: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/blog/posts/${postId}`, {
     method: "DELETE",
-    headers: { "X-Blog-API-Key": BLOG_API_KEY },
+    headers: { "X-Vector-API-Key": VECTOR_API_KEY, "X-Blog-API-Key": BLOG_API_KEY },
   });
   if (!res.ok) throw new Error(`Failed to delete post: ${res.status}`);
 }
@@ -132,6 +137,7 @@ export async function deleteBlogPost(postId: string): Promise<void> {
 export async function getBlogCategories(): Promise<BlogCategory[]> {
   try {
     const res = await fetchWithTimeout(`${API_BASE}/api/blog/categories`, {
+      headers: { "X-Vector-API-Key": VECTOR_API_KEY },
       next: { revalidate: 3600 },
     } as RequestInit);
 

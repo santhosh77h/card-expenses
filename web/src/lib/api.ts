@@ -1,9 +1,11 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const VECTOR_API_KEY = process.env.NEXT_PUBLIC_VECTOR_API_KEY || "";
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
+      "X-Vector-API-Key": VECTOR_API_KEY,
       ...options?.headers,
     },
   });

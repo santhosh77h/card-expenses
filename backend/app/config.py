@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # --- Blog Admin ---
     BLOG_API_KEY: str = ""
 
+    # --- Global API Key ---
+    VECTOR_API_KEY: str = ""
+
     # --- LangSmith ---
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str = ""
