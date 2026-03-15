@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Transaction, StatementSummary } from '../store';
 import { categoryColors } from '../theme';
 
-const API_URL = 'http://192.168.0.202:8000';
+const API_URL = 'https://vectorexpense.mooo.com';
 const VECTOR_API_KEY = 'nPmWYZpppvV3JBUjky9LSkUtXoH1my';
 
 export interface CardInfo {
