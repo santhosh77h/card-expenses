@@ -26,12 +26,30 @@ export function Footer() {
           </h2>
         </div>
 
-        <div className="flex gap-x-2">
+        <div className="flex gap-x-3">
+          <a
+            href={siteConfig.links.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-5 w-5 items-center justify-center text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground"
+          >
+            <Icons.instagram className="fill-current" />
+          </a>
           <a
             href={siteConfig.links.twitter}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex h-5 w-5 items-center justify-center text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground"
           >
             <Icons.twitter className="fill-current" />
+          </a>
+          <a
+            href={siteConfig.links.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-5 w-5 items-center justify-center text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground"
+          >
+            <Icons.linkedin className="fill-current" />
           </a>
         </div>
       </div>

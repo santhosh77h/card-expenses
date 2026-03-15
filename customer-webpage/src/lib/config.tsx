@@ -23,9 +23,9 @@ export const siteConfig = {
   ],
   links: {
     email: "support@vectorexpense.io",
-    twitter: "https://twitter.com/vectorexpense",
-    github: "https://github.com/vectorexpense",
-    instagram: "https://instagram.com/vectorexpense",
+    twitter: "https://x.com/Vector_Expense",
+    instagram: "https://www.instagram.com/vector_expense/",
+    linkedin: "https://www.linkedin.com/company/vector-expense",
   },
   features: [
     {
