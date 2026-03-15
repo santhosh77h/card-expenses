@@ -2,12 +2,23 @@
 "use client";
 
 import { Section } from "@/components/section";
+import { CardAnalyticsPreview } from "@/components/ui/card-analytics-preview";
+import { CategoriesScreenPreview } from "@/components/ui/categories-screen-preview";
 import { IPhoneFrame } from "@/components/ui/iphone-frame";
+import { TransactionsScreenPreview } from "@/components/ui/transactions-screen-preview";
+import { UploadScreenPreview } from "@/components/ui/upload-screen-preview";
 import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+const previewComponents: Record<string, { component: React.ReactNode; scrollable?: boolean }> = {
+  "card-analytics": { component: <CardAnalyticsPreview />, scrollable: true },
+  "upload-screen": { component: <UploadScreenPreview /> },
+  "categories-screen": { component: <CategoriesScreenPreview />, scrollable: true },
+  "transactions-screen": { component: <TransactionsScreenPreview />, scrollable: true },
+};
 
 interface FeatureProps {
   title: string;
@@ -15,6 +26,7 @@ interface FeatureProps {
   imageSrc: string;
   direction: "ltr" | "rtl";
   isActive: boolean;
+  previewId?: string;
 }
 
 function Feature({
@@ -23,6 +35,7 @@ function Feature({
   imageSrc,
   direction,
   isActive,
+  previewId,
 }: FeatureProps) {
   const isLTR = direction === "ltr";
   const textVariants = {
@@ -49,6 +62,8 @@ function Feature({
       },
     },
   };
+
+  const preview = previewId ? previewComponents[previewId] : null;
 
   return (
     <motion.div
@@ -93,12 +108,20 @@ function Feature({
         </div>
       </motion.div>
       <div className="w-full lg:w-1/2 flex justify-center">
-        <IPhoneFrame className="max-w-[260px]">
-          <img
-            src={imageSrc}
-            alt={title}
-            className="w-full h-auto"
-          />
+        <IPhoneFrame className="w-[320px]">
+          {preview ? (
+            <div className={cn("h-[580px]", preview.scrollable ? "overflow-y-auto scrollbar-hide" : "overflow-hidden")}>
+              {preview.component}
+            </div>
+          ) : (
+            <div className="h-[580px] overflow-hidden">
+              <img
+                src={imageSrc}
+                alt={title}
+                className="w-full h-full object-cover object-top"
+              />
+            </div>
+          )}
         </IPhoneFrame>
       </div>
     </motion.div>

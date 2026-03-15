@@ -72,6 +72,7 @@ export const siteConfig = {
         "3-model consensus engine cross-validates every transaction for near-perfect accuracy.",
       imageSrc: "/screenshots/upload.svg",
       direction: "rtl" as const,
+      previewId: "upload-screen",
     },
     {
       title: "Smart Categories",
@@ -79,6 +80,7 @@ export const siteConfig = {
         "12 spending categories auto-assigned via AI and keyword matching across multiple languages.",
       imageSrc: "/screenshots/categories.svg",
       direction: "ltr" as const,
+      previewId: "categories-screen",
     },
     {
       title: "Detailed Analytics",
@@ -86,6 +88,7 @@ export const siteConfig = {
         "Get instant spending breakdowns, category charts, and exportable CSV reports.",
       imageSrc: "/screenshots/analysis.svg",
       direction: "rtl" as const,
+      previewId: "card-analytics",
     },
   ],
   bento: [
@@ -120,6 +123,7 @@ export const siteConfig = {
       imageSrc: "/screenshots/analysis.svg",
       imageAlt: "Analytics dashboard",
       fullWidth: true,
+      previewId: "card-analytics",
     },
   ],
   benefits: [

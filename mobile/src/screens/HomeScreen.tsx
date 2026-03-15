@@ -1,11 +1,10 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +12,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
 import { useStore, StatementData } from '../store';
-import { Card, SectionHeader, ProgressBar, EmptyState, PrimaryButton } from '../components/ui';
-import CreditCardView from '../components/CreditCardView';
+import { Card, SectionHeader, EmptyState, PrimaryButton, ProgressBar } from '../components/ui';
+import ManageCardsSection from '../components/ManageCardsSection';
 import type { RootStackParamList, TabParamList } from '../navigation';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -27,7 +26,7 @@ type NavProp = CompositeNavigationProp<
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
-  const { cards, statements, activeCardId, setActiveCard, monthlyUsage } = useStore();
+  const { cards, statements, monthlyUsage, addCard, removeCard } = useStore();
 
   // Get all statements across all cards
   const allStatements = useMemo(() => {
@@ -77,21 +76,6 @@ export default function HomeScreen() {
     if (!isSingleCurrency || paymentDueCards.length === 0) return 0;
     return paymentDueCards.reduce((sum, c) => sum + (c.totalAmountDue ?? 0), 0);
   }, [paymentDueCards, isSingleCurrency]);
-
-  const cardKeyExtractor = useCallback((item: typeof cards[0]) => item.id, []);
-  const renderCardItem = useCallback(({ item }: { item: typeof cards[0] }) => (
-    <TouchableOpacity
-      onPress={() => setActiveCard(item.id)}
-      activeOpacity={0.9}
-      style={
-        activeCardId === item.id
-          ? { borderWidth: 2, borderColor: colors.accent, borderRadius: borderRadius.xl }
-          : undefined
-      }
-    >
-      <CreditCardView card={item} compact />
-    </TouchableOpacity>
-  ), [activeCardId, setActiveCard]);
 
   if (cards.length === 0) {
     return (
@@ -239,57 +223,15 @@ export default function HomeScreen() {
         </Card>
       </View>
 
-      {/* Card Carousel */}
+      {/* Manage Cards */}
       <SectionHeader title="Your Cards" />
-      <FlatList
-        data={cards}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-        keyExtractor={cardKeyExtractor}
-        renderItem={renderCardItem}
+      <ManageCardsSection
+        cards={cards}
+        statements={statements}
+        monthlyUsage={monthlyUsage}
+        addCard={addCard}
+        removeCard={removeCard}
       />
-
-      {/* Monthly Usage */}
-      {monthlyUsage.length > 0 && (
-        <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader title="Monthly Usage" />
-          <View style={styles.paddedSection}>
-            {cards.map((card) => {
-              const latestUsage = monthlyUsage
-                .filter((u) => u.cardId === card.id)
-                .sort((a, b) => b.month.localeCompare(a.month))[0];
-              if (!latestUsage) return null;
-              const utilPct =
-                card.creditLimit > 0
-                  ? Math.min(latestUsage.totalDebits / card.creditLimit, 1)
-                  : 0;
-              return (
-                <Card key={card.id}>
-                  <View style={styles.usageRow}>
-                    <View style={[styles.usageDot, { backgroundColor: card.color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.usageCardName}>{card.nickname}</Text>
-                      <Text style={styles.usageMonth}>{latestUsage.month}</Text>
-                    </View>
-                    <Text style={styles.usageAmount}>
-                      {formatCurrency(latestUsage.totalDebits, card.currency ?? 'INR')}
-                    </Text>
-                  </View>
-                  <View style={{ marginTop: spacing.sm }}>
-                    <ProgressBar progress={utilPct} color={card.color} height={4} />
-                  </View>
-                  {card.creditLimit > 0 && (
-                    <Text style={styles.usageLimit}>
-                      Limit: {formatCurrency(card.creditLimit, card.currency ?? 'INR')}
-                    </Text>
-                  )}
-                </Card>
-              );
-            })}
-          </View>
-        </View>
-      )}
 
       {/* Recent Statements */}
       <View style={{ marginTop: spacing.xl }}>
@@ -466,41 +408,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.xs,
     marginTop: 2,
-    lineHeight: 16,
-  },
-  usageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  usageDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.md,
-  },
-  usageCardName: {
-    color: colors.textPrimary,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  usageMonth: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  usageAmount: {
-    color: colors.debit,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  usageLimit: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: spacing.xs,
-    textAlign: 'right',
     lineHeight: 16,
   },
   dueCardRow: {

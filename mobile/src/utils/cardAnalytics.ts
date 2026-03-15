@@ -1,5 +1,6 @@
 import type { CreditCard, MonthlyUsage, StatementData, Transaction } from '../store';
 import type { CurrencyCode } from '../theme';
+import { categoryColors, CURRENCY_CONFIG } from '../theme';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -388,4 +389,461 @@ export function getActiveCurrencies(
     }
   }
   return Array.from(currencies);
+}
+
+// ---------------------------------------------------------------------------
+// 12-Month Period Analytics
+// ---------------------------------------------------------------------------
+
+export interface Period {
+  startMonth: string; // "YYYY-MM"
+  endMonth: string;   // "YYYY-MM"
+  label: string;      // "Apr 2025 – Mar 2026"
+  months: string[];   // all months in order
+}
+
+function addMonths(yyyymm: string, n: number): string {
+  const [y, m] = yyyymm.split('-').map(Number);
+  const total = y * 12 + (m - 1) + n;
+  const newY = Math.floor(total / 12);
+  const newM = (total % 12) + 1;
+  return `${newY}-${String(newM).padStart(2, '0')}`;
+}
+
+function generateMonthRange(start: string, end: string): string[] {
+  const months: string[] = [];
+  let cur = start;
+  while (cur <= end) {
+    months.push(cur);
+    cur = addMonths(cur, 1);
+  }
+  return months;
+}
+
+export function buildPeriod(endMonth: string, numMonths: number = 12): Period {
+  const startMonth = addMonths(endMonth, -(numMonths - 1));
+  const months = generateMonthRange(startMonth, endMonth);
+  const [sy, sm] = startMonth.split('-').map(Number);
+  const [ey, em] = endMonth.split('-').map(Number);
+  return {
+    startMonth,
+    endMonth,
+    label: `${MONTH_NAMES[sm - 1]} ${sy} – ${MONTH_NAMES[em - 1]} ${ey}`,
+    months,
+  };
+}
+
+export function getLatestPeriod(monthlyUsage: MonthlyUsage[]): Period | null {
+  const months = getAvailableMonths(monthlyUsage);
+  if (months.length === 0) return null;
+  return buildPeriod(months[0], 12);
+}
+
+export function navigatePeriod(period: Period, direction: 'prev' | 'next'): Period {
+  const newEnd = addMonths(period.endMonth, direction === 'next' ? 12 : -12);
+  return buildPeriod(newEnd, period.months.length);
+}
+
+export function canNavigatePeriod(
+  period: Period,
+  direction: 'prev' | 'next',
+  monthlyUsage: MonthlyUsage[],
+): boolean {
+  const allMonths = getAvailableMonths(monthlyUsage);
+  if (allMonths.length === 0) return false;
+  const oldest = allMonths[allMonths.length - 1];
+  const newest = allMonths[0];
+  if (direction === 'next') return period.endMonth < newest;
+  return period.startMonth > oldest;
+}
+
+// ---------------------------------------------------------------------------
+// 12-Month Trend (line chart data)
+// ---------------------------------------------------------------------------
+
+export interface MonthlyTrendPoint {
+  month: string;
+  label: string;
+  amount: number;
+}
+
+export function get12MonthTrend(
+  cards: CreditCard[],
+  monthlyUsage: MonthlyUsage[],
+  period: Period,
+  cardFilter?: string | null,
+  currencyFilter?: CurrencyCode,
+): MonthlyTrendPoint[] {
+  const filteredCards = currencyFilter
+    ? cards.filter((c) => (c.currency || 'INR') === currencyFilter)
+    : cards;
+  const cardIds = cardFilter
+    ? new Set([cardFilter])
+    : new Set(filteredCards.map((c) => c.id));
+
+  const monthTotals = new Map<string, number>();
+  for (const u of monthlyUsage) {
+    if (!cardIds.has(u.cardId)) continue;
+    if (u.month < period.startMonth || u.month > period.endMonth) continue;
+    monthTotals.set(u.month, (monthTotals.get(u.month) || 0) + u.totalDebits);
+  }
+
+  return period.months.map((month) => ({
+    month,
+    label: monthLabel(month),
+    amount: monthTotals.get(month) || 0,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Summary Stats
+// ---------------------------------------------------------------------------
+
+export interface SummaryStats {
+  monthlyAverage: number;
+  peakMonth: { month: string; label: string; amount: number } | null;
+  lowestMonth: { month: string; label: string; amount: number } | null;
+  totalSpend: number;
+  activeMonths: number;
+}
+
+export function getSummaryStats(trendData: MonthlyTrendPoint[]): SummaryStats {
+  const active = trendData.filter((d) => d.amount > 0);
+  const totalSpend = active.reduce((s, d) => s + d.amount, 0);
+  const activeMonths = active.length;
+  const monthlyAverage = activeMonths > 0 ? totalSpend / activeMonths : 0;
+
+  let peakMonth: SummaryStats['peakMonth'] = null;
+  let lowestMonth: SummaryStats['lowestMonth'] = null;
+  for (const d of active) {
+    if (!peakMonth || d.amount > peakMonth.amount) {
+      peakMonth = { month: d.month, label: d.label, amount: d.amount };
+    }
+    if (!lowestMonth || d.amount < lowestMonth.amount) {
+      lowestMonth = { month: d.month, label: d.label, amount: d.amount };
+    }
+  }
+
+  return { monthlyAverage, peakMonth, lowestMonth, totalSpend, activeMonths };
+}
+
+// ---------------------------------------------------------------------------
+// Card Chip Summaries (for period selector chips)
+// ---------------------------------------------------------------------------
+
+export interface CardChipSummary {
+  cardId: string | null; // null = "All Cards"
+  label: string;
+  last4: string;
+  totalSpend: number;
+  changePercent: number | null;
+  changeLabel: string;
+  isUp: boolean;
+  currency: CurrencyCode;
+  color: string;
+}
+
+export function getCardChipSummaries(
+  cards: CreditCard[],
+  monthlyUsage: MonthlyUsage[],
+  period: Period,
+  currencyFilter?: CurrencyCode,
+): CardChipSummary[] {
+  const filtered = currencyFilter
+    ? cards.filter((c) => (c.currency || 'INR') === currencyFilter)
+    : cards;
+
+  // Period totals per card
+  const currentTotals = new Map<string, number>();
+  const prevPeriod = buildPeriod(addMonths(period.endMonth, -12), period.months.length);
+  const prevTotals = new Map<string, number>();
+
+  // Latest month MoM
+  const latestMonth = period.endMonth;
+  const prevMo = prevMonth(latestMonth);
+  const latestByCard = new Map<string, number>();
+  const prevMoByCard = new Map<string, number>();
+
+  for (const u of monthlyUsage) {
+    if (u.month >= period.startMonth && u.month <= period.endMonth) {
+      currentTotals.set(u.cardId, (currentTotals.get(u.cardId) || 0) + u.totalDebits);
+    }
+    if (u.month >= prevPeriod.startMonth && u.month <= prevPeriod.endMonth) {
+      prevTotals.set(u.cardId, (prevTotals.get(u.cardId) || 0) + u.totalDebits);
+    }
+    if (u.month === latestMonth) {
+      latestByCard.set(u.cardId, (latestByCard.get(u.cardId) || 0) + u.totalDebits);
+    }
+    if (u.month === prevMo) {
+      prevMoByCard.set(u.cardId, (prevMoByCard.get(u.cardId) || 0) + u.totalDebits);
+    }
+  }
+
+  const allCurrent = filtered.reduce((s, c) => s + (currentTotals.get(c.id) || 0), 0);
+  const allPrev = filtered.reduce((s, c) => s + (prevTotals.get(c.id) || 0), 0);
+  const yoy = allPrev > 0 ? ((allCurrent - allPrev) / allPrev) * 100 : null;
+  const defaultCurrency = (filtered[0]?.currency || 'INR') as CurrencyCode;
+
+  const result: CardChipSummary[] = [{
+    cardId: null,
+    label: 'All cards',
+    last4: '',
+    totalSpend: allCurrent,
+    changePercent: yoy,
+    changeLabel: 'vs prev year',
+    isUp: yoy !== null ? yoy >= 0 : true,
+    currency: defaultCurrency,
+    color: '#00E5A0',
+  }];
+
+  for (const card of filtered) {
+    const spend = latestByCard.get(card.id) || 0;
+    const prev = prevMoByCard.get(card.id) || 0;
+    const mom = prev > 0 ? ((spend - prev) / prev) * 100 : null;
+    result.push({
+      cardId: card.id,
+      label: `${card.issuer} ••${card.last4}`,
+      last4: card.last4,
+      totalSpend: spend,
+      changePercent: mom,
+      changeLabel: 'vs last mo',
+      isUp: mom !== null ? mom >= 0 : true,
+      currency: (card.currency || 'INR') as CurrencyCode,
+      color: card.color,
+    });
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Top Categories (12-month aggregate)
+// ---------------------------------------------------------------------------
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'Food & Dining': '🍽️',
+  Groceries: '🛒',
+  Shopping: '🛍️',
+  Transportation: '🚗',
+  Entertainment: '🎬',
+  'Health & Medical': '💊',
+  'Utilities & Bills': '📱',
+  Travel: '✈️',
+  Education: '📚',
+  'Finance & Investment': '💰',
+  Transfers: '🔄',
+  Other: '📦',
+};
+
+export interface CategoryBreakdown {
+  name: string;
+  icon: string;
+  color: string;
+  amount: number;
+  percentage: number;
+}
+
+export function getTopCategories(
+  cards: CreditCard[],
+  statements: Record<string, StatementData[]>,
+  period: Period,
+  cardFilter?: string | null,
+  currencyFilter?: CurrencyCode,
+): CategoryBreakdown[] {
+  const filtered = currencyFilter
+    ? cards.filter((c) => (c.currency || 'INR') === currencyFilter)
+    : cards;
+  const cardIds = cardFilter
+    ? new Set([cardFilter])
+    : new Set(filtered.map((c) => c.id));
+
+  const catTotals = new Map<string, { amount: number; color: string; icon: string }>();
+
+  for (const card of filtered) {
+    if (!cardIds.has(card.id)) continue;
+    for (const stmt of (statements[card.id] || [])) {
+      const sp = stmt.summary?.statement_period;
+      const stmtMonth = sp?.to ? sp.to.slice(0, 7) : stmt.parsedAt?.slice(0, 7);
+      if (!stmtMonth || stmtMonth < period.startMonth || stmtMonth > period.endMonth) continue;
+
+      for (const txn of stmt.transactions) {
+        if (txn.type !== 'debit') continue;
+        const cat = txn.category || 'Other';
+        const existing = catTotals.get(cat) || {
+          amount: 0,
+          color: txn.category_color || categoryColors[cat] || '#6B7280',
+          icon: CATEGORY_ICONS[cat] || '📦',
+        };
+        existing.amount += txn.amount;
+        catTotals.set(cat, existing);
+      }
+    }
+  }
+
+  const total = Array.from(catTotals.values()).reduce((s, c) => s + c.amount, 0);
+  const sorted = Array.from(catTotals.entries())
+    .map(([name, { amount, color, icon }]) => ({
+      name, icon, color, amount,
+      percentage: total > 0 ? (amount / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  if (sorted.length > 5) {
+    const top5 = sorted.slice(0, 5);
+    const rest = sorted.slice(5);
+    const othersAmt = rest.reduce((s, c) => s + c.amount, 0);
+    return [...top5, {
+      name: 'Others', icon: '📦', color: '#6B7280',
+      amount: othersAmt,
+      percentage: total > 0 ? (othersAmt / total) * 100 : 0,
+    }];
+  }
+  return sorted;
+}
+
+// ---------------------------------------------------------------------------
+// Top Merchants
+// ---------------------------------------------------------------------------
+
+export interface MerchantSpend {
+  name: string;
+  initials: string;
+  txnCount: number;
+  totalAmount: number;
+  color: string;
+}
+
+const MERCHANT_COLORS = ['#5B8DEF', '#4ecb8a', '#ff6b6b', '#a78bfa', '#4ecfcf'];
+
+function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+export function getTopMerchants(
+  cards: CreditCard[],
+  statements: Record<string, StatementData[]>,
+  period: Period,
+  cardFilter?: string | null,
+  currencyFilter?: CurrencyCode,
+): MerchantSpend[] {
+  const filtered = currencyFilter
+    ? cards.filter((c) => (c.currency || 'INR') === currencyFilter)
+    : cards;
+  const cardIds = cardFilter
+    ? new Set([cardFilter])
+    : new Set(filtered.map((c) => c.id));
+
+  const merchantMap = new Map<string, { count: number; total: number }>();
+
+  for (const card of filtered) {
+    if (!cardIds.has(card.id)) continue;
+    for (const stmt of (statements[card.id] || [])) {
+      const sp = stmt.summary?.statement_period;
+      const stmtMonth = sp?.to ? sp.to.slice(0, 7) : stmt.parsedAt?.slice(0, 7);
+      if (!stmtMonth || stmtMonth < period.startMonth || stmtMonth > period.endMonth) continue;
+
+      for (const txn of stmt.transactions) {
+        if (txn.type !== 'debit') continue;
+        const name = txn.description.trim();
+        if (!name) continue;
+        // Normalize: strip trailing reference numbers
+        const normalized = name.replace(/\s+\d{4,}.*$/, '').replace(/\s+#.*$/, '').trim() || name;
+        const existing = merchantMap.get(normalized) || { count: 0, total: 0 };
+        existing.count++;
+        existing.total += txn.amount;
+        merchantMap.set(normalized, existing);
+      }
+    }
+  }
+
+  return Array.from(merchantMap.entries())
+    .map(([name, { count, total }], idx) => ({
+      name,
+      initials: getInitials(name),
+      txnCount: count,
+      totalAmount: total,
+      color: MERCHANT_COLORS[idx % MERCHANT_COLORS.length],
+    }))
+    .sort((a, b) => b.totalAmount - a.totalAmount)
+    .slice(0, 5);
+}
+
+// ---------------------------------------------------------------------------
+// Spending Insights (auto-generated)
+// ---------------------------------------------------------------------------
+
+export interface SpendingInsight {
+  type: 'spike' | 'trend' | 'best_month';
+  label: string;
+  text: string;
+  highlightColor: string;
+}
+
+export function generateInsights(
+  trendData: MonthlyTrendPoint[],
+  categories: CategoryBreakdown[],
+  stats: SummaryStats,
+): SpendingInsight[] {
+  const insights: SpendingInsight[] = [];
+  const avg = stats.monthlyAverage;
+  if (avg <= 0) return insights;
+
+  // Spike: month significantly above average
+  if (stats.peakMonth && stats.peakMonth.amount > avg * 1.3) {
+    const pctAbove = ((stats.peakMonth.amount - avg) / avg * 100).toFixed(0);
+    const topCats = categories.slice(0, 2).map((c) => c.name).join(' and ');
+    insights.push({
+      type: 'spike',
+      label: '↑ Unusual spike',
+      text: `${stats.peakMonth.label} was ${pctAbove}% above your monthly average.${topCats ? ` ${topCats} were the biggest drivers.` : ''}`,
+      highlightColor: '#ff6b6b',
+    });
+  }
+
+  // Trend: compare last 3 months vs prior 3 months
+  if (trendData.length >= 6) {
+    const recent = trendData.slice(-3);
+    const prior = trendData.slice(-6, -3);
+    const recentTotal = recent.reduce((s, d) => s + d.amount, 0);
+    const priorTotal = prior.reduce((s, d) => s + d.amount, 0);
+    if (priorTotal > 0) {
+      const changePct = ((recentTotal - priorTotal) / priorTotal) * 100;
+      if (Math.abs(changePct) > 15) {
+        const dir = changePct > 0 ? 'increased' : 'decreased';
+        insights.push({
+          type: 'trend',
+          label: changePct > 0 ? '📈 Spending trend' : '📉 Spending trend',
+          text: `Overall spending has ${dir} ${Math.abs(changePct).toFixed(0)}% over the last 3 months compared to the 3 months prior.`,
+          highlightColor: changePct > 0 ? '#ff6b6b' : '#4ecb8a',
+        });
+      }
+    }
+  }
+
+  // Best month: lowest spend
+  if (stats.lowestMonth && stats.lowestMonth.amount < avg * 0.9) {
+    const pctBelow = ((avg - stats.lowestMonth.amount) / avg * 100).toFixed(0);
+    insights.push({
+      type: 'best_month',
+      label: '✓ Best month',
+      text: `${stats.lowestMonth.label} was your lowest spend month — ${pctBelow}% below your yearly average.`,
+      highlightColor: '#4ecb8a',
+    });
+  }
+
+  return insights;
+}
+
+// ---------------------------------------------------------------------------
+// Compact currency formatting for chart axes
+// ---------------------------------------------------------------------------
+
+export function formatCompact(amount: number, currency: CurrencyCode = 'INR'): string {
+  const sym = CURRENCY_CONFIG[currency]?.symbol || '₹';
+  if (amount >= 10000000) return `${sym}${(amount / 10000000).toFixed(1)}Cr`;
+  if (amount >= 100000) return `${sym}${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 1000) return `${sym}${Math.round(amount / 1000)}k`;
+  return `${sym}${Math.round(amount)}`;
 }

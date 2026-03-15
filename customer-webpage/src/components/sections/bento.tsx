@@ -2,6 +2,7 @@
 "use client";
 
 import { Section } from "@/components/section";
+import { CardAnalyticsPreview } from "@/components/ui/card-analytics-preview";
 import { easeInOutCubic } from "@/lib/animation";
 import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
@@ -78,11 +79,17 @@ export function BentoGrid() {
                 bentoItem.fullWidth && "sm:space-x-4"
               )}
             >
-              <img
-                src={bentoItem.imageSrc}
-                alt={bentoItem.imageAlt}
-                className="w-full h-64 sm:h-96 rounded-xl object-cover object-top"
-              />
+              {bentoItem.previewId === "card-analytics" ? (
+                <div className="w-full h-64 sm:h-96 rounded-xl overflow-y-auto scrollbar-hide">
+                  <CardAnalyticsPreview />
+                </div>
+              ) : (
+                <img
+                  src={bentoItem.imageSrc}
+                  alt={bentoItem.imageAlt}
+                  className="w-full h-64 sm:h-96 rounded-xl object-cover object-top"
+                />
+              )}
             </div>
           </motion.div>
         ))}

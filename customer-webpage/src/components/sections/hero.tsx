@@ -2,7 +2,11 @@
 
 import { Icons } from "@/components/icons";
 import { Section } from "@/components/section";
+import { CardAnalyticsPreview } from "@/components/ui/card-analytics-preview";
+import { CategoriesScreenPreview } from "@/components/ui/categories-screen-preview";
 import { IPhoneFrame } from "@/components/ui/iphone-frame";
+import { TransactionsScreenPreview } from "@/components/ui/transactions-screen-preview";
+import { UploadScreenPreview } from "@/components/ui/upload-screen-preview";
 import { easeInOutCubic } from "@/lib/animation";
 import { siteConfig } from "@/lib/config";
 import { motion, useScroll, useTransform } from "framer-motion";
@@ -85,7 +89,7 @@ export function Hero() {
             </motion.a>
           </div>
         </div>
-        <div className="flex flex-nowrap items-center justify-center gap-4 sm:gap-8 h-auto sm:h-[600px] select-none">
+        <div className="flex flex-nowrap items-center justify-center gap-4 sm:gap-6 h-auto sm:h-[680px] select-none">
           <motion.div
             initial={{ opacity: 0, x: -200 }}
             animate={{ opacity: 1, x: 0 }}
@@ -93,12 +97,14 @@ export function Hero() {
             transition={{ duration: 1, delay: 1 }}
             className="flex-shrink-0"
           >
-            <IPhoneFrame className="w-[160px] sm:w-[220px]">
-              <img
-                src="/screenshots/home.svg"
-                alt="Vector Expense Home"
-                className="w-full h-auto"
-              />
+            <IPhoneFrame compact className="w-[180px] sm:w-[320px]">
+              <div className="h-[350px] sm:h-[540px] overflow-hidden">
+                <img
+                  src="/screenshots/home.svg"
+                  alt="Vector Expense Home"
+                  className="w-full h-full object-cover object-top"
+                />
+              </div>
             </IPhoneFrame>
           </motion.div>
           <motion.div
@@ -108,12 +114,10 @@ export function Hero() {
             transition={{ duration: 1, delay: 1 }}
             className="flex-shrink-0"
           >
-            <IPhoneFrame className="w-[160px] sm:w-[220px]">
-              <img
-                src="/screenshots/upload.svg"
-                alt="Vector Expense Upload"
-                className="w-full h-auto"
-              />
+            <IPhoneFrame compact className="w-[180px] sm:w-[320px]">
+              <div className="h-[350px] sm:h-[540px] overflow-hidden">
+                <UploadScreenPreview />
+              </div>
             </IPhoneFrame>
           </motion.div>
           <motion.div
@@ -123,12 +127,10 @@ export function Hero() {
             transition={{ duration: 1, delay: 1 }}
             className="flex-shrink-0"
           >
-            <IPhoneFrame className="w-[160px] sm:w-[220px]">
-              <img
-                src="/screenshots/analysis.svg"
-                alt="Vector Expense Analysis"
-                className="w-full h-auto"
-              />
+            <IPhoneFrame className="w-[200px] sm:w-[320px] z-10">
+              <div className="h-[390px] sm:h-[580px] overflow-hidden">
+                <CardAnalyticsPreview />
+              </div>
             </IPhoneFrame>
           </motion.div>
           <motion.div
@@ -138,12 +140,10 @@ export function Hero() {
             transition={{ duration: 1, delay: 1 }}
             className="flex-shrink-0"
           >
-            <IPhoneFrame className="w-[160px] sm:w-[220px]">
-              <img
-                src="/screenshots/categories.svg"
-                alt="Vector Expense Categories"
-                className="w-full h-auto"
-              />
+            <IPhoneFrame compact className="w-[180px] sm:w-[320px]">
+              <div className="h-[350px] sm:h-[540px] overflow-hidden">
+                <CategoriesScreenPreview />
+              </div>
             </IPhoneFrame>
           </motion.div>
           <motion.div
@@ -153,12 +153,10 @@ export function Hero() {
             transition={{ duration: 1, delay: 1 }}
             className="flex-shrink-0"
           >
-            <IPhoneFrame className="w-[160px] sm:w-[220px]">
-              <img
-                src="/screenshots/transactions.svg"
-                alt="Vector Expense Transactions"
-                className="w-full h-auto"
-              />
+            <IPhoneFrame compact className="w-[180px] sm:w-[320px]">
+              <div className="h-[350px] sm:h-[540px] overflow-hidden">
+                <TransactionsScreenPreview />
+              </div>
             </IPhoneFrame>
           </motion.div>
         </div>
