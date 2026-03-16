@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,51 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontSize, SUPPORTED_CURRENCIES, CURRENCY_CONFIG, CurrencyCode } from '../theme';
+import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
+import { spacing, borderRadius, fontSize, SUPPORTED_CURRENCIES, CURRENCY_CONFIG, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, CreditCard } from '../store';
-import { Card, PrimaryButton, SectionHeader } from '../components/ui';
+import { Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
+import { scanCardImage } from '../utils/api';
 import { ISSUERS, NETWORKS, ISSUER_CURRENCY, CARD_COLORS } from '../constants/cards';
 
+function matchIssuer(scanned: string | null): string {
+  if (!scanned) return ISSUERS[ISSUERS.length - 1]; // "Other"
+  const lower = scanned.toLowerCase();
+  for (const iss of ISSUERS) {
+    if (lower.includes(iss.toLowerCase().split(' ')[0])) return iss;
+  }
+  // Common aliases
+  if (lower.includes('hdfc')) return 'HDFC Bank';
+  if (lower.includes('icici')) return 'ICICI Bank';
+  if (lower.includes('sbi')) return 'SBI Card';
+  if (lower.includes('axis')) return 'Axis Bank';
+  if (lower.includes('chase')) return 'Chase';
+  if (lower.includes('amex') || lower.includes('american express')) return 'American Express';
+  if (lower.includes('citi')) return 'Citi';
+  return ISSUERS[ISSUERS.length - 1];
+}
+
+function matchNetwork(scanned: string | null): string {
+  if (!scanned) return NETWORKS[0];
+  const lower = scanned.toLowerCase();
+  if (lower.includes('master')) return 'Mastercard';
+  if (lower.includes('amex') || lower.includes('american')) return 'American Express';
+  if (lower.includes('rupay')) return 'RuPay';
+  return 'Visa';
+}
+
 export default function AddCardScreen() {
-  const insets = useSafeAreaInsets();
-  const { cards, addCard, removeCard } = useStore();
+  const navigation = useNavigation();
+  const { addCard } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [nickname, setNickname] = useState('');
   const [last4, setLast4] = useState('');
@@ -31,6 +64,7 @@ export default function AddCardScreen() {
   const [showIssuerPicker, setShowIssuerPicker] = useState(false);
   const [showNetworkPicker, setShowNetworkPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const previewCard: CreditCard = {
     id: 'preview',
@@ -42,6 +76,53 @@ export default function AddCardScreen() {
     billingCycle: billingCycle || '1st of month',
     color: cardColor,
     currency,
+  };
+
+  const handleScanCard = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission Needed', 'Camera access is required to scan your card.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.6,
+      allowsEditing: false,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const imageUri = result.assets[0].uri;
+    setScanning(true);
+
+    try {
+      const scanned = await scanCardImage(imageUri);
+
+      // Pre-fill form fields from scanned data
+      if (scanned.last4) setLast4(scanned.last4);
+
+      const detectedIssuer = matchIssuer(scanned.issuer);
+      setIssuer(detectedIssuer);
+      setCurrency(ISSUER_CURRENCY[detectedIssuer] || 'INR');
+
+      setNetwork(matchNetwork(scanned.network));
+
+      if (scanned.cardholder_name) {
+        // Use cardholder name as nickname suggestion if nickname is empty
+        if (!nickname) setNickname(scanned.cardholder_name);
+      }
+
+      Alert.alert(
+        'Card Scanned',
+        `Detected: ${scanned.last4 ? `····${scanned.last4}` : 'No number found'} · ${scanned.issuer || 'Unknown issuer'} · ${scanned.network || 'Unknown network'}\n\nReview and fill in the remaining fields.`,
+      );
+    } catch (e: any) {
+      Alert.alert('Scan Failed', e?.response?.data?.detail || e?.message || 'Could not read card details. Try again or enter manually.');
+    } finally {
+      setScanning(false);
+    }
+
+    // Image is never saved — expo-image-picker's temp file will be cleaned up by OS
   };
 
   const handleSave = () => {
@@ -71,34 +152,33 @@ export default function AddCardScreen() {
     };
 
     addCard(card);
-    // Reset form
-    setNickname('');
-    setLast4('');
-    setCreditLimit('');
-    setBillingCycle('');
-  };
-
-  const handleDelete = (id: string, name: string) => {
-    Alert.alert(
-      'Remove Card',
-      `Are you sure you want to remove "${name}"? This will also delete associated statement history.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeCard(id),
-        },
-      ]
-    );
+    navigation.goBack();
   };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>Cards</Text>
-        <Text style={styles.subtitle}>Manage your credit cards</Text>
-      </View>
+      {/* Scan Card button */}
+      <TouchableOpacity
+        style={styles.scanBtn}
+        onPress={handleScanCard}
+        disabled={scanning}
+        activeOpacity={0.7}
+      >
+        {scanning ? (
+          <ActivityIndicator size="small" color={colors.accent} />
+        ) : (
+          <Feather name="camera" size={20} color={colors.accent} />
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.scanBtnTitle}>
+            {scanning ? 'Reading card...' : 'Scan Card with Camera'}
+          </Text>
+          <Text style={styles.scanBtnSubtitle}>
+            Auto-fill card details from a photo
+          </Text>
+        </View>
+        {!scanning && <Feather name="chevron-right" size={18} color={colors.textMuted} />}
+      </TouchableOpacity>
 
       {/* Live card preview */}
       <View style={styles.previewContainer}>
@@ -190,30 +270,6 @@ export default function AddCardScreen() {
         </Card>
       </View>
 
-      {/* Existing cards list */}
-      {cards.length > 0 && (
-        <View style={{ marginTop: spacing.xl }}>
-          <SectionHeader title="Your Cards" />
-          {cards.map((card) => (
-            <View key={card.id} style={styles.existingCard}>
-              <View style={[styles.cardColorBar, { backgroundColor: card.color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.existingCardName}>{card.nickname}</Text>
-                <Text style={styles.existingCardMeta}>
-                  {card.issuer} / {card.network} / ****{card.last4} / {card.currency ?? 'INR'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => handleDelete(card.id, card.nickname)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Feather name="trash-2" size={18} color={colors.debit} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-
       <View style={{ height: 60 }} />
     </ScrollView>
   );
@@ -238,6 +294,9 @@ function InputField({
   keyboardType?: 'default' | 'number-pad';
   maxLength?: number;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <>
       <Text style={styles.inputLabel}>{label}</Text>
@@ -258,26 +317,34 @@ function InputField({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accent + '10',
+    borderWidth: 1,
+    borderColor: colors.accent + '30',
+    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
-  title: {
-    color: colors.textPrimary,
-    fontSize: fontSize.xxxl,
+  scanBtnTitle: {
+    color: colors.accent,
+    fontSize: fontSize.md,
     fontWeight: '600',
-    lineHeight: 32,
+    lineHeight: 20,
   },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    marginTop: spacing.xs,
-    lineHeight: 18,
+  scanBtnSubtitle: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+    lineHeight: 16,
   },
   previewContainer: {
     alignItems: 'center',
@@ -346,31 +413,5 @@ const styles = StyleSheet.create({
   colorSwatchActive: {
     borderWidth: 2,
     borderColor: colors.accent,
-  },
-  existingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  cardColorBar: {
-    width: 4,
-    height: 36,
-    borderRadius: 2,
-    marginRight: spacing.md,
-  },
-  existingCardName: {
-    color: colors.textPrimary,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  existingCardMeta: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
   },
 });

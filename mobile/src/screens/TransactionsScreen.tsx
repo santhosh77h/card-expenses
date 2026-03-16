@@ -15,7 +15,9 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, categoryColors, CurrencyCode } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, categoryColors, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, Transaction, CreditCard } from '../store';
 import { Badge, EmptyState, PrimaryButton } from '../components/ui';
 import TransactionDetailModal from '../components/TransactionDetailModal';
@@ -31,7 +33,9 @@ type NavProp = CompositeNavigationProp<
 export default function TransactionsScreen() {
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
-  const { cards, manualTransactions, enrichments } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { cards, manualTransactions, enrichments, defaultCurrency } = useStore();
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -139,7 +143,7 @@ export default function TransactionsScreen() {
   const totals = useMemo(() => {
     const byCurrency: Record<string, { debits: number; credits: number }> = {};
     for (const t of filteredTransactions) {
-      const cur = t.currency ?? (t.cardId ? cardMap[t.cardId]?.currency : undefined) ?? 'INR';
+      const cur = t.currency ?? (t.cardId ? cardMap[t.cardId]?.currency : undefined) ?? defaultCurrency;
       if (!byCurrency[cur]) byCurrency[cur] = { debits: 0, credits: 0 };
       if (t.type === 'debit') byCurrency[cur].debits += t.amount;
       else byCurrency[cur].credits += t.amount;
@@ -183,7 +187,7 @@ export default function TransactionsScreen() {
           {item.description}
         </Text>
         <View style={styles.rowMeta}>
-          <Text style={styles.rowDate}>{formatDate(item.date, dateFormatForCurrency(item.currency ?? txnCard?.currency ?? 'INR'))}</Text>
+          <Text style={styles.rowDate}>{formatDate(item.date, dateFormatForCurrency(item.currency ?? txnCard?.currency ?? defaultCurrency))}</Text>
           <Badge text={item.category} color={item.category_color} />
           {txnCard && (
             <View style={styles.cardTag}>
@@ -201,7 +205,7 @@ export default function TransactionsScreen() {
           ]}
         >
           {item.type === 'debit' ? '-' : '+'}
-          {formatCurrency(item.amount, item.currency ?? txnCard?.currency ?? 'INR')}
+          {formatCurrency(item.amount, item.currency ?? txnCard?.currency ?? defaultCurrency)}
         </Text>
         {/* Enrichment indicators */}
         <View style={styles.indicators}>
@@ -218,7 +222,7 @@ export default function TransactionsScreen() {
       </View>
     </TouchableOpacity>
     );
-  }, [cardMap, enrichments]);
+  }, [cardMap, enrichments, colors, styles]);
 
   return (
     <View style={styles.container}>
@@ -460,7 +464,7 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

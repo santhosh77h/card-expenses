@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import {
   VictoryChart,
@@ -7,7 +7,9 @@ import {
   VictoryAxis,
   VictoryTheme,
 } from 'victory-native';
-import { colors, spacing, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import { spacing, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import type { ThemeColors } from '../../theme';
+import { useColors } from '../../hooks/useColors';
 import type { MonthlySpendByCard } from '../../utils/cardAnalytics';
 
 interface Props {
@@ -20,6 +22,9 @@ const CHART_WIDTH = Dimensions.get('window').width - spacing.lg * 2;
 const CHART_HEIGHT = 220;
 
 export default function SpendComparisonChart({ data, currency, cardColors }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (data.length === 0 || cardColors.length === 0) return null;
 
   // Build per-card series data for VictoryGroup
@@ -106,7 +111,7 @@ export default function SpendComparisonChart({ data, currency, cardColors }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,

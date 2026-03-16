@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import Constants from 'expo-constants';
-import { colors } from '../theme';
+import { useColors, useIsDark } from '../hooks/useColors';
 import { setPostHogClient } from '../utils/analytics';
 import HomeScreen from '../screens/HomeScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
@@ -17,12 +17,14 @@ import AddTransactionScreen from '../screens/AddTransactionScreen';
 import BackupScreen from '../screens/BackupScreen';
 import CardListScreen from '../screens/CardListScreen';
 import EditCardScreen from '../screens/EditCardScreen';
+import AddCardScreen from '../screens/AddCardScreen';
 import AskScreen from '../screens/AskScreen';
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
   Analysis: { statementId: string; cardId: string };
   AddTransaction: undefined;
+  AddCard: undefined;
   Backup: undefined;
   CardList: undefined;
   EditCard: { cardId: string };
@@ -40,20 +42,9 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const darkTheme = {
-  ...DefaultTheme,
-  dark: true,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    text: colors.textPrimary,
-    border: colors.border,
-    primary: colors.accent,
-  },
-};
-
 function TabNavigator() {
+  const colors = useColors();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -109,6 +100,28 @@ if (__DEV__) {
 }
 
 export default function Navigation() {
+  const colors = useColors();
+  const isDark = useIsDark();
+
+  const navTheme = useMemo(() => ({
+    ...DefaultTheme,
+    dark: isDark,
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.textPrimary,
+      border: colors.border,
+      primary: colors.accent,
+    },
+  }), [colors, isDark]);
+
+  const headerOptions = useMemo(() => ({
+    headerStyle: { backgroundColor: colors.surface },
+    headerTintColor: colors.textPrimary,
+    headerShadowVisible: false,
+  }), [colors]);
+
   const navigator = (
     <Stack.Navigator
       screenOptions={{
@@ -123,9 +136,16 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'Add Transaction',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="AddCard"
+        component={AddCardScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Add Card',
+          ...headerOptions,
         }}
       />
       <Stack.Screen
@@ -134,9 +154,7 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'Statement Analysis',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
+          ...headerOptions,
         }}
       />
       <Stack.Screen
@@ -145,9 +163,7 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'Data & Backup',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
+          ...headerOptions,
         }}
       />
       <Stack.Screen
@@ -156,9 +172,7 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'My Cards',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
+          ...headerOptions,
         }}
       />
       <Stack.Screen
@@ -167,9 +181,7 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'Edit Card',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
+          ...headerOptions,
         }}
       />
       <Stack.Screen
@@ -183,7 +195,7 @@ export default function Navigation() {
   );
 
   return (
-    <NavigationContainer theme={darkTheme}>
+    <NavigationContainer theme={navTheme}>
       {posthogApiKey ? (
         <PostHogProvider
           apiKey={posthogApiKey}

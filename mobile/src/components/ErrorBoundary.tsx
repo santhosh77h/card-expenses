@@ -1,6 +1,8 @@
 import React, { Component, ErrorInfo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
+import { spacing, borderRadius, fontSize } from '../theme';
+import type { ThemeColors } from '../theme';
+import { getColors } from '../hooks/useColors';
 
 interface Props {
   children: React.ReactNode;
@@ -27,6 +29,8 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const colors = getColors();
+      const styles = createStyles(colors);
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Something went wrong</Text>
@@ -43,7 +47,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -72,7 +76,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
   },
   buttonText: {
-    color: colors.background,
+    color: colors.textOnAccent,
     fontSize: fontSize.lg,
     fontWeight: '700',
   },

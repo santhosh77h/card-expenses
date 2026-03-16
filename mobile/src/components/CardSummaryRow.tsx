@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import type { CardSpendSummary } from '../utils/cardAnalytics';
 
 interface Props {
@@ -17,6 +19,9 @@ interface Props {
 }
 
 export default function CardSummaryRow({ summaries, selectedCardId, onSelectCard }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (summaries.length === 0) return null;
 
   return (
@@ -110,7 +115,7 @@ export default function CardSummaryRow({ summaries, selectedCardId, onSelectCard
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

@@ -594,6 +594,33 @@ function validateParseResult(data: any): ParseResult {
 	};
 }
 
+// ---------------------------------------------------------------------------
+// Card scanning via camera — extracts last4, issuer, network from a photo
+// ---------------------------------------------------------------------------
+
+export interface ScannedCardInfo {
+	last4: string | null;
+	issuer: string | null;
+	network: string | null;
+	cardholder_name: string | null;
+}
+
+export async function scanCardImage(imageUri: string): Promise<ScannedCardInfo> {
+	const formData = new FormData();
+	formData.append('file', {
+		uri: imageUri,
+		name: 'card.jpg',
+		type: 'image/jpeg',
+	} as any);
+
+	const response = await axios.post<ScannedCardInfo>(`${API_URL}/scan-card`, formData, {
+		headers: { 'Content-Type': 'multipart/form-data', 'X-Vector-API-Key': VECTOR_API_KEY },
+		timeout: 30000,
+	});
+
+	return response.data;
+}
+
 export function generateCSV(transactions: Transaction[]): string {
 	const header = 'date,description,amount,category,type';
 	const rows = transactions.map(

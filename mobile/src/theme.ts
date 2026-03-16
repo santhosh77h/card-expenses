@@ -1,4 +1,14 @@
-export const colors = {
+// ---------------------------------------------------------------------------
+// Theme mode types
+// ---------------------------------------------------------------------------
+
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+// ---------------------------------------------------------------------------
+// Color palettes
+// ---------------------------------------------------------------------------
+
+export const darkColors = {
   background: '#0A0E1A',
   surface: '#111827',
   surfaceElevated: '#1C2333',
@@ -13,7 +23,31 @@ export const colors = {
   tabBarBg: '#111827',
   tabBarActive: '#00E5A0',
   tabBarInactive: '#6B7280',
+  textOnAccent: '#0A0E1A',
 };
+
+export const lightColors: ThemeColors = {
+  background: '#F8F9FC',
+  surface: '#FFFFFF',
+  surfaceElevated: '#F0F2F5',
+  accent: '#00B880',
+  debit: '#DC2626',
+  credit: '#059669',
+  warning: '#D97706',
+  textPrimary: '#111827',
+  textSecondary: '#4B5563',
+  textMuted: '#9CA3AF',
+  border: '#E5E7EB',
+  tabBarBg: '#FFFFFF',
+  tabBarActive: '#00B880',
+  tabBarInactive: '#9CA3AF',
+  textOnAccent: '#FFFFFF',
+};
+
+export type ThemeColors = typeof darkColors;
+
+/** @deprecated Use useColors() hook instead */
+export const colors = darkColors;
 
 export const spacing = {
   xs: 4,

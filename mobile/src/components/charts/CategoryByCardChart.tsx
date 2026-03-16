@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors, spacing, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import { spacing, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import type { ThemeColors } from '../../theme';
+import { useColors } from '../../hooks/useColors';
 import type { CategoryByCardSegment } from '../../utils/cardAnalytics';
 
 interface Props {
@@ -11,6 +13,9 @@ interface Props {
 const CHART_WIDTH = Dimensions.get('window').width - spacing.lg * 4;
 
 export default function CategoryByCardChart({ data, currency }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (data.length === 0) return null;
 
   const maxTotal = Math.max(...data.map((d) => d.total), 1);
@@ -71,7 +76,7 @@ export default function CategoryByCardChart({ data, currency }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,

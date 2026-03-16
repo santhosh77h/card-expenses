@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,11 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontSize, formatCurrency } from '../theme';
-import type { CurrencyCode } from '../theme';
+import { useNavigation } from '@react-navigation/native';
+import { spacing, borderRadius, fontSize, formatCurrency } from '../theme';
+import type { ThemeColors, CurrencyCode } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore } from '../store';
 import { StructuredAnswer } from '../components/AskResultViews';
 import { getDb } from '../db';
 import { useNLU } from '../utils/useNLU';
@@ -34,7 +37,7 @@ interface QA {
 // Query execution against op-sqlite
 // ---------------------------------------------------------------------------
 
-function runQuery(result: NLUResult): { answer: string; rows: Record<string, any>[] } {
+function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { answer: string; rows: Record<string, any>[] } {
   const db = getDb();
   const res = db.executeSync(result.sql, result.params);
   const rows = res.rows as Record<string, any>[];
@@ -55,7 +58,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
 
     case 'total_spent': {
       const total = (rows[0]?.result as number) ?? 0;
-      const currency = (rows[0]?.currency as CurrencyCode) ?? 'INR';
+      const currency = (rows[0]?.currency as CurrencyCode) ?? fallbackCurrency;
       const target = result.entities.merchant ?? result.entities.category ?? '';
       return {
         answer: total === 0
@@ -67,7 +70,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
 
     case 'average_spend': {
       const avg = (rows[0]?.result as number) ?? 0;
-      const currency = (rows[0]?.currency as CurrencyCode) ?? 'INR';
+      const currency = (rows[0]?.currency as CurrencyCode) ?? fallbackCurrency;
       const target = result.entities.merchant ?? result.entities.category ?? '';
       return {
         answer: avg === 0
@@ -80,7 +83,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
     case 'highest_transaction': {
       if (rows.length === 0) return { answer: 'No transactions found.', rows };
       const r = rows[0];
-      const currency = (r.currency as CurrencyCode) ?? 'INR';
+      const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
       return {
         answer: `Highest: ${formatCurrency(r.amount as number, currency)} — ${r.description} on ${r.date}.`,
         rows,
@@ -90,7 +93,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
     case 'lowest_transaction': {
       if (rows.length === 0) return { answer: 'No transactions found.', rows };
       const r = rows[0];
-      const currency = (r.currency as CurrencyCode) ?? 'INR';
+      const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
       return {
         answer: `Lowest: ${formatCurrency(r.amount as number, currency)} — ${r.description} on ${r.date}.`,
         rows,
@@ -100,7 +103,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
     case 'category_spend': {
       if (rows.length === 0) return { answer: 'No spending data found.', rows };
       const lines = rows.map((r) => {
-        const currency = (r.currency as CurrencyCode) ?? 'INR';
+        const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
         return `${r.category}: ${formatCurrency(r.total as number, currency)} (${r.count} txns)`;
       });
       return { answer: lines.join('\n'), rows };
@@ -109,7 +112,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
     case 'monthly_summary': {
       if (rows.length === 0) return { answer: 'No data for monthly summary.', rows };
       const lines = rows.map((r) => {
-        const currency = (r.currency as CurrencyCode) ?? 'INR';
+        const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
         return `${r.month}: ${formatCurrency(r.total as number, currency)} (${r.count} txns)`;
       });
       return { answer: lines.join('\n'), rows };
@@ -119,7 +122,7 @@ function runQuery(result: NLUResult): { answer: string; rows: Record<string, any
     case 'transactions_on_date': {
       if (rows.length === 0) return { answer: 'No transactions found.', rows };
       const lines = rows.slice(0, 10).map((r) => {
-        const currency = (r.currency as CurrencyCode) ?? 'INR';
+        const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
         const sign = r.type === 'credit' ? '+' : '-';
         return `${r.date}  ${sign}${formatCurrency(r.amount as number, currency)}  ${r.description}`;
       });
@@ -151,10 +154,14 @@ const SUGGESTIONS = [
 
 export default function AskScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { ready, loading, error, query } = useNLU();
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<QA[]>([]);
   const scrollRef = useRef<ScrollView>(null);
+  const { defaultCurrency } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     if (history.length > 0) {
@@ -170,7 +177,7 @@ export default function AskScreen() {
     if (!result) return;
 
     try {
-      const { answer, rows } = runQuery(result);
+      const { answer, rows } = runQuery(result, defaultCurrency);
       setHistory((prev) => [...prev, { question: q, result, answer, rows }]);
     } catch (err: any) {
       setHistory((prev) => [
@@ -190,6 +197,9 @@ export default function AskScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
         <Feather name="message-circle" size={20} color={colors.accent} />
         <Text style={styles.headerTitle}>Ask Vector</Text>
       </View>
@@ -304,7 +314,7 @@ export default function AskScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

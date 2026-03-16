@@ -2,6 +2,7 @@
 API route handlers.
 """
 
+import base64
 import json
 import logging
 from datetime import datetime
@@ -78,3 +79,112 @@ async def parse_statement(
         _save_debug(file.filename, result)
 
     return result
+
+
+@router.post("/scan-card")
+async def scan_card(
+    request: Request,
+    file: UploadFile = File(...),
+):
+    """
+    Extract card details from a photo using GPT-4o vision.
+
+    Privacy guarantees:
+    - The image is processed in-memory only — never written to disk.
+    - Only structured text fields are returned (last4, issuer, network).
+    - No card numbers, CVV, or expiry dates are stored or returned.
+    """
+    await check_rate_limit(request)
+
+    if not settings.llm_enabled:
+        raise HTTPException(status_code=503, detail="LLM not configured on server.")
+
+    image_bytes = await file.read()
+    if len(image_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty image uploaded.")
+    if len(image_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit.")
+
+    # Detect MIME type from extension
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if file.filename else "jpg"
+    mime_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "heic": "image/heic"}
+    mime = mime_map.get(ext, "image/jpeg")
+
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+    data_url = f"data:{mime};base64,{b64}"
+
+    try:
+        import openai
+
+        client = openai.AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=settings.OPENAI_TIMEOUT,
+        )
+
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You extract credit/debit card details from a photo. "
+                        "Return ONLY a JSON object with these fields:\n"
+                        '- "last4": last 4 digits of the card number (string, exactly 4 digits, or null)\n'
+                        '- "issuer": the bank/issuer name printed on the card (string or null)\n'
+                        '- "network": the card network — one of "Visa", "Mastercard", "American Express", "RuPay" (string or null)\n'
+                        '- "cardholder_name": name printed on the card (string or null)\n'
+                        "\nIMPORTANT PRIVACY RULES:\n"
+                        "- NEVER return the full card number. Only the LAST 4 digits.\n"
+                        "- NEVER return CVV, expiry date, or any security codes.\n"
+                        "- If you cannot read a field, return null for it.\n"
+                        "- Return ONLY the JSON object, no markdown or explanation."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract card details from this photo:"},
+                        {"type": "image_url", "image_url": {"url": data_url, "detail": "low"}},
+                    ],
+                },
+            ],
+            max_tokens=200,
+            temperature=0,
+        )
+
+        raw = response.choices[0].message.content or "{}"
+        # Strip markdown code fences if present
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1]
+        if raw.endswith("```"):
+            raw = raw.rsplit("```", 1)[0]
+        raw = raw.strip()
+
+        result = json.loads(raw)
+
+        # Sanitize — enforce only allowed fields, never leak full number
+        sanitized = {
+            "last4": None,
+            "issuer": result.get("issuer"),
+            "network": result.get("network"),
+            "cardholder_name": result.get("cardholder_name"),
+        }
+
+        # Validate last4 is exactly 4 digits
+        last4_raw = result.get("last4")
+        if isinstance(last4_raw, str) and len(last4_raw) == 4 and last4_raw.isdigit():
+            sanitized["last4"] = last4_raw
+        elif isinstance(last4_raw, str) and len(last4_raw) > 4:
+            # LLM might have returned more digits — only take last 4
+            digits = "".join(c for c in last4_raw if c.isdigit())
+            if len(digits) >= 4:
+                sanitized["last4"] = digits[-4:]
+
+        return sanitized
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Failed to parse card details from image.")
+    except Exception as e:
+        logger.error("Card scan failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Card scan failed. Please try again.")

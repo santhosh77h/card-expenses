@@ -10,7 +10,10 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, SUPPORTED_CURRENCIES, CURRENCY_CONFIG, CurrencyCode } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, SUPPORTED_CURRENCIES, CURRENCY_CONFIG, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore } from '../store';
 import type { CreditCard, StatementData, MonthlyUsage } from '../store';
 import { Card, PrimaryButton, EmptyState } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
@@ -29,8 +32,10 @@ interface Props {
   cards: CreditCard[];
   statements: Record<string, StatementData[]>;
   monthlyUsage: MonthlyUsage[];
-  addCard: (card: CreditCard) => void;
-  removeCard: (id: string) => void;
+  addCard?: (card: CreditCard) => void;
+  removeCard?: (id: string) => void;
+  /** Hide delete button and add-card form */
+  readOnly?: boolean;
 }
 
 export default function ManageCardsSection({
@@ -39,7 +44,11 @@ export default function ManageCardsSection({
   monthlyUsage,
   addCard,
   removeCard,
+  readOnly,
 }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { defaultCurrency } = useStore();
   const [manageCardId, setManageCardId] = useState<string | null>(cards[0]?.id ?? null);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -55,8 +64,9 @@ export default function ManageCardsSection({
     [activeCard, statements, monthlyUsage],
   );
 
-  // If no cards, show add form directly
+  // If no cards, show add form directly (unless readOnly)
   if (cards.length === 0) {
+    if (readOnly) return null;
     return (
       <>
         <View style={{ marginTop: spacing.lg, marginBottom: spacing.lg }}>
@@ -66,12 +76,12 @@ export default function ManageCardsSection({
             subtitle="Add your first credit card to get started."
           />
         </View>
-        <AddCardForm addCard={addCard} onDone={() => {}} />
+        {addCard && <AddCardForm addCard={addCard} onDone={() => {}} />}
       </>
     );
   }
 
-  const currency = (activeCard?.currency || 'INR') as CurrencyCode;
+  const currency = (activeCard?.currency || defaultCurrency) as CurrencyCode;
   const latestBill = bills[bills.length - 1];
   const utilization = latestBill?.utilization ?? 0;
   const utilizationColor = utilization > 0.75 ? colors.debit : utilization > 0.5 ? colors.warning : colors.accent;
@@ -111,25 +121,27 @@ export default function ManageCardsSection({
                 {activeCard.issuer} · {activeCard.network} · ····{activeCard.last4}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                Alert.alert(
-                  'Remove Card',
-                  `Remove "${activeCard.nickname}"? This will delete all associated statements and data.`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: () => {
-                      removeCard(activeCard.id);
-                      setManageCardId(cards.find((c) => c.id !== activeCard.id)?.id ?? null);
-                    }},
-                  ],
-                );
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.deleteBtn}
-            >
-              <Feather name="trash-2" size={16} color={colors.debit} />
-            </TouchableOpacity>
+            {!readOnly && removeCard && (
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Remove Card',
+                    `Remove "${activeCard.nickname}"? This will delete all associated statements and data.`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => {
+                        removeCard(activeCard.id);
+                        setManageCardId(cards.find((c) => c.id !== activeCard.id)?.id ?? null);
+                      }},
+                    ],
+                  );
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.deleteBtn}
+              >
+                <Feather name="trash-2" size={16} color={colors.debit} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Quick stats grid */}
@@ -212,7 +224,7 @@ export default function ManageCardsSection({
                   </View>
                   {activeCard.totalAmountDue != null && (
                     <View style={styles.paymentItem}>
-                      <Feather name="dollar-sign" size={16} color={colors.debit} />
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.debit }}>{CURRENCY_CONFIG[currency].symbol}</Text>
                       <View>
                         <Text style={styles.paymentLabel}>Amount Due</Text>
                         <Text style={styles.paymentValue}>
@@ -280,33 +292,35 @@ export default function ManageCardsSection({
       )}
 
       {/* Add new card toggle/form */}
-      <View style={styles.addCardSection}>
-        {!showAddForm ? (
-          <TouchableOpacity
-            style={styles.addCardBtn}
-            onPress={() => setShowAddForm(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.addCardIconCircle}>
-              <Feather name="plus" size={20} color={colors.accent} />
-            </View>
-            <View>
-              <Text style={styles.addCardBtnTitle}>Add New Card</Text>
-              <Text style={styles.addCardBtnSubtitle}>Set up another credit card</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-        ) : (
-          <AddCardForm
-            addCard={(card) => {
-              addCard(card);
-              setShowAddForm(false);
-              setManageCardId(card.id);
-            }}
-            onDone={() => setShowAddForm(false)}
-          />
-        )}
-      </View>
+      {!readOnly && addCard && (
+        <View style={styles.addCardSection}>
+          {!showAddForm ? (
+            <TouchableOpacity
+              style={styles.addCardBtn}
+              onPress={() => setShowAddForm(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.addCardIconCircle}>
+                <Feather name="plus" size={20} color={colors.accent} />
+              </View>
+              <View>
+                <Text style={styles.addCardBtnTitle}>Add New Card</Text>
+                <Text style={styles.addCardBtnSubtitle}>Set up another credit card</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          ) : (
+            <AddCardForm
+              addCard={(card) => {
+                addCard(card);
+                setShowAddForm(false);
+                setManageCardId(card.id);
+              }}
+              onDone={() => setShowAddForm(false)}
+            />
+          )}
+        </View>
+      )}
     </>
   );
 }
@@ -331,6 +345,8 @@ function StatementBarChart({
   cardColor: string;
   creditLimit: number;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const maxDebit = Math.max(...bills.map((b) => b.totalDebits), 1);
   const contentWidth = bills.length * (BAR_WIDTH + BAR_GAP) + spacing.lg;
@@ -449,6 +465,8 @@ function AddCardForm({
   addCard: (card: CreditCard) => void;
   onDone: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [nickname, setNickname] = useState('');
   const [last4, setLast4] = useState('');
   const [issuer, setIssuer] = useState(ISSUERS[0]);
@@ -607,6 +625,9 @@ function InputField({
   keyboardType?: 'default' | 'number-pad';
   maxLength?: number;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <>
       <Text style={styles.inputLabel}>{label}</Text>
@@ -627,7 +648,7 @@ function InputField({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   manageCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',

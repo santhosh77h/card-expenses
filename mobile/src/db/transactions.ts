@@ -15,6 +15,19 @@ export function deleteTransaction(id: string): void {
   getDb().executeSync('DELETE FROM transactions WHERE id = ?', [id]);
 }
 
+export function deleteTransactionsByCardId(cardId: string): string[] {
+  const db = getDb();
+  const result = db.executeSync(
+    `SELECT id FROM transactions WHERE cardId = ?`,
+    [cardId],
+  );
+  const ids: string[] = result.rows.map((r) => r.id as string);
+  if (ids.length > 0) {
+    db.executeSync(`DELETE FROM transactions WHERE cardId = ?`, [cardId]);
+  }
+  return ids;
+}
+
 export function deleteAllManualTransactions(): string[] {
   const db = getDb();
   const result = db.executeSync(

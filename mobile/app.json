@@ -37,6 +37,7 @@
 			"expo-font",
 			"expo-document-picker",
 			"expo-image-picker",
+			"expo-notifications",
 			["react-native-fast-tflite", { "enableCoreMLDelegate": true }]
 		],
 		"extra": {

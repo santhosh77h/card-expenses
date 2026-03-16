@@ -8,7 +8,9 @@ import {
   Dimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
+import { spacing, borderRadius, fontSize } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { monthLabelFull } from '../utils/cardAnalytics';
 
 interface Props {
@@ -22,6 +24,8 @@ interface Props {
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function MonthSelector({ selectedMonth, availableMonths, onChangeMonth, allowAll, renderSubtitle }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const isAll = selectedMonth === null;
@@ -165,7 +169,7 @@ export default function MonthSelector({ selectedMonth, availableMonths, onChange
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   strip: {
     flexDirection: 'row',
     alignItems: 'center',

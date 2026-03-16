@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   TextStyle,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore } from '../store';
 
 // ---------------------------------------------------------------------------
 // Card wrapper
@@ -21,6 +24,8 @@ export const Card = React.memo(function Card({
   children: React.ReactNode;
   style?: ViewStyle;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return <View style={[styles.card, style]}>{children}</View>;
 });
 
@@ -37,6 +42,8 @@ export const SectionHeader = React.memo(function SectionHeader({
   action?: string;
   onAction?: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -62,6 +69,8 @@ export const StatRow = React.memo(function StatRow({
   value: string;
   valueColor?: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.statRow}>
       <Text style={styles.statLabel}>{label}</Text>
@@ -78,14 +87,17 @@ export const StatRow = React.memo(function StatRow({
 
 export const Badge = React.memo(function Badge({
   text,
-  color = colors.accent,
+  color,
 }: {
   text: string;
   color?: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const badgeColor = color ?? colors.accent;
   return (
-    <View style={[styles.badge, { backgroundColor: color + '20' }]}>
-      <Text style={[styles.badgeText, { color }]}>{text}</Text>
+    <View style={[styles.badge, { backgroundColor: badgeColor + '20' }]}>
+      <Text style={[styles.badgeText, { color: badgeColor }]}>{text}</Text>
     </View>
   );
 });
@@ -105,12 +117,14 @@ export const AmountText = React.memo(function AmountText({
   size?: 'sm' | 'md' | 'lg';
   currency?: CurrencyCode;
 }) {
+  const colors = useColors();
+  const { defaultCurrency } = useStore();
   const color = type === 'debit' ? colors.debit : colors.credit;
   const prefix = type === 'debit' ? '-' : '+';
   const sizeMap = { sm: fontSize.sm, md: fontSize.md, lg: fontSize.xl };
   return (
     <Text style={{ color, fontSize: sizeMap[size], fontWeight: '600', lineHeight: { sm: 18, md: 20, lg: 26 }[size] }}>
-      {prefix}{formatCurrency(amount, currency ?? 'INR')}
+      {prefix}{formatCurrency(amount, currency ?? defaultCurrency)}
     </Text>
   );
 });
@@ -121,7 +135,7 @@ export const AmountText = React.memo(function AmountText({
 
 export const ProgressBar = React.memo(function ProgressBar({
   progress,
-  color = colors.accent,
+  color,
   height = 6,
   style,
 }: {
@@ -130,6 +144,9 @@ export const ProgressBar = React.memo(function ProgressBar({
   height?: number;
   style?: ViewStyle;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const barColor = color ?? colors.accent;
   const clamped = Math.min(Math.max(progress, 0), 1);
   return (
     <View style={[styles.progressBg, { height, borderRadius: height / 2 }, style]}>
@@ -138,7 +155,7 @@ export const ProgressBar = React.memo(function ProgressBar({
           styles.progressFill,
           {
             width: `${clamped * 100}%`,
-            backgroundColor: color,
+            backgroundColor: barColor,
             height,
             borderRadius: height / 2,
           },
@@ -161,6 +178,8 @@ export const EmptyState = React.memo(function EmptyState({
   title: string;
   subtitle: string;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.emptyState} accessibilityRole="text">
       <Feather name={icon} size={48} color={colors.textMuted} />
@@ -189,6 +208,8 @@ export const PrimaryButton = React.memo(function PrimaryButton({
   icon?: keyof typeof Feather.glyphMap;
   variant?: 'filled' | 'outline';
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isFilled = variant === 'filled';
   return (
     <TouchableOpacity
@@ -209,14 +230,14 @@ export const PrimaryButton = React.memo(function PrimaryButton({
         <Feather
           name={icon}
           size={18}
-          color={isFilled ? colors.background : colors.accent}
+          color={isFilled ? colors.textOnAccent : colors.accent}
           style={{ marginRight: spacing.sm }}
         />
       )}
       <Text
         style={[
           styles.primaryBtnText,
-          { color: isFilled ? colors.background : colors.accent },
+          { color: isFilled ? colors.textOnAccent : colors.accent },
         ]}
       >
         {loading ? 'Processing...' : title}
@@ -229,7 +250,7 @@ export const PrimaryButton = React.memo(function PrimaryButton({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,

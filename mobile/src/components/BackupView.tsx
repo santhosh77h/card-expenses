@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
-import { useStore } from '../store';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { spacing, borderRadius, fontSize } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore, Transaction } from '../store';
 import { Card, PrimaryButton, StatRow } from './ui';
 import {
   exportBackup,
@@ -16,8 +20,11 @@ import {
 const MIN_PASSWORD_LENGTH = 6;
 
 export default function BackupView() {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { cards, statements, manualTransactions, enrichments } = useStore();
   const [exporting, setExporting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<BackupData | null>(null);
 
@@ -53,6 +60,61 @@ export default function BackupView() {
       Alert.alert('Export Failed', e.message || 'An unexpected error occurred.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  // Collect all transactions for CSV export
+  const allTransactions = useMemo(() => {
+    const txns: Transaction[] = [...manualTransactions];
+    for (const card of cards) {
+      const cardStmts = statements[card.id] || [];
+      for (const stmt of cardStmts) {
+        for (const t of stmt.transactions) {
+          txns.push({ ...t, cardId: card.id, currency: t.currency ?? stmt.currency ?? card.currency });
+        }
+      }
+    }
+    // Deduplicate by id (imported statement txns already appear in manualTransactions)
+    const seen = new Set<string>();
+    return txns.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  }, [cards, statements, manualTransactions]);
+
+  const handleExportCsv = async () => {
+    if (allTransactions.length === 0) {
+      Alert.alert('No Transactions', 'There are no transactions to export.');
+      return;
+    }
+    setExportingCsv(true);
+    try {
+      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+      const header = 'Date,Description,Amount,Category,Type,Currency,Card';
+      const rows = allTransactions.map((t) => {
+        const cardName = cards.find((c) => c.id === t.cardId)?.nickname ?? '';
+        return [
+          t.date,
+          escape(t.description),
+          t.amount.toFixed(2),
+          escape(t.category),
+          t.type,
+          t.currency ?? '',
+          escape(cardName),
+        ].join(',');
+      });
+      const csv = [header, ...rows].join('\n');
+
+      const now = new Date();
+      const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      const filePath = `${FileSystem.cacheDirectory}vector-transactions-${ts}.csv`;
+      await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(filePath, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' });
+    } catch (e: any) {
+      Alert.alert('Export Failed', e.message || 'An unexpected error occurred.');
+    } finally {
+      setExportingCsv(false);
     }
   };
 
@@ -174,6 +236,27 @@ export default function BackupView() {
         />
       </Card>
 
+      {/* Export CSV */}
+      <Card>
+        <View style={styles.cardHeader}>
+          <Feather name="file-text" size={18} color={colors.accent} />
+          <Text style={styles.cardTitle}>Export to CSV</Text>
+        </View>
+        <Text style={styles.desc}>
+          Export all your transactions as a plain CSV file. No encryption — great for spreadsheets and personal analysis.
+        </Text>
+        <StatRow label="Total transactions" value={String(allTransactions.length)} />
+        <View style={{ height: spacing.sm }} />
+        <PrimaryButton
+          title="Export CSV"
+          icon="download"
+          onPress={handleExportCsv}
+          loading={exportingCsv}
+          disabled={allTransactions.length === 0}
+          variant="outline"
+        />
+      </Card>
+
       {/* Import */}
       <Card>
         <View style={styles.cardHeader}>
@@ -287,6 +370,9 @@ function PasswordField({
   onToggle: () => void;
   autoFocus?: boolean;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.passwordRow}>
       <View style={styles.passwordInputWrap}>
@@ -310,7 +396,7 @@ function PasswordField({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,

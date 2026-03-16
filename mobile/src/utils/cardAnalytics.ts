@@ -915,7 +915,7 @@ export function generateInsights(
 // ---------------------------------------------------------------------------
 
 export function formatCompact(amount: number, currency: CurrencyCode = 'INR'): string {
-  const sym = CURRENCY_CONFIG[currency]?.symbol || '₹';
+  const sym = CURRENCY_CONFIG[currency]?.symbol || CURRENCY_CONFIG.INR.symbol;
   if (amount >= 10000000) return `${sym}${(amount / 10000000).toFixed(1)}Cr`;
   if (amount >= 100000) return `${sym}${(amount / 100000).toFixed(1)}L`;
   if (amount >= 1000) return `${sym}${Math.round(amount / 1000)}k`;

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import type { CurrencyCode, DateFormat } from '../theme';
+import type { CurrencyCode, DateFormat, ThemeMode } from '../theme';
 import * as dbTxns from '../db/transactions';
 import * as dbStmts from '../db/statements';
 import * as dbEnrich from '../db/enrichments';
@@ -45,6 +45,7 @@ export interface CreditCard {
   paymentDueDate?: string;
   autoCreated?: boolean;
   pdfPassword?: string;
+  reminderDay?: number; // day of month (1-31) for statement upload reminder
 }
 
 export interface MonthlyUsage {
@@ -168,7 +169,13 @@ interface AppState {
   enrichments: Record<string, TransactionEnrichment>;
   isPremium: boolean;
   uploadsThisMonth: number;
+  themeMode: ThemeMode;
+  defaultCurrency: CurrencyCode;
+  globalReminderDay: number | null;
 
+  setThemeMode: (mode: ThemeMode) => void;
+  setDefaultCurrency: (currency: CurrencyCode) => void;
+  setGlobalReminderDay: (day: number | null) => void;
   addCard: (card: CreditCard) => void;
   removeCard: (id: string) => void;
   updateCard: (id: string, updates: Partial<CreditCard>) => void;
@@ -212,6 +219,13 @@ export const useStore = create<AppState>()(
       enrichments: {},
       isPremium: false,
       uploadsThisMonth: 0,
+      themeMode: 'dark',
+      defaultCurrency: 'INR',
+      globalReminderDay: null,
+
+      setThemeMode: (mode) => set({ themeMode: mode }),
+      setDefaultCurrency: (currency) => set({ defaultCurrency: currency }),
+      setGlobalReminderDay: (day) => set({ globalReminderDay: day }),
 
       addCard: (card) =>
         set((state) => ({
@@ -221,7 +235,10 @@ export const useStore = create<AppState>()(
 
       removeCard: (id) =>
         set((state) => {
+          let deletedTxnIds: string[] = [];
           try {
+            deletedTxnIds = dbTxns.deleteTransactionsByCardId(id);
+            dbEnrich.deleteEnrichments(deletedTxnIds);
             dbFileHashes.deleteFileHashesByCardId(id);
             dbStmts.deleteStatementsByCardId(id);
             dbUsage.deleteMonthlyUsageByCardId(id);
@@ -232,14 +249,18 @@ export const useStore = create<AppState>()(
           const cards = state.cards.filter((c) => c.id !== id);
           const statements = { ...state.statements };
           delete statements[id];
+          const enrichments = { ...state.enrichments };
+          for (const txnId of deletedTxnIds) delete enrichments[txnId];
           return {
             cards,
             statements,
+            enrichments,
             activeCardId:
               state.activeCardId === id
                 ? cards[0]?.id ?? null
                 : state.activeCardId,
             monthlyUsage: state.monthlyUsage.filter((u) => u.cardId !== id),
+            manualTransactions: state.manualTransactions.filter((t) => t.cardId !== id),
           };
         }),
 
@@ -592,6 +613,9 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         cards: state.cards,
         activeCardId: state.activeCardId,
+        themeMode: state.themeMode,
+        defaultCurrency: state.defaultCurrency,
+        globalReminderDay: state.globalReminderDay,
       }),
     }
   )

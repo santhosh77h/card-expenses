@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import {
-  colors,
   spacing,
   borderRadius,
   fontSize,
@@ -12,6 +11,9 @@ import {
   categoryColors,
   CurrencyCode,
 } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore } from '../store';
 import { ProgressBar } from './ui';
 
 // ---------------------------------------------------------------------------
@@ -29,13 +31,16 @@ interface StructuredAnswerProps {
 // ---------------------------------------------------------------------------
 
 function TransactionListView({ rows }: { rows: Record<string, any>[] }) {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
+  const { defaultCurrency } = useStore();
   const visible = rows.slice(0, 10);
   const remaining = rows.length - visible.length;
 
   return (
     <View style={s.listContainer}>
       {visible.map((r, i) => {
-        const currency = (r.currency as CurrencyCode) ?? 'INR';
+        const currency = (r.currency as CurrencyCode) ?? defaultCurrency;
         const isCredit = r.type === 'credit';
         const amountColor = isCredit ? colors.credit : colors.debit;
         const sign = isCredit ? '+' : '-';
@@ -81,6 +86,9 @@ function TransactionListView({ rows }: { rows: Record<string, any>[] }) {
 // ---------------------------------------------------------------------------
 
 function CategorySpendView({ rows }: { rows: Record<string, any>[] }) {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
+  const { defaultCurrency } = useStore();
   const maxTotal = Math.max(...rows.map((r) => (r.total as number) || 0), 1);
 
   return (
@@ -89,7 +97,7 @@ function CategorySpendView({ rows }: { rows: Record<string, any>[] }) {
         const category = r.category as string;
         const total = (r.total as number) || 0;
         const count = (r.count as number) || 0;
-        const currency = (r.currency as CurrencyCode) ?? 'INR';
+        const currency = (r.currency as CurrencyCode) ?? defaultCurrency;
         const catColor = categoryColors[category] || colors.textMuted;
 
         return (
@@ -135,13 +143,17 @@ function formatMonth(ym: string): string {
 }
 
 function MonthlySummaryView({ rows }: { rows: Record<string, any>[] }) {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
+  const { defaultCurrency } = useStore();
+
   return (
     <View style={s.listContainer}>
       {rows.map((r, i) => {
         const month = r.month as string;
         const total = (r.total as number) || 0;
         const count = (r.count as number) || 0;
-        const currency = (r.currency as CurrencyCode) ?? 'INR';
+        const currency = (r.currency as CurrencyCode) ?? defaultCurrency;
 
         return (
           <View key={month ?? i}>
@@ -175,6 +187,8 @@ const RICH_INTENTS: Record<string, React.FC<{ rows: Record<string, any>[] }>> = 
 };
 
 export function StructuredAnswer({ intent, answer, rows }: StructuredAnswerProps) {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
   const Renderer = RICH_INTENTS[intent];
   if (Renderer && rows && rows.length > 0) {
     return <Renderer rows={rows} />;
@@ -186,7 +200,7 @@ export function StructuredAnswer({ intent, answer, rows }: StructuredAnswerProps
 // Styles
 // ---------------------------------------------------------------------------
 
-const s = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   listContainer: {
     gap: 0,
   },

@@ -16,7 +16,9 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, categoryColors, CurrencyCode, DateFormat } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, categoryColors, CurrencyCode, DateFormat } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, Transaction, CreditCard, TransactionEnrichment } from '../store';
 import { Card, StatRow, AmountText, Badge, SectionHeader, ProgressBar } from '../components/ui';
 import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart';
@@ -29,7 +31,9 @@ type Tab = 'overview' | 'transactions' | 'categories';
 export default function AnalysisScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Analysis'>>();
   const { statementId, cardId } = route.params;
-  const { statements, cards, importStatementTransactions, enrichments, updateStatementTransaction, updateStatementCardFields } = useStore();
+  const { statements, cards, importStatementTransactions, enrichments, updateStatementTransaction, updateStatementCardFields, defaultCurrency } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const statement = useMemo(() => {
     const cardStatements = statements[cardId] || [];
@@ -54,7 +58,7 @@ export default function AnalysisScreen() {
   const { transactions, summary, csv } = statement;
 
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId]);
-  const currency: CurrencyCode = card?.currency ?? 'INR';
+  const currency: CurrencyCode = card?.currency ?? defaultCurrency;
   const stmtDateFormat: DateFormat = statement?.dateFormat ?? dateFormatForCurrency(currency);
 
   const handleUpdateTransaction = useCallback((txnId: string, updates: Partial<Transaction>) => {
@@ -235,6 +239,9 @@ function OverviewTab({
     periodUpdates?: { from?: string | null; to?: string | null },
   ) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const hasDueInfo = card?.totalAmountDue != null && card.totalAmountDue > 0;
 
   // Editing state for payment due card
@@ -500,6 +507,9 @@ function TransactionsTab({
   onSelectTransaction: (txn: Transaction) => void;
   dateFormat: DateFormat;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={{ padding: spacing.lg }}>
       {/* Search */}
@@ -633,6 +643,9 @@ function CategoriesTab({
   categories: Record<string, { total: number; count: number }>;
   currency: CurrencyCode;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const total = Object.values(categories).reduce((s, c) => s + c.total, 0);
   const sorted = Object.entries(categories).sort(
     ([, a], [, b]) => b.total - a.total
@@ -689,7 +702,7 @@ function CategoriesTab({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

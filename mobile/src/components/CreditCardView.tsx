@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatCurrency } from '../theme';
-import { CreditCard } from '../store';
+import { spacing, borderRadius, fontSize, formatCurrency } from '../theme';
+import { useStore, CreditCard } from '../store';
 
 const NETWORK_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   Visa: 'credit-card',
@@ -17,6 +17,7 @@ interface Props {
 }
 
 function CreditCardView({ card, compact = false }: Props) {
+  const { defaultCurrency } = useStore();
   const width = compact ? 280 : 340;
   const height = compact ? 160 : 200;
 
@@ -75,7 +76,7 @@ function CreditCardView({ card, compact = false }: Props) {
         {!compact && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.label}>Credit Limit</Text>
-            <Text style={styles.limit}>{formatCurrency(card.creditLimit, card.currency ?? 'INR')}</Text>
+            <Text style={styles.limit}>{formatCurrency(card.creditLimit, card.currency ?? defaultCurrency)}</Text>
           </View>
         )}
       </View>

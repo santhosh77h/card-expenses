@@ -19,7 +19,9 @@ import * as Crypto from 'expo-crypto';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, borderRadius, fontSize, CurrencyCode, DateFormat, SUPPORTED_CURRENCIES, CURRENCY_CONFIG } from '../theme';
+import { spacing, borderRadius, fontSize, CurrencyCode, DateFormat, SUPPORTED_CURRENCIES, CURRENCY_CONFIG } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { findByHash, insertFileHash } from '../db/fileHashes';
@@ -62,6 +64,9 @@ export default function UploadScreen() {
 		uploadsThisMonth,
 		_refreshUploadCount,
 	} = useStore();
+	const colors = useColors();
+	const styles = useMemo(() => createStyles(colors), [colors]);
+
 	const [state, setState] = useState<UploadState>('idle');
 	const [error, setError] = useState<string>('');
 	const [selectedCardId, setSelectedCardId] = useState<string>(activeCardId || cards[0]?.id || NEW_CARD_ID);
@@ -1203,7 +1208,7 @@ export default function UploadScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: colors.background,

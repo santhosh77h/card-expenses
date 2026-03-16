@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import Svg, {
   Path, Line, Circle, Defs, LinearGradient, Stop, G, Text as SvgText,
 } from 'react-native-svg';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import type { ThemeColors } from '../../theme';
+import { useColors } from '../../hooks/useColors';
 import { formatCompact } from '../../utils/cardAnalytics';
 
 interface DataPoint {
@@ -30,6 +32,8 @@ export default function TrendLineChart({
   accentColor = '#5B8DEF',
   avgColor = '#00E5A0',
 }: Props) {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (data.length < 2) return null;
@@ -210,7 +214,7 @@ export default function TrendLineChart({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   tooltip: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,

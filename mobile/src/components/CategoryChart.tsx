@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, categoryColors, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore } from '../store';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -16,6 +19,10 @@ interface Props {
 }
 
 export const CategoryPieChart = React.memo(function CategoryPieChart({ categories, currency }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { defaultCurrency } = useStore();
+
   const data = Object.entries(categories)
     .map(([name, val]) => ({ name, ...val }))
     .sort((a, b) => b.total - a.total);
@@ -61,7 +68,7 @@ export const CategoryPieChart = React.memo(function CategoryPieChart({ categorie
                 {item.name}
               </Text>
               <Text style={styles.legendValue}>
-                {formatCurrency(item.total, currency ?? 'INR')} ({pct}%)
+                {formatCurrency(item.total, currency ?? defaultCurrency)} ({pct}%)
               </Text>
             </View>
           );
@@ -72,6 +79,10 @@ export const CategoryPieChart = React.memo(function CategoryPieChart({ categorie
 });
 
 export const CategoryBarChart = React.memo(function CategoryBarChart({ categories, currency }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { defaultCurrency } = useStore();
+
   const data = Object.entries(categories)
     .map(([name, val]) => ({ name, ...val }))
     .sort((a, b) => b.total - a.total)
@@ -100,7 +111,7 @@ export const CategoryBarChart = React.memo(function CategoryBarChart({ categorie
                 ]}
               />
             </View>
-            <Text style={styles.barAmount}>{formatCurrency(item.total, currency ?? 'INR')}</Text>
+            <Text style={styles.barAmount}>{formatCurrency(item.total, currency ?? defaultCurrency)}</Text>
           </View>
         );
       })}
@@ -108,7 +119,7 @@ export const CategoryBarChart = React.memo(function CategoryBarChart({ categorie
   );
 });
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginBottom: spacing.lg,
   },

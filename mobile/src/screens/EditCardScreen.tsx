@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,19 +10,29 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { colors, spacing, borderRadius, fontSize, CurrencyCode, CURRENCY_CONFIG, SUPPORTED_CURRENCIES } from '../theme';
-import { useStore } from '../store';
-import { Card, PrimaryButton } from '../components/ui';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { spacing, borderRadius, fontSize, CurrencyCode, CURRENCY_CONFIG, SUPPORTED_CURRENCIES, formatCurrency, formatDate, dateFormatForCurrency } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
+import { useStore, StatementData } from '../store';
+import { Card, PrimaryButton, EmptyState } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
+import ReminderDayPicker from '../components/ReminderDayPicker';
 import { ISSUERS, NETWORKS, ISSUER_CURRENCY, CARD_COLORS } from '../constants/cards';
+import { requestPermissions, scheduleCardReminder, cancelCardReminder } from '../utils/notifications';
 import type { RootStackParamList } from '../navigation';
 
 type RouteParams = RouteProp<RootStackParamList, 'EditCard'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Tab = 'details' | 'statements';
 
 export default function EditCardScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const route = useRoute<RouteParams>();
-  const { cards, updateCard, removeCard } = useStore();
+  const { cards, statements, updateCard, removeCard } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [activeTab, setActiveTab] = useState<Tab>('details');
 
   const card = cards.find((c) => c.id === route.params.cardId);
   if (!card) {
@@ -33,21 +43,152 @@ export default function EditCardScreen() {
     );
   }
 
-  return <EditForm card={card} updateCard={updateCard} removeCard={removeCard} goBack={() => navigation.goBack()} />;
+  const cardStatements = useMemo(() => {
+    const stmts = statements[card.id] || [];
+    return [...stmts].sort(
+      (a, b) => new Date(b.parsedAt).getTime() - new Date(a.parsedAt).getTime(),
+    );
+  }, [statements, card.id]);
+
+  return (
+    <View style={styles.container}>
+      {/* Tab bar */}
+      <View style={styles.tabBar}>
+        {(['details', 'statements'] as Tab[]).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Feather
+              name={tab === 'details' ? 'edit-2' : 'file-text'}
+              size={14}
+              color={activeTab === tab ? colors.accent : colors.textMuted}
+              style={{ marginRight: spacing.xs }}
+            />
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {tab === 'details' ? 'Details' : `Statements (${cardStatements.length})`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {activeTab === 'details' ? (
+        <EditForm
+          card={card}
+          updateCard={updateCard}
+          removeCard={removeCard}
+          goBack={() => navigation.goBack()}
+        />
+      ) : (
+        <StatementsTab
+          cardStatements={cardStatements}
+          cardId={card.id}
+          currency={(card.currency || 'INR') as CurrencyCode}
+          navigation={navigation}
+        />
+      )}
+    </View>
+  );
 }
 
-// Separate component so hooks are always called
+// ---------------------------------------------------------------------------
+// Statements Tab
+// ---------------------------------------------------------------------------
+
+function StatementsTab({
+  cardStatements,
+  cardId,
+  currency,
+  navigation,
+}: {
+  cardStatements: StatementData[];
+  cardId: string;
+  currency: CurrencyCode;
+  navigation: Nav;
+}) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  if (cardStatements.length === 0) {
+    return (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
+        <EmptyState
+          icon="file-text"
+          title="No Statements"
+          subtitle="Upload a statement for this card to see it here."
+        />
+      </ScrollView>
+    );
+  }
+
+  return (
+    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <View style={{ paddingVertical: spacing.md }}>
+        {cardStatements.map((stmt) => {
+          const dateFormat = stmt.dateFormat ?? dateFormatForCurrency(currency);
+          return (
+            <TouchableOpacity
+              key={stmt.id}
+              style={styles.stmtRow}
+              onPress={() => navigation.navigate('Analysis', { statementId: stmt.id, cardId })}
+              activeOpacity={0.7}
+            >
+              <View style={styles.stmtIcon}>
+                <Feather name="file-text" size={20} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stmtPeriod}>
+                  {formatDate(stmt.summary.statement_period.from ?? '', dateFormat)} to{' '}
+                  {formatDate(stmt.summary.statement_period.to ?? '', dateFormat)}
+                </Text>
+                <Text style={styles.stmtMeta}>
+                  {stmt.summary.total_transactions} transactions · {stmt.bankDetected || 'Unknown bank'}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.stmtNet}>
+                  {formatCurrency(stmt.summary.net, currency)}
+                </Text>
+                <View style={styles.stmtBreakdown}>
+                  <Text style={[styles.stmtBreakdownText, { color: colors.debit }]}>
+                    -{formatCurrency(stmt.summary.total_debits, currency)}
+                  </Text>
+                </View>
+              </View>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={colors.textMuted}
+                style={{ marginLeft: spacing.sm }}
+              />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit Form (Details Tab)
+// ---------------------------------------------------------------------------
+
 function EditForm({
   card,
   updateCard,
   removeCard,
   goBack,
 }: {
-  card: { id: string; nickname: string; last4: string; issuer: string; network: string; creditLimit: number; billingCycle: string; color: string; currency?: CurrencyCode };
+  card: { id: string; nickname: string; last4: string; issuer: string; network: string; creditLimit: number; billingCycle: string; color: string; currency?: CurrencyCode; reminderDay?: number };
   updateCard: (id: string, updates: Record<string, any>) => void;
   removeCard: (id: string) => void;
   goBack: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [nickname, setNickname] = useState(card.nickname);
   const [last4, setLast4] = useState(card.last4);
   const [issuer, setIssuer] = useState(card.issuer);
@@ -59,6 +200,20 @@ function EditForm({
   const [showIssuerPicker, setShowIssuerPicker] = useState(false);
   const [showNetworkPicker, setShowNetworkPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+
+  const handleReminderChange = async (day: number | null) => {
+    if (day) {
+      const granted = await requestPermissions();
+      if (!granted) {
+        Alert.alert('Notifications Disabled', 'Please enable notifications in your device settings to set reminders.');
+        return;
+      }
+      await scheduleCardReminder(card, day);
+    } else {
+      await cancelCardReminder(card.id);
+    }
+    updateCard(card.id, { reminderDay: day ?? undefined });
+  };
 
   const previewCard = {
     id: card.id,
@@ -119,7 +274,7 @@ function EditForm({
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       {/* Live card preview */}
       <View style={styles.previewContainer}>
         <CreditCardView card={previewCard} />
@@ -202,6 +357,16 @@ function EditForm({
           </View>
         </Card>
 
+        {/* Statement Reminder */}
+        <View style={{ marginTop: spacing.sm }}>
+          <ReminderDayPicker
+            label="Statement Reminder"
+            subtitle="Get notified monthly to upload this card's statement"
+            value={card.reminderDay}
+            onChange={handleReminderChange}
+          />
+        </View>
+
         {/* Delete button */}
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7}>
           <Feather name="trash-2" size={16} color={colors.debit} />
@@ -233,6 +398,9 @@ function InputField({
   keyboardType?: 'default' | 'number-pad';
   maxLength?: number;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <>
       <Text style={styles.inputLabel}>{label}</Text>
@@ -253,7 +421,7 @@ function InputField({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -265,6 +433,37 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxxl,
     lineHeight: 22,
   },
+
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
+  tabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: colors.accent,
+  },
+  tabText: {
+    color: colors.textMuted,
+    fontSize: fontSize.md,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  tabTextActive: {
+    color: colors.accent,
+  },
+
+  // Details tab
   previewContainer: {
     alignItems: 'center',
     paddingVertical: spacing.lg,
@@ -344,5 +543,50 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '600',
     lineHeight: 20,
+  },
+
+  // Statements tab
+  stmtRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  stmtIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  stmtPeriod: {
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  stmtMeta: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  stmtNet: {
+    color: colors.debit,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  stmtBreakdown: {
+    flexDirection: 'row',
+    marginTop: 2,
+  },
+  stmtBreakdownText: {
+    fontSize: fontSize.xs,
+    lineHeight: 16,
   },
 });

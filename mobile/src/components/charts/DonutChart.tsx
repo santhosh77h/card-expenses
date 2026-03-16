@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, G } from 'react-native-svg';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../../theme';
+import type { ThemeColors } from '../../theme';
+import { useColors } from '../../hooks/useColors';
 
 interface Segment {
   name: string;
@@ -23,11 +25,13 @@ export default function DonutChart({
   size = 200,
   strokeWidth = 28,
 }: Props) {
+  const colors = useColors();
+  const s = useMemo(() => createStyles(colors), [colors]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   if (segments.length === 0) return null;
 
-  const total = segments.reduce((s, seg) => s + seg.amount, 0);
+  const total = segments.reduce((sum, seg) => sum + seg.amount, 0);
   if (total <= 0) return null;
 
   const cx = size / 2;
@@ -113,7 +117,7 @@ export default function DonutChart({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
   },

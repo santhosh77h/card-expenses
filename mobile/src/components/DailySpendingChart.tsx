@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Path, Line, Circle, Text as SvgText } from 'react-native-svg';
-import { colors, spacing, borderRadius, fontSize } from '../theme';
+import { spacing, borderRadius, fontSize } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CHART_H = 160;
@@ -25,6 +27,9 @@ function DailySpendingChart({
   debitsByDay,
   daysInRange,
 }: DailySpendingChartProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const chartW = SCREEN_WIDTH - spacing.lg * 2;
   const plotW = chartW - PAD_LEFT - PAD_RIGHT;
   const plotH = CHART_H - PAD_TOP - PAD_BOTTOM;
@@ -187,7 +192,7 @@ function DailySpendingChart({
 
 export default React.memo(DailySpendingChart);
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,

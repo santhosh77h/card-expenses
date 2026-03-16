@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, spacing, borderRadius, fontSize, CURRENCY_CONFIG } from '../theme';
+import { spacing, borderRadius, fontSize, CURRENCY_CONFIG } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, CreditCard } from '../store';
 import { categorizeTransaction } from '../utils/api';
 import { Badge, PrimaryButton } from '../components/ui';
@@ -19,7 +21,9 @@ import { capture, AnalyticsEvents } from '../utils/analytics';
 
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
-  const { cards, addTransaction, updateEnrichment } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { cards, addTransaction, updateEnrichment, defaultCurrency } = useStore();
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -42,7 +46,7 @@ export default function AddTransactionScreen() {
   );
 
   const selectedCard = cards.find((c) => c.id === selectedCardId);
-  const cardCurrency = selectedCard?.currency ?? 'INR';
+  const cardCurrency = selectedCard?.currency ?? defaultCurrency;
   const currencySymbol = CURRENCY_CONFIG[cardCurrency].symbol;
 
   const canSave = description.trim().length > 0 && parseFloat(amount) > 0;
@@ -258,7 +262,7 @@ export default function AddTransactionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

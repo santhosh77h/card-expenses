@@ -12,7 +12,9 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, StatementData, CreditCard } from '../store';
 import { Card, SectionHeader, EmptyState, PrimaryButton, ProgressBar } from '../components/ui';
 import ManageCardsSection from '../components/ManageCardsSection';
@@ -58,6 +60,10 @@ function MonthlyPortfolioCard({
   currencyGroups,
   currencyKeys,
 }: PortfolioCardProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const pStyles = useMemo(() => createPortfolioStyles(colors), [colors]);
+
   const portfolioData = useMemo(
     () => getMonthlyPortfolioData(cards, monthlyUsage),
     [cards, monthlyUsage],
@@ -117,7 +123,7 @@ function MonthlyPortfolioCard({
     <View style={{ width: CARD_WIDTH, paddingHorizontal: 0 }}>
       <Card>
         {/* Month label */}
-        <Text style={portfolioStyles.monthLabel}>{item.label}</Text>
+        <Text style={pStyles.monthLabel}>{item.label}</Text>
 
         {/* Total */}
         <Text style={styles.portfolioLabel}>Total Amount Due</Text>
@@ -181,13 +187,13 @@ function MonthlyPortfolioCard({
       />
       {/* Pagination dots */}
       {portfolioData.length > 1 && (
-        <View style={portfolioStyles.dotsRow}>
+        <View style={pStyles.dotsRow}>
           {portfolioData.map((entry, idx) => (
             <View
               key={entry.month}
               style={[
-                portfolioStyles.dot,
-                idx === activeIndex && portfolioStyles.dotActive,
+                pStyles.dot,
+                idx === activeIndex && pStyles.dotActive,
               ]}
             />
           ))}
@@ -197,7 +203,7 @@ function MonthlyPortfolioCard({
   );
 }
 
-const portfolioStyles = StyleSheet.create({
+const createPortfolioStyles = (colors: ThemeColors) => StyleSheet.create({
   monthLabel: {
     color: colors.accent,
     fontSize: fontSize.sm,
@@ -234,7 +240,9 @@ const portfolioStyles = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
-  const { cards, statements, monthlyUsage, addCard, removeCard } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { cards, statements, monthlyUsage, defaultCurrency } = useStore();
 
   // Get all statements across all cards
   const allStatements = useMemo(() => {
@@ -242,7 +250,7 @@ export default function HomeScreen() {
     for (const card of cards) {
       const cardStatements = statements[card.id] || [];
       for (const stmt of cardStatements) {
-        result.push({ ...stmt, cardNickname: card.nickname, cardCurrency: card.currency ?? 'INR' });
+        result.push({ ...stmt, cardNickname: card.nickname, cardCurrency: card.currency ?? defaultCurrency });
       }
     }
     result.sort(
@@ -255,7 +263,7 @@ export default function HomeScreen() {
   const { currencyGroups, currencyKeys, isSingleCurrency, primaryCurrency, primaryGroup, utilization } = useMemo(() => {
     const groups: Record<string, { totalSpent: number; totalLimit: number }> = {};
     for (const card of cards) {
-      const cur = card.currency ?? 'INR';
+      const cur = card.currency ?? defaultCurrency;
       if (!groups[cur]) groups[cur] = { totalSpent: 0, totalLimit: 0 };
       groups[cur].totalLimit += card.creditLimit;
       const cardStmts = allStatements.filter((s) => s.cardId === card.id);
@@ -263,7 +271,7 @@ export default function HomeScreen() {
     }
     const keys = Object.keys(groups) as CurrencyCode[];
     const single = keys.length <= 1;
-    const primary = keys[0] ?? 'INR';
+    const primary = keys[0] ?? defaultCurrency;
     const pGroup = groups[primary] ?? { totalSpent: 0, totalLimit: 0 };
     const util = pGroup.totalLimit > 0 ? pGroup.totalSpent / pGroup.totalLimit : 0;
     return { currencyGroups: groups, currencyKeys: keys, isSingleCurrency: single, primaryCurrency: primary, primaryGroup: pGroup, utilization: util };
@@ -337,67 +345,18 @@ export default function HomeScreen() {
         currencyKeys={currencyKeys}
       />
 
-      {/* Manage Cards */}
-      <SectionHeader title="Your Cards" />
+      {/* Your Cards — read-only detail view */}
+      <SectionHeader
+        title="Your Cards"
+        action="Manage"
+        onAction={() => navigation.navigate('CardList')}
+      />
       <ManageCardsSection
         cards={cards}
         statements={statements}
         monthlyUsage={monthlyUsage}
-        addCard={addCard}
-        removeCard={removeCard}
+        readOnly
       />
-
-      {/* Recent Statements */}
-      <View style={{ marginTop: spacing.xl }}>
-        <SectionHeader title="Recent Statements" />
-        {allStatements.length === 0 ? (
-          <View style={styles.paddedSection}>
-            <Card>
-              <Text style={styles.noStatements}>
-                No statements yet. Upload a PDF to get started.
-              </Text>
-            </Card>
-          </View>
-        ) : (
-          allStatements.slice(0, 5).map((stmt) => (
-            <TouchableOpacity
-              key={stmt.id}
-              style={styles.statementRow}
-              onPress={() =>
-                navigation.navigate('Analysis', {
-                  statementId: stmt.id,
-                  cardId: stmt.cardId,
-                })
-              }
-            >
-              <View style={styles.statementIcon}>
-                <Feather name="file-text" size={20} color={colors.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.statementCard}>{stmt.cardNickname}</Text>
-                <Text style={styles.statementDate}>
-                  {formatDate(stmt.summary.statement_period.from ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))} to{' '}
-                  {formatDate(stmt.summary.statement_period.to ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.statementAmount}>
-                  {formatCurrency(stmt.summary.net, stmt.cardCurrency)}
-                </Text>
-                <Text style={styles.statementCount}>
-                  {stmt.summary.total_transactions} txns
-                </Text>
-              </View>
-              <Feather
-                name="chevron-right"
-                size={16}
-                color={colors.textMuted}
-                style={{ marginLeft: spacing.sm }}
-              />
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
 
       {/* Upload CTA */}
       <View style={styles.ctaSection}>
@@ -413,7 +372,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -474,54 +433,6 @@ const styles = StyleSheet.create({
   thresholdText: {
     color: colors.textMuted,
     fontSize: fontSize.xs,
-    lineHeight: 16,
-  },
-  noStatements: {
-    color: colors.textMuted,
-    fontSize: fontSize.md,
-    textAlign: 'center',
-    paddingVertical: spacing.lg,
-    lineHeight: 20,
-  },
-  statementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  statementIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  statementCard: {
-    color: colors.textPrimary,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  statementDate: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  statementAmount: {
-    color: colors.debit,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  statementCount: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
     lineHeight: 16,
   },
   dueCardRow: {

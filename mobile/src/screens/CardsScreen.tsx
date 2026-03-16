@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, CURRENCY_CONFIG, CurrencyCode } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, CURRENCY_CONFIG, CurrencyCode } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, CreditCard } from '../store';
 import { EmptyState } from '../components/ui';
 import TrendLineChart from '../components/charts/TrendLineChart';
@@ -35,6 +37,8 @@ import type { StatementData, MonthlyUsage } from '../store';
 
 export default function CardsScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { cards, statements, monthlyUsage } = useStore();
 
   const hasData = useMemo(() => getAvailableMonths(monthlyUsage).length > 0, [monthlyUsage]);
@@ -91,6 +95,9 @@ function AnalyticsView({
   effectiveCurrency: CurrencyCode;
   onChangeCurrency: (c: CurrencyCode | undefined) => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const currencyArg = activeCurrencies.length > 1 ? effectiveCurrency : undefined;
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -203,7 +210,7 @@ function AnalyticsView({
               </Text>
               {chip.changePercent !== null && (
                 <Text style={[styles.chipChange, { color: chip.isUp ? colors.debit : colors.credit }]}>
-                  {chip.isUp ? '↑' : '↓'} {Math.abs(chip.changePercent).toFixed(0)}% {chip.changeLabel}
+                  {chip.isUp ? '\u2191' : '\u2193'} {Math.abs(chip.changePercent).toFixed(0)}% {chip.changeLabel}
                 </Text>
               )}
             </TouchableOpacity>
@@ -220,7 +227,7 @@ function AnalyticsView({
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statBoxLabel}>Peak month</Text>
-          <Text style={styles.statBoxValue}>{stats.peakMonth?.label ?? '—'}</Text>
+          <Text style={styles.statBoxValue}>{stats.peakMonth?.label ?? '\u2014'}</Text>
           {stats.peakMonth && (
             <Text style={[styles.statBoxSub, { color: colors.debit }]}>
               {formatCurrency(stats.peakMonth.amount, effectiveCurrency)} spent
@@ -329,7 +336,7 @@ function AnalyticsView({
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

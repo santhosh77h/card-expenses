@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
+import { spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, DateFormat } from '../theme';
+import type { ThemeColors } from '../theme';
+import { useColors } from '../hooks/useColors';
 import { useStore, Transaction, CreditCard } from '../store';
 import { Badge } from './ui';
 import { pickReceiptImage, captureReceiptPhoto, saveReceipt, deleteReceipt } from '../utils/receipts';
@@ -42,7 +44,10 @@ export default function TransactionDetailModal({
   onUpdateTransaction,
   dateFormat: dateFormatProp,
 }: Props) {
-  const { enrichments, updateEnrichment, toggleFlag, removeTransaction, removeEnrichment } = useStore();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const { enrichments, updateEnrichment, toggleFlag, removeTransaction, removeEnrichment, defaultCurrency } = useStore();
 
   const enrichment = transaction ? enrichments[transaction.id] : undefined;
   const [notes, setNotes] = useState(enrichment?.notes ?? '');
@@ -190,7 +195,7 @@ export default function TransactionDetailModal({
 
   if (!transaction) return null;
 
-  const currency: CurrencyCode = transaction.currency ?? card?.currency ?? 'INR';
+  const currency: CurrencyCode = transaction.currency ?? card?.currency ?? defaultCurrency;
   const resolvedDateFormat = dateFormatProp ?? dateFormatForCurrency(currency);
   const isFlagged = enrichment?.flagged ?? false;
 
@@ -436,7 +441,7 @@ export default function TransactionDetailModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

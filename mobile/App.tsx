@@ -10,7 +10,26 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
 import { initRevenueCat, addSubscriptionListener } from './src/utils/revenueCat';
-import { colors, fontSize, spacing } from './src/theme';
+import { configureNotifications, rescheduleAll } from './src/utils/notifications';
+import { useIsDark } from './src/hooks/useColors';
+import { darkColors, fontSize, spacing } from './src/theme';
+
+configureNotifications();
+
+function AppContent() {
+  const isDark = useIsDark();
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <Navigation />
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
 
 export default function App() {
   const [dbReady, setDbReady] = useState(false);
@@ -41,6 +60,10 @@ export default function App() {
       listenerRef.current = addSubscriptionListener((isPremium) => {
         useStore.getState()._setIsPremium(isPremium);
       });
+
+      // Reschedule notifications (non-blocking)
+      const state = useStore.getState();
+      rescheduleAll(state.cards, state.globalReminderDay).catch(() => {});
 
       setDbReady(true);
     };
@@ -82,58 +105,50 @@ export default function App() {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.brandTitle}>VECTOR</Text>
-        <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: spacing.lg }} />
+        <ActivityIndicator size="small" color={darkColors.accent} style={{ marginTop: spacing.lg }} />
       </View>
     );
   }
 
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ErrorBoundary>
-          <StatusBar style="light" />
-          <Navigation />
-        </ErrorBoundary>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  );
+  return <AppContent />;
 }
 
+// Splash/loading/error screens always use dark theme (brand identity, renders before preference loads)
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: darkColors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
   brandTitle: {
-    color: colors.textPrimary,
+    color: darkColors.textPrimary,
     fontSize: fontSize.hero,
     fontWeight: '800',
     letterSpacing: 4,
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: darkColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
   },
   errorTitle: {
-    color: colors.debit,
+    color: darkColors.debit,
     fontSize: fontSize.xxl,
     fontWeight: '700',
     marginBottom: spacing.md,
   },
   errorMessage: {
-    color: colors.textSecondary,
+    color: darkColors.textSecondary,
     fontSize: fontSize.md,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing.xxl,
   },
   retryButton: {
-    color: colors.accent,
+    color: darkColors.accent,
     fontSize: fontSize.lg,
     fontWeight: '700',
   },
