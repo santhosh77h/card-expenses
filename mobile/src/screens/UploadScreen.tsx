@@ -25,7 +25,6 @@ import { useColors } from '../hooks/useColors';
 import { useStore, StatementData, CreditCard } from '../store';
 import { parseStatement, parseDemoStatement, CardInfo } from '../utils/api';
 import { findByHash, insertFileHash } from '../db/fileHashes';
-import { isStatementImported } from '../db/transactions';
 import { Badge, Card, PrimaryButton, ProgressBar } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
@@ -33,10 +32,9 @@ import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, p
 import { capture, AnalyticsEvents } from '../utils/analytics';
 
 const FREE_TIER_UPLOAD_LIMIT = 3;
-const MAX_BATCH_SIZE = 10;
 const NEW_CARD_ID = '__new__';
 
-type FileStatus = 'pending' | 'hashing' | 'parsing' | 'success' | 'failed' | 'duplicate' | 'skipped';
+type FileStatus = 'pending' | 'hashing' | 'parsing' | 'success' | 'failed' | 'duplicate' | 'skipped' | 'reparse';
 
 interface BatchFileItem {
 	uri: string;
@@ -46,6 +44,8 @@ interface BatchFileItem {
 	fileHash?: string;
 	parseResult?: any;
 	statementId?: string;
+	existingStatementId?: string;
+	existingCardId?: string;
 }
 
 type UploadState = 'idle' | 'uploading' | 'parsing' | 'error' | 'batch';
@@ -106,30 +106,12 @@ export default function UploadScreen() {
 		return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, base64);
 	};
 
-	const checkDuplicateSilent = (hash: string): { isDuplicate: boolean; cardName?: string } => {
+	const checkDuplicateSilent = (hash: string): { isDuplicate: boolean; cardName?: string; existingStatementId?: string; existingCardId?: string } => {
 		if (__DEV__) return { isDuplicate: false };
 		const existing = findByHash(hash);
 		if (!existing) return { isDuplicate: false };
 		const cardName = cards.find((c) => c.id === existing.cardId)?.nickname ?? 'a card';
-		return { isDuplicate: true, cardName };
-	};
-
-	const checkDuplicate = (hash: string): boolean => {
-		if (__DEV__) return false;
-
-		const existing = findByHash(hash);
-		if (!existing) return false;
-
-		const cardName = cards.find((c) => c.id === existing.cardId)?.nickname ?? 'a card';
-		const imported = isStatementImported(existing.statementId);
-
-		let message = `This statement has already been uploaded for ${cardName}.`;
-		if (imported) {
-			message += '\nTransactions have also been added to your records.';
-		}
-
-		Alert.alert('Statement Already Uploaded', message, [{ text: 'OK', onPress: () => setState('idle') }]);
-		return true;
+		return { isDuplicate: true, cardName, existingStatementId: existing.statementId, existingCardId: existing.cardId };
 	};
 
 	const checkUploadAllowed = async (): Promise<boolean> => {
@@ -277,10 +259,26 @@ export default function UploadScreen() {
 			let fileHash: string | undefined;
 			try {
 				fileHash = await computeFileHash(files[i].uri);
-				const { isDuplicate } = checkDuplicateSilent(fileHash);
-				if (isDuplicate) {
-					updateBatchFile(i, { status: 'duplicate', fileHash });
-					continue;
+				const dupResult = checkDuplicateSilent(fileHash);
+				if (dupResult.isDuplicate) {
+					// Pause batch — ask user whether to re-parse or skip
+					updateBatchFile(i, { status: 'duplicate', fileHash, existingStatementId: dupResult.existingStatementId, existingCardId: dupResult.existingCardId });
+					const userChoice = await new Promise<'skip' | 'reparse'>((resolve) => {
+						Alert.alert(
+							'Statement Already Uploaded',
+							`This statement was already uploaded for ${dupResult.cardName}. Re-parse to check for changes?`,
+							[
+								{ text: 'Skip', style: 'cancel', onPress: () => resolve('skip') },
+								{ text: 'Re-parse & Update', onPress: () => resolve('reparse') },
+							],
+							{ cancelable: false },
+						);
+					});
+					if (userChoice === 'skip') {
+						continue;
+					}
+					// User chose re-parse — continue to parsing below, mark with existing info
+					updateBatchFile(i, { status: 'parsing', fileHash, existingStatementId: dupResult.existingStatementId, existingCardId: dupResult.existingCardId });
 				}
 			} catch {
 				updateBatchFile(i, { status: 'failed', error: 'Failed to read file' });
@@ -341,6 +339,25 @@ export default function UploadScreen() {
 					return; // Pause — handleCardConfirm will resume
 				}
 
+				// Check if this is a re-parse of an existing statement
+				const currentFile = batchFilesRef.current[i];
+				if (currentFile.existingStatementId && currentFile.existingCardId) {
+					// Re-parse flow → navigate to diff screen
+					updateBatchFile(i, { status: 'reparse', fileHash, parseResult: parsed });
+					// For single file: navigate immediately. For batch: pause and show after batch.
+					if (files.length === 1) {
+						setState('idle');
+						navigation.navigate('StatementDiff', {
+							statementId: currentFile.existingStatementId,
+							cardId: currentFile.existingCardId,
+							newParsed: parsed,
+						});
+						return;
+					}
+					// In batch mode, store the info and continue — will show after batch completes
+					continue;
+				}
+
 				// Normal flow — save
 				const stmtId = finalizeSaveForBatch(currentCardId!, parsed, fileHash);
 				updateBatchFile(i, { status: 'success', fileHash, parseResult: parsed, statementId: stmtId });
@@ -379,6 +396,7 @@ export default function UploadScreen() {
 		setBatchComplete(true);
 
 		const successCount = batchFilesRef.current.filter((f) => f.status === 'success').length;
+		const reparseCount = batchFilesRef.current.filter((f) => f.status === 'reparse').length;
 		const totalCount = batchFilesRef.current.length;
 		capture(AnalyticsEvents.BATCH_UPLOAD_COMPLETE, {
 			total: totalCount,
@@ -386,6 +404,7 @@ export default function UploadScreen() {
 			failed: batchFilesRef.current.filter((f) => f.status === 'failed').length,
 			duplicate: batchFilesRef.current.filter((f) => f.status === 'duplicate').length,
 			skipped: batchFilesRef.current.filter((f) => f.status === 'skipped').length,
+			reparse: reparseCount,
 		});
 
 		// Single file success → auto-navigate
@@ -413,12 +432,7 @@ export default function UploadScreen() {
 
 			if (result.canceled || !result.assets?.length) return;
 
-			if (result.assets.length > MAX_BATCH_SIZE) {
-				Alert.alert('Too Many Files', `Please select up to ${MAX_BATCH_SIZE} files at a time.`);
-				return;
-			}
-
-			// Build batch items
+				// Build batch items
 			const items: BatchFileItem[] = result.assets.map((a) => ({
 				uri: a.uri,
 				name: a.name || 'statement.pdf',
@@ -553,8 +567,34 @@ export default function UploadScreen() {
 		setError('');
 		try {
 			const fileHash = await computeFileHash(pendingFile.uri);
-			if (checkDuplicate(fileHash)) {
+			const dupResult = checkDuplicateSilent(fileHash);
+			if (dupResult.isDuplicate && dupResult.existingStatementId && dupResult.existingCardId) {
+				// Offer re-parse
+				const userChoice = await new Promise<'skip' | 'reparse'>((resolve) => {
+					Alert.alert(
+						'Statement Already Uploaded',
+						`This statement was already uploaded for ${dupResult.cardName}. Re-parse to check for changes?`,
+						[
+							{ text: 'Cancel', style: 'cancel', onPress: () => resolve('skip') },
+							{ text: 'Re-parse & Update', onPress: () => resolve('reparse') },
+						],
+						{ cancelable: false },
+					);
+				});
+				if (userChoice === 'skip') {
+					setPendingFile(null);
+					setState('idle');
+					return;
+				}
+				// Re-parse: parse the file, then navigate to diff screen
+				const parsed = await parseStatement(pendingFile.uri, pendingFile.name, usedPwd);
 				setPendingFile(null);
+				setState('idle');
+				navigation.navigate('StatementDiff', {
+					statementId: dupResult.existingStatementId,
+					cardId: dupResult.existingCardId,
+					newParsed: parsed,
+				});
 				return;
 			}
 
@@ -621,7 +661,12 @@ export default function UploadScreen() {
 			Crypto.CryptoDigestAlgorithm.SHA256,
 			'vector-demo-statement-v1',
 		);
-		if (checkDuplicate(demoHash)) return;
+		const demoDup = checkDuplicateSilent(demoHash);
+		if (demoDup.isDuplicate) {
+			Alert.alert('Demo Already Loaded', 'The demo statement has already been uploaded.', [{ text: 'OK' }]);
+			setState('idle');
+			return;
+		}
 
 		setTimeout(() => {
 			try {
@@ -715,6 +760,8 @@ export default function UploadScreen() {
 		switch (status) {
 			case 'success':
 				return <Feather name="check-circle" size={18} color={colors.accent} />;
+			case 'reparse':
+				return <Feather name="git-merge" size={18} color={colors.warning} />;
 			case 'failed':
 				return <Feather name="x-circle" size={18} color={colors.debit} />;
 			case 'duplicate':
@@ -735,9 +782,11 @@ export default function UploadScreen() {
 			case 'failed':
 				return file.error || 'Failed';
 			case 'duplicate':
-				return 'Duplicate';
+				return 'Duplicate — Skipped';
 			case 'skipped':
 				return 'Skipped';
+			case 'reparse':
+				return 'Re-parsed — Review changes';
 			default:
 				return undefined;
 		}
@@ -746,7 +795,7 @@ export default function UploadScreen() {
 	const batchProgress = useMemo(() => {
 		if (batchFiles.length === 0) return 0;
 		const done = batchFiles.filter((f) =>
-			['success', 'failed', 'duplicate', 'skipped'].includes(f.status),
+			['success', 'failed', 'duplicate', 'skipped', 'reparse'].includes(f.status),
 		).length;
 		return done / batchFiles.length;
 	}, [batchFiles]);
@@ -878,11 +927,13 @@ export default function UploadScreen() {
 								{batchFiles.map((file, idx) => {
 									const label = getStatusLabel(file);
 									const canNavigate = file.status === 'success' && file.statementId;
+									const canReview = file.status === 'reparse' && file.existingStatementId && file.existingCardId && file.parseResult;
+									const isClickable = canNavigate || canReview;
 									return (
 										<TouchableOpacity
 											key={`${file.name}-${idx}`}
 											style={styles.batchFileRow}
-											disabled={!canNavigate}
+											disabled={!isClickable}
 											onPress={() => {
 												if (canNavigate) {
 													resetBatch();
@@ -890,9 +941,16 @@ export default function UploadScreen() {
 														statementId: file.statementId!,
 														cardId: batchCardId!,
 													});
+												} else if (canReview) {
+													resetBatch();
+													navigation.navigate('StatementDiff', {
+														statementId: file.existingStatementId!,
+														cardId: file.existingCardId!,
+														newParsed: file.parseResult,
+													});
 												}
 											}}
-											activeOpacity={canNavigate ? 0.7 : 1}
+											activeOpacity={isClickable ? 0.7 : 1}
 										>
 											{getStatusIcon(file.status)}
 											<View style={{ flex: 1 }}>
@@ -900,6 +958,7 @@ export default function UploadScreen() {
 													style={[
 														styles.batchFileName,
 														file.status === 'success' && { color: colors.accent },
+														file.status === 'reparse' && { color: colors.warning },
 														file.status === 'failed' && { color: colors.debit },
 														(file.status === 'duplicate' || file.status === 'skipped') && { color: colors.textMuted },
 													]}
@@ -913,7 +972,7 @@ export default function UploadScreen() {
 													</Text>
 												)}
 											</View>
-											{canNavigate && (
+											{isClickable && (
 												<Feather name="chevron-right" size={16} color={colors.textMuted} />
 											)}
 										</TouchableOpacity>
@@ -945,6 +1004,7 @@ export default function UploadScreen() {
 									<Feather name="upload-cloud" size={48} color={colors.textMuted} />
 									<Text style={styles.uploadTitle}>Tap to Upload PDF</Text>
 									<Text style={styles.uploadSubtitle}>Select one or more credit card statements (max 10 MB each)</Text>
+
 								</>
 							)}
 							{isProcessing && (

@@ -18,7 +18,8 @@
 			"bundleIdentifier": "com.cardlytics.app",
 			"backgroundColor": "#0A0E1A",
 			"infoPlist": {
-				"ITSAppUsesNonExemptEncryption": false
+				"ITSAppUsesNonExemptEncryption": false,
+				"NSFaceIDUsageDescription": "Vector uses Face ID to protect your financial data."
 			}
 		},
 		"android": {
@@ -38,7 +39,8 @@
 			"expo-document-picker",
 			"expo-image-picker",
 			"expo-notifications",
-			["react-native-fast-tflite", { "enableCoreMLDelegate": true }]
+			["react-native-fast-tflite", { "enableCoreMLDelegate": true }],
+			"./plugins/withVectorWidgets"
 		],
 		"extra": {
 			"posthogApiKey": "phc_H2RGC5HdtLY7XJccoxAmpWdmPAm4BwfzddNOfwh7mYn",

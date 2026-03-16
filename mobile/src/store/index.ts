@@ -9,6 +9,19 @@ import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
 import * as dbFileHashes from '../db/fileHashes';
 import { generateCSV } from '../utils/api';
+import { syncWidgetData } from '../utils/widgetBridge';
+
+// ---------------------------------------------------------------------------
+// Widget sync helper — call after state mutations that affect spending data
+// ---------------------------------------------------------------------------
+
+function _syncWidgets() {
+  // Defer to next tick so Zustand state is settled
+  setTimeout(() => {
+    const s = useStore.getState();
+    syncWidgetData(s.cards, s.monthlyUsage, s.statements, s.defaultCurrency);
+  }, 0);
+}
 
 // ---------------------------------------------------------------------------
 // AsyncStorage adapter (works in Expo Go without native builds)
@@ -172,10 +185,12 @@ interface AppState {
   themeMode: ThemeMode;
   defaultCurrency: CurrencyCode;
   globalReminderDay: number | null;
+  biometricLockEnabled: boolean;
 
   setThemeMode: (mode: ThemeMode) => void;
   setDefaultCurrency: (currency: CurrencyCode) => void;
   setGlobalReminderDay: (day: number | null) => void;
+  setBiometricLockEnabled: (enabled: boolean) => void;
   addCard: (card: CreditCard) => void;
   removeCard: (id: string) => void;
   updateCard: (id: string, updates: Partial<CreditCard>) => void;
@@ -206,6 +221,13 @@ interface AppState {
     cardUpdates?: Partial<Pick<CreditCard, 'totalAmountDue' | 'minimumAmountDue' | 'paymentDueDate'>>,
     periodUpdates?: Partial<StatementPeriod>,
   ) => void;
+  replaceStatementTransactions: (
+    cardId: string,
+    statementId: string,
+    added: Transaction[],
+    modified: { old: Transaction; new: Transaction }[],
+    removedIds: string[],
+  ) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -222,10 +244,12 @@ export const useStore = create<AppState>()(
       themeMode: 'dark',
       defaultCurrency: 'INR',
       globalReminderDay: null,
+      biometricLockEnabled: false,
 
       setThemeMode: (mode) => set({ themeMode: mode }),
       setDefaultCurrency: (currency) => set({ defaultCurrency: currency }),
       setGlobalReminderDay: (day) => set({ globalReminderDay: day }),
+      setBiometricLockEnabled: (enabled) => set({ biometricLockEnabled: enabled }),
 
       addCard: (card) =>
         set((state) => ({
@@ -251,6 +275,7 @@ export const useStore = create<AppState>()(
           delete statements[id];
           const enrichments = { ...state.enrichments };
           for (const txnId of deletedTxnIds) delete enrichments[txnId];
+          _syncWidgets();
           return {
             cards,
             statements,
@@ -288,6 +313,7 @@ export const useStore = create<AppState>()(
           },
           uploadsThisMonth,
         }));
+        _syncWidgets();
       },
 
       removeStatement: (cardId, statementId) =>
@@ -305,6 +331,7 @@ export const useStore = create<AppState>()(
           }
           const enrichments = { ...state.enrichments };
           for (const id of txnIds) delete enrichments[id];
+          _syncWidgets();
           return {
             statements: {
               ...state.statements,
@@ -329,6 +356,7 @@ export const useStore = create<AppState>()(
           }
           const enrichments = { ...state.enrichments };
           for (const id of txnIds) delete enrichments[id];
+          _syncWidgets();
           return {
             statements: { ...state.statements, [cardId]: [] },
             enrichments,
@@ -346,6 +374,7 @@ export const useStore = create<AppState>()(
         set((state) => ({
           manualTransactions: [txn, ...state.manualTransactions],
         }));
+        _syncWidgets();
       },
 
       importStatementTransactions: (statementId) => {
@@ -371,6 +400,7 @@ export const useStore = create<AppState>()(
         set((state) => {
           const enrichments = { ...state.enrichments };
           delete enrichments[id];
+          _syncWidgets();
           return {
             manualTransactions: state.manualTransactions.filter((t) => t.id !== id),
             enrichments,
@@ -390,6 +420,7 @@ export const useStore = create<AppState>()(
         set((state) => {
           const enrichments = { ...state.enrichments };
           for (const id of ids) delete enrichments[id];
+          _syncWidgets();
           return { manualTransactions: [], enrichments };
         });
       },
@@ -409,6 +440,7 @@ export const useStore = create<AppState>()(
             usage,
           ],
         }));
+        _syncWidgets();
       },
 
       updateEnrichment: (txnId, patch) =>
@@ -537,6 +569,7 @@ export const useStore = create<AppState>()(
             }
           }
 
+          _syncWidgets();
           return {
             statements: { ...state.statements, [cardId]: cardStmts },
             manualTransactions,
@@ -577,6 +610,114 @@ export const useStore = create<AppState>()(
         });
       },
 
+      replaceStatementTransactions: (cardId, statementId, added, modified, removedIds) => {
+        try {
+          const db = require('../db/transactions');
+          // Insert added transactions
+          if (added.length > 0) {
+            db.insertStatementTransactions(statementId, cardId, added);
+          }
+          // Update modified transactions
+          for (const { new: newTxn } of modified) {
+            db.updateTransaction(newTxn.id, {
+              date: newTxn.date,
+              description: newTxn.description,
+              amount: newTxn.amount,
+              category: newTxn.category,
+              category_color: newTxn.category_color,
+              category_icon: newTxn.category_icon,
+              type: newTxn.type,
+            });
+          }
+          // Delete removed transactions
+          if (removedIds.length > 0) {
+            db.deleteTransactionsByIds(removedIds);
+            dbEnrich.deleteEnrichments(removedIds);
+          }
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to apply statement changes.');
+          return;
+        }
+
+        set((state) => {
+          const cardStmts = (state.statements[cardId] || []).map((stmt) => {
+            if (stmt.id !== statementId) return stmt;
+
+            // Build updated transaction list
+            let txns = stmt.transactions.filter((t) => !removedIds.includes(t.id));
+            // Apply modifications
+            txns = txns.map((t) => {
+              const mod = modified.find((m) => m.old.id === t.id);
+              return mod ? { ...t, ...mod.new, id: t.id } : t;
+            });
+            // Append added
+            txns = [...txns, ...added];
+
+            const newSummary = recomputeSummary(txns, stmt.summary.statement_period);
+            const newCsv = generateCSV(txns);
+
+            try {
+              dbStmts.updateStatementSummary(statementId, newSummary);
+              dbStmts.updateStatementCsv(statementId, newCsv);
+            } catch (e: any) {
+              console.error('Failed to persist summary/csv:', e);
+            }
+
+            // Update monthly usage
+            const month = newSummary.statement_period.to?.slice(0, 7);
+            if (month) {
+              try {
+                dbUsage.upsertMonthlyUsage({
+                  cardId,
+                  month,
+                  totalDebits: newSummary.total_debits,
+                  totalCredits: newSummary.total_credits,
+                  net: newSummary.net,
+                  statementId,
+                  currency: stmt.currency,
+                });
+              } catch (e: any) {
+                console.error('Failed to update monthly usage:', e);
+              }
+            }
+
+            return { ...stmt, transactions: txns, summary: newSummary, csv: newCsv };
+          });
+
+          const enrichments = { ...state.enrichments };
+          for (const id of removedIds) delete enrichments[id];
+
+          // Refresh monthly usage
+          const updatedStmt = cardStmts.find((s) => s.id === statementId);
+          let monthlyUsage = state.monthlyUsage;
+          if (updatedStmt) {
+            const month = updatedStmt.summary.statement_period.to?.slice(0, 7);
+            if (month) {
+              monthlyUsage = [
+                ...state.monthlyUsage.filter((u) => !(u.cardId === cardId && u.month === month)),
+                {
+                  cardId,
+                  month,
+                  totalDebits: updatedStmt.summary.total_debits,
+                  totalCredits: updatedStmt.summary.total_credits,
+                  net: updatedStmt.summary.net,
+                  statementId,
+                  currency: updatedStmt.currency,
+                },
+              ];
+            }
+          }
+
+          _syncWidgets();
+          return {
+            statements: { ...state.statements, [cardId]: cardStmts },
+            manualTransactions: dbTxns.getVisibleTransactions(),
+            enrichments,
+            monthlyUsage,
+          };
+        });
+      },
+
       _hydrateSqlite: () => {
         const now = new Date();
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -597,6 +738,7 @@ export const useStore = create<AppState>()(
         try { uploadsThisMonth = dbStmts.getStatementCountSince(firstOfMonth); } catch (e) { console.error('Hydrate uploadCount failed:', e); }
 
         set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth });
+        _syncWidgets();
       },
 
       _setIsPremium: (value) => set({ isPremium: value }),
@@ -616,6 +758,7 @@ export const useStore = create<AppState>()(
         themeMode: state.themeMode,
         defaultCurrency: state.defaultCurrency,
         globalReminderDay: state.globalReminderDay,
+        biometricLockEnabled: state.biometricLockEnabled,
       }),
     }
   )

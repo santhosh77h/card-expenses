@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { NavigationContainer, DefaultTheme, NavigatorScreenParams } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, NavigatorScreenParams, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
@@ -19,6 +19,8 @@ import CardListScreen from '../screens/CardListScreen';
 import EditCardScreen from '../screens/EditCardScreen';
 import AddCardScreen from '../screens/AddCardScreen';
 import AskScreen from '../screens/AskScreen';
+import StatementDiffScreen from '../screens/StatementDiffScreen';
+import type { ParseResult } from '../utils/api';
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
@@ -29,12 +31,13 @@ export type RootStackParamList = {
   CardList: undefined;
   EditCard: { cardId: string };
   Ask: undefined;
+  StatementDiff: { statementId: string; cardId: string; newParsed: ParseResult };
 };
 
 export type TabParamList = {
   Home: undefined;
   Transactions: undefined;
-  Upload: undefined;
+  Upload: { action?: string } | undefined;
   You: undefined;
   Cards: undefined;
 };
@@ -98,6 +101,20 @@ if (__DEV__) {
   console.log('[PostHog] API key present:', !!posthogApiKey);
   console.log('[PostHog] Host:', posthogHost);
 }
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['vector://', 'com.cardlytics.app://'],
+  config: {
+    screens: {
+      Tabs: {
+        screens: {
+          Upload: 'upload',
+          Home: 'home',
+        },
+      },
+    },
+  },
+};
 
 export default function Navigation() {
   const colors = useColors();
@@ -191,11 +208,20 @@ export default function Navigation() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="StatementDiff"
+        component={StatementDiffScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Review Changes',
+          ...headerOptions,
+        }}
+      />
     </Stack.Navigator>
   );
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} linking={linking}>
       {posthogApiKey ? (
         <PostHogProvider
           apiKey={posthogApiKey}

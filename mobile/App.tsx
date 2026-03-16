@@ -1,7 +1,7 @@
 import './src/utils/cryptoPolyfill';
 import 'react-native-url-polyfill/auto';
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, AppState as RNAppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,6 +12,7 @@ import { useStore } from './src/store';
 import { initRevenueCat, addSubscriptionListener } from './src/utils/revenueCat';
 import { configureNotifications, rescheduleAll } from './src/utils/notifications';
 import { useIsDark } from './src/hooks/useColors';
+import BiometricLockScreen from './src/components/BiometricLockScreen';
 import { darkColors, fontSize, spacing } from './src/theme';
 
 configureNotifications();
@@ -34,8 +35,27 @@ function AppContent() {
 export default function App() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [locked, setLocked] = useState(false);
   const bootedRef = useRef(false);
   const listenerRef = useRef<(() => void) | undefined>();
+  const appStateRef = useRef(RNAppState.currentState);
+
+  const handleUnlock = useCallback(() => setLocked(false), []);
+
+  // Re-lock when app comes back from background
+  useEffect(() => {
+    const sub = RNAppState.addEventListener('change', (nextState) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextState === 'active' &&
+        useStore.getState().biometricLockEnabled
+      ) {
+        setLocked(true);
+      }
+      appStateRef.current = nextState;
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     const boot = async () => {
@@ -64,6 +84,11 @@ export default function App() {
       // Reschedule notifications (non-blocking)
       const state = useStore.getState();
       rescheduleAll(state.cards, state.globalReminderDay).catch(() => {});
+
+      // Lock if biometric is enabled
+      if (state.biometricLockEnabled) {
+        setLocked(true);
+      }
 
       setDbReady(true);
     };
@@ -108,6 +133,10 @@ export default function App() {
         <ActivityIndicator size="small" color={darkColors.accent} style={{ marginTop: spacing.lg }} />
       </View>
     );
+  }
+
+  if (locked) {
+    return <BiometricLockScreen onUnlock={handleUnlock} />;
   }
 
   return <AppContent />;

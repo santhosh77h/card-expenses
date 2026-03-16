@@ -112,6 +112,13 @@ export function updateTransaction(
   getDb().executeSync(`UPDATE transactions SET ${fields.join(', ')} WHERE id = ?`, values);
 }
 
+export function deleteTransactionsByIds(ids: string[]): void {
+  if (ids.length === 0) return;
+  const db = getDb();
+  const placeholders = ids.map(() => '?').join(',');
+  db.executeSync(`DELETE FROM transactions WHERE id IN (${placeholders})`, ids);
+}
+
 function rowToTransaction(row: Record<string, any>): Transaction {
   return {
     id: row.id,

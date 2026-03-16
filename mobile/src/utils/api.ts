@@ -15,7 +15,7 @@ export interface CardInfo {
 	currency?: string | null;
 }
 
-interface ParseResult {
+export interface ParseResult {
 	transactions: Transaction[];
 	summary: StatementSummary;
 	csv: string;
@@ -557,10 +557,37 @@ export function categorizeTransaction(description: string): {
 	};
 }
 
+/**
+ * djb2 hash of a string → hex. Deterministic & fast.
+ */
+function djb2Hash(str: string): string {
+	let hash = 5381;
+	for (let i = 0; i < str.length; i++) {
+		hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0;
+	}
+	return hash.toString(16).padStart(8, '0');
+}
+
+/**
+ * Build a deterministic transaction ID from date|description|amount|type.
+ * An occurrence counter disambiguates duplicate combos within one parse.
+ */
+function generateDeterministicId(
+	t: { date?: string; description?: string; amount?: number; type?: string },
+	occurrences: Map<string, number>,
+): string {
+	const key = `${t.date || ''}|${(t.description || '').toLowerCase()}|${t.amount ?? 0}|${t.type || 'debit'}`;
+	const count = occurrences.get(key) || 0;
+	occurrences.set(key, count + 1);
+	return `txn-${djb2Hash(`${key}|${count}`)}`;
+}
+
 function validateParseResult(data: any): ParseResult {
+	const occurrences = new Map<string, number>();
+
 	const transactions: Transaction[] = Array.isArray(data.transactions)
-		? data.transactions.map((t: any, i: number) => ({
-				id: t.id || `api-${Date.now()}-${i}`,
+		? data.transactions.map((t: any, _i: number) => ({
+				id: t.id || generateDeterministicId(t, occurrences),
 				date: t.date || 'Unknown',
 				description: t.description || 'Unknown',
 				amount: typeof t.amount === 'number' ? t.amount : 0,

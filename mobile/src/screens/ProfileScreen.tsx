@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +10,12 @@ import { useColors } from '../hooks/useColors';
 import { useStore, StatementData } from '../store';
 import { Card, Badge, SectionHeader } from '../components/ui';
 import { presentPaywall } from '../utils/revenueCat';
+let LocalAuthentication: typeof import('expo-local-authentication') | null = null;
+try {
+  LocalAuthentication = require('expo-local-authentication');
+} catch {
+  // Native module not available (e.g. Expo Go)
+}
 import type { RootStackParamList } from '../navigation';
 import { capture, AnalyticsEvents } from '../utils/analytics';
 
@@ -20,7 +26,35 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, statements, manualTransactions, isPremium, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency } = useStore();
+  const { cards, statements, manualTransactions, isPremium, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency, biometricLockEnabled, setBiometricLockEnabled } = useStore();
+  const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
+
+  // Check biometric availability on mount
+  useMemo(() => {
+    if (!LocalAuthentication) { setBiometricAvailable(false); return; }
+    LocalAuthentication.hasHardwareAsync().then((hw) => {
+      if (!hw) { setBiometricAvailable(false); return; }
+      LocalAuthentication!.isEnrolledAsync().then(setBiometricAvailable);
+    });
+  }, []);
+
+  const handleBiometricToggle = useCallback(async () => {
+    if (!LocalAuthentication) return;
+    if (biometricLockEnabled) {
+      setBiometricLockEnabled(false);
+      return;
+    }
+    // Verify biometric before enabling
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Verify to enable app lock',
+      fallbackLabel: 'Use passcode',
+    });
+    if (result.success) {
+      setBiometricLockEnabled(true);
+    } else {
+      Alert.alert('Authentication Failed', 'Could not verify your identity. Please try again.');
+    }
+  }, [biometricLockEnabled, setBiometricLockEnabled]);
 
   const statementCount = useMemo(
     () => Object.values(statements).reduce((sum, arr) => sum + arr.length, 0),
@@ -166,6 +200,31 @@ export default function ProfileScreen() {
           })}
         </View>
       </View>
+
+      {/* Security */}
+      {biometricAvailable && (
+        <View style={styles.appearanceSection}>
+          <Text style={styles.appearanceTitle}>Security</Text>
+          <TouchableOpacity
+            style={styles.biometricRow}
+            onPress={handleBiometricToggle}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.biometricIcon, biometricLockEnabled && styles.biometricIconActive]}>
+              <Feather name="lock" size={16} color={biometricLockEnabled ? colors.accent : colors.textMuted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.biometricLabel}>App Lock</Text>
+              <Text style={styles.biometricDesc}>
+                Require Face ID / fingerprint to open the app
+              </Text>
+            </View>
+            <View style={[styles.toggle, biometricLockEnabled && styles.toggleActive]}>
+              <View style={[styles.toggleKnob, biometricLockEnabled && styles.toggleKnobActive]} />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Recent Statements */}
       {allStatements.length > 0 && (
@@ -439,6 +498,58 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: '600',
     lineHeight: 22,
+  },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+  },
+  biometricIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  biometricIconActive: {
+    backgroundColor: colors.accent + '20',
+  },
+  biometricLabel: {
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  biometricDesc: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  toggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceElevated,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleActive: {
+    backgroundColor: colors.accent,
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.textMuted,
+  },
+  toggleKnobActive: {
+    backgroundColor: colors.background,
+    alignSelf: 'flex-end',
   },
   statementRow: {
     flexDirection: 'row',
