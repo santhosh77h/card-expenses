@@ -20,7 +20,7 @@ import { useStore } from '../store';
 import { StructuredAnswer } from '../components/AskResultViews';
 import { getDb } from '../db';
 import { useNLU } from '../utils/useNLU';
-import type { NLUResult } from '../utils/nlu';
+import type { NLUResult, CardInfo } from '../utils/nlu';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,7 +139,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
 // Suggestion chips
 // ---------------------------------------------------------------------------
 
-const SUGGESTIONS = [
+const BASE_SUGGESTIONS = [
   'How many transactions this month?',
   'Total spent on food',
   'What was my biggest expense?',
@@ -159,9 +159,28 @@ export default function AskScreen() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<QA[]>([]);
   const scrollRef = useRef<ScrollView>(null);
-  const { defaultCurrency } = useStore();
+  const { defaultCurrency, cards } = useStore();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const cardInfos = useMemo<CardInfo[]>(
+    () =>
+      cards.map((c) => ({
+        id: c.id,
+        issuer: c.issuer,
+        nickname: c.nickname,
+        last4: c.last4,
+      })),
+    [cards],
+  );
+
+  const suggestions = useMemo(() => {
+    if (cards.length > 0) {
+      const firstIssuer = cards[0].issuer;
+      return [...BASE_SUGGESTIONS, `Show ${firstIssuer} card transactions`];
+    }
+    return BASE_SUGGESTIONS;
+  }, [cards]);
 
   useEffect(() => {
     if (history.length > 0) {
@@ -173,7 +192,7 @@ export default function AskScreen() {
     const q = (text ?? input).trim();
     if (!q || !ready) return;
 
-    const result = query(q);
+    const result = query(q, cardInfos);
     if (!result) return;
 
     try {
@@ -234,7 +253,7 @@ export default function AskScreen() {
               Powered by on-device AI — works offline
             </Text>
             <View style={styles.suggestions}>
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <TouchableOpacity
                   key={s}
                   style={styles.chip}

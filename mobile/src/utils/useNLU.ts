@@ -12,7 +12,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { initNLU, processQuery, disposeNLU } from './nlu';
-import type { NLUResult } from './nlu';
+import type { NLUResult, CardInfo } from './nlu';
 
 export interface UseNLUReturn {
   /** Whether models are loaded and ready */
@@ -21,8 +21,8 @@ export interface UseNLUReturn {
   loading: boolean;
   /** Error during model loading (if any) */
   error: string | null;
-  /** Process a natural language query. Returns null if not ready. */
-  query: (text: string) => NLUResult | null;
+  /** Process a natural language query. Pass cards to enable card-based filtering. Returns null if not ready. */
+  query: (text: string, cards?: CardInfo[]) => NLUResult | null;
 }
 
 export function useNLU(): UseNLUReturn {
@@ -54,10 +54,10 @@ export function useNLU(): UseNLUReturn {
   }, []);
 
   const query = useCallback(
-    (text: string): NLUResult | null => {
+    (text: string, cards?: CardInfo[]): NLUResult | null => {
       if (!ready) return null;
       try {
-        return processQuery(text);
+        return processQuery(text, cards);
       } catch (err: any) {
         setError(err?.message ?? 'NLU inference failed');
         return null;

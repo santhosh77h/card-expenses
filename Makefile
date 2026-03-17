@@ -6,6 +6,9 @@
 MOBILE_DIR   := mobile
 BACKEND_DIR  := backend
 LANDING_DIR  := customer-webpage
+ML_DIR       := ml
+ML_VENV      := $(ML_DIR)/.venv
+ML_PYTHON    := $(ML_VENV)/bin/python
 ANDROID_DIR  := $(MOBILE_DIR)/android
 IOS_DIR      := $(MOBILE_DIR)/ios
 APK_OUTPUT   := $(ANDROID_DIR)/app/build/outputs/apk/release/app-release.apk
@@ -19,7 +22,8 @@ ARCHIVE_PATH := $(DIST_DIR)/Vector.xcarchive
 .PHONY: help dev dev-mobile dev-backend dev-landing dev-all prebuild prebuild-clean \
         apk aab apk-debug ios ios-sim ios-device ios-archive ipa \
         install-deps typecheck clean clean-android clean-ios \
-        eas-apk eas-aab eas-ios clean-all
+        eas-apk eas-aab eas-ios clean-all \
+        nlu-setup nlu-train-intent nlu-train-entity nlu-train nlu-test nlu-all
 
 # ── Help ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +46,10 @@ help: ## Show this help
 	@echo ""
 	@echo "  \033[33mEAS Cloud Builds (free tier: 30 builds/mo, has queue)\033[0m"
 	@grep -E '^(eas-apk|eas-aab|eas-ios):.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "  \033[33mNLU / ML\033[0m"
+	@grep -E '^(nlu-setup|nlu-train-intent|nlu-train-entity|nlu-train|nlu-test|nlu-all):.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "  \033[33mMaintenance\033[0m"
@@ -159,6 +167,28 @@ eas-aab: ## Build AAB on EAS servers for Play Store
 
 eas-ios: ## Build iOS on EAS servers (handles signing)
 	cd $(MOBILE_DIR) && npx eas-cli build --platform ios --profile production
+
+# ── NLU / ML ───────────────────────────────────────────────────────────────
+
+$(ML_VENV): $(ML_DIR)/requirements.txt
+	@echo "Creating ml venv with uv..."
+	cd $(ML_DIR) && uv venv && uv pip install --python .venv/bin/python -r requirements.txt
+	@touch $(ML_VENV)
+
+nlu-setup: $(ML_VENV) ## Create ml venv and install deps via uv
+
+nlu-train-intent: $(ML_VENV) ## Train the intent classifier model
+	cd $(ML_DIR) && $(abspath $(ML_PYTHON)) train_intent_model.py
+
+nlu-train-entity: $(ML_VENV) ## Train the entity (NER) model
+	cd $(ML_DIR) && $(abspath $(ML_PYTHON)) train_entity_model.py
+
+nlu-train: nlu-train-intent nlu-train-entity ## Train both intent + entity models
+
+nlu-test: $(ML_VENV) ## Run NLU pipeline tests
+	cd $(ML_DIR) && $(abspath $(ML_PYTHON)) test_pipeline.py
+
+nlu-all: nlu-train nlu-test ## Train all models then run tests
 
 # ── Clean ───────────────────────────────────────────────────────────────────
 

@@ -20,6 +20,7 @@ from training_data import (
     ENTITY_EXAMPLES,
     KNOWN_MERCHANTS,
     KNOWN_CATEGORIES,
+    KNOWN_CARDS,
     INTENT_EXAMPLES,
 )
 
@@ -39,7 +40,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # ---------------------------------------------------------------------------
 # 1. Define BIO tag set
 # ---------------------------------------------------------------------------
-ENTITY_TYPES = ["MERCHANT", "CATEGORY", "DATE", "AMOUNT"]
+ENTITY_TYPES = ["MERCHANT", "CATEGORY", "DATE", "AMOUNT", "CARD"]
 
 # BIO tags: O, B-MERCHANT, I-MERCHANT, B-CATEGORY, I-CATEGORY, ...
 tag_names = ["O"]
@@ -155,6 +156,94 @@ def generate_augmented_examples():
             start = text.index(date_text)
             end = start + len(date_text)
             augmented.append((text, [(start, end, date_type)]))
+
+    # Card examples
+    templates_card = [
+        "{card} card transactions",
+        "{card} card expenses",
+        "{card} card spending",
+        "show {card} card transactions",
+        "total spent on {card} card",
+        "how much on {card} card",
+        "list {card} card payments",
+        "{card} card orders",
+    ]
+
+    for card in KNOWN_CARDS[:30]:  # Use top 30
+        for template in templates_card:
+            text = template.format(card=card)
+            start = text.index(card)
+            end = start + len(card)
+            augmented.append((text, [(start, end, "CARD")]))
+
+    # Card + Date combined
+    templates_card_date = [
+        "{card} card transactions {date}",
+        "{card} card expenses {date}",
+        "{card} card spending {date}",
+    ]
+    card_date_phrases = [
+        "last month", "this month", "this week", "yesterday", "today",
+    ]
+
+    for card in KNOWN_CARDS[:15]:
+        for date_text in card_date_phrases:
+            for template in templates_card_date:
+                text = template.format(card=card, date=date_text)
+                card_start = text.index(card)
+                card_end = card_start + len(card)
+                date_start = text.index(date_text)
+                date_end = date_start + len(date_text)
+                augmented.append((text, [(card_start, card_end, "CARD"), (date_start, date_end, "DATE")]))
+
+    # Merchant + Card combined
+    templates_merchant_card = [
+        "{merchant} transactions on {card} card",
+        "{merchant} orders in {card} card",
+        "my {merchant} transactions in {card} card",
+        "show {merchant} on {card} card",
+        "{merchant} on my {card} card",
+        "total {merchant} spending on {card} card",
+    ]
+    card_names_short = ["sbi", "hdfc", "icici", "axis", "kotak"]
+    merchant_names_short = KNOWN_MERCHANTS[:10]  # swiggy, zomato, starbucks, ...
+
+    for merchant in merchant_names_short:
+        for card in card_names_short:
+            for template in templates_merchant_card:
+                text = template.format(merchant=merchant, card=card)
+                m_start = text.index(merchant)
+                m_end = m_start + len(merchant)
+                c_start = text.index(card)
+                c_end = c_start + len(card)
+                augmented.append((text, [(m_start, m_end, "MERCHANT"), (c_start, c_end, "CARD")]))
+
+    # Merchant + Date + Card combined (date between merchant and card)
+    templates_merchant_date_card = [
+        "my {merchant} transactions in {date} with {card} card",
+        "{merchant} orders in {date} on {card} card",
+        "{merchant} in {date} from {card} card",
+        "show {merchant} {date} on {card} card",
+        "total {merchant} spending {date} from {card} card",
+    ]
+    card_date_combo_phrases = ["january", "february", "last month", "this month", "this week"]
+
+    for merchant in KNOWN_MERCHANTS[:8]:
+        for date_text in card_date_combo_phrases:
+            for card in card_names_short[:3]:  # sbi, hdfc, icici
+                for template in templates_merchant_date_card:
+                    text = template.format(merchant=merchant, date=date_text, card=card)
+                    m_start = text.index(merchant)
+                    m_end = m_start + len(merchant)
+                    d_start = text.index(date_text)
+                    d_end = d_start + len(date_text)
+                    c_start = text.index(card)
+                    c_end = c_start + len(card)
+                    augmented.append((text, [
+                        (m_start, m_end, "MERCHANT"),
+                        (d_start, d_end, "DATE"),
+                        (c_start, c_end, "CARD"),
+                    ]))
 
     # "No entity" examples from intent data
     no_entity_texts = [
@@ -376,6 +465,13 @@ test_sentences = [
     "how much on netflix",
     "grocery spending this week",
     "list all transactions",
+    "sbi card transactions",
+    "hdfc card expenses this month",
+    "show icici card food spending",
+    "my swiggy transactions in sbi card",
+    "uber rides on hdfc card",
+    "my swiggy transactions in january with sbi card",
+    "zomato orders last month on hdfc card",
 ]
 
 for sentence in test_sentences:

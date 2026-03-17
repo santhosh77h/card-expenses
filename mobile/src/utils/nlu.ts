@@ -52,6 +52,13 @@ export interface NLUResult {
   description: string;
 }
 
+export interface CardInfo {
+  id: string;
+  issuer: string;
+  nickname: string;
+  last4: string;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -90,6 +97,65 @@ const CATEGORY_CANONICAL: Record<string, string> = {
   transfers: 'Transfers',
   transfer: 'Transfers',
   other: 'Other',
+};
+
+/** Map spoken card names → canonical issuer names */
+const CARD_CANONICAL: Record<string, string> = {
+  // Indian banks
+  sbi: 'SBI',
+  'sbi card': 'SBI',
+  'state bank': 'SBI',
+  hdfc: 'HDFC',
+  'hdfc bank': 'HDFC',
+  'hdfc credit': 'HDFC',
+  icici: 'ICICI',
+  'icici bank': 'ICICI',
+  axis: 'Axis',
+  'axis bank': 'Axis',
+  kotak: 'Kotak',
+  'kotak mahindra': 'Kotak',
+  indusind: 'IndusInd',
+  'yes bank': 'Yes Bank',
+  'yes bank card': 'Yes Bank',
+  rbl: 'RBL',
+  bob: 'BOB',
+  'bob card': 'BOB',
+  'bank of baroda': 'BOB',
+  canara: 'Canara',
+  pnb: 'PNB',
+  'pnb card': 'PNB',
+  idbi: 'IDBI',
+  federal: 'Federal',
+  bandhan: 'Bandhan',
+  'au small finance': 'AU Small Finance',
+  'idfc first': 'IDFC First',
+  idfc: 'IDFC First',
+  // US banks
+  chase: 'Chase',
+  bofa: 'Bank of America',
+  'bank of america': 'Bank of America',
+  'wells fargo': 'Wells Fargo',
+  citi: 'Citi',
+  citibank: 'Citi',
+  'capital one': 'Capital One',
+  'capital one card': 'Capital One',
+  amex: 'Amex',
+  'american express': 'Amex',
+  discover: 'Discover',
+  'us bank': 'US Bank',
+  'barclays us': 'Barclays',
+  synchrony: 'Synchrony',
+  // UK banks
+  barclays: 'Barclays',
+  hsbc: 'HSBC',
+  'hsbc india': 'HSBC',
+  lloyds: 'Lloyds',
+  natwest: 'NatWest',
+  'santander uk': 'Santander',
+  santander: 'Santander',
+  monzo: 'Monzo',
+  revolut: 'Revolut',
+  starling: 'Starling',
 };
 
 // ---------------------------------------------------------------------------
@@ -365,12 +431,70 @@ function resolveDate(dateStr: string): { from: string; to: string } | null {
 }
 
 // ---------------------------------------------------------------------------
+// Card resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a spoken card name (e.g. "sbi", "hdfc credit card") to a user's
+ * actual cardId UUID by matching against their CreditCard.issuer field.
+ *
+ * Resolution order: canonical mapping → exact issuer → partial issuer → nickname → last4
+ */
+function resolveCard(
+  cardText: string,
+  cards: CardInfo[],
+): { cardId: string; label: string } | null {
+  if (!cards || cards.length === 0) return null;
+
+  // Strip trailing "credit card" / "debit card" / "card"
+  const cleaned = cardText
+    .replace(/\s*(credit|debit)?\s*card$/i, '')
+    .trim()
+    .toLowerCase();
+
+  // Map to canonical issuer name
+  const canonical = (CARD_CANONICAL[cleaned] ?? cleaned).toLowerCase();
+
+  // Try exact issuer match (case-insensitive)
+  for (const c of cards) {
+    if (c.issuer.toLowerCase() === canonical) {
+      return { cardId: c.id, label: c.nickname || c.issuer };
+    }
+  }
+
+  // Partial issuer match (issuer contains canonical or vice versa)
+  for (const c of cards) {
+    const issuerLower = c.issuer.toLowerCase();
+    if (issuerLower.includes(canonical) || canonical.includes(issuerLower)) {
+      return { cardId: c.id, label: c.nickname || c.issuer };
+    }
+  }
+
+  // Nickname match
+  for (const c of cards) {
+    if (c.nickname && c.nickname.toLowerCase().includes(cleaned)) {
+      return { cardId: c.id, label: c.nickname };
+    }
+  }
+
+  // Last4 match
+  for (const c of cards) {
+    if (c.last4 && cleaned.includes(c.last4)) {
+      return { cardId: c.id, label: c.nickname || `****${c.last4}` };
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // SQL generation
 // ---------------------------------------------------------------------------
 
 function buildQuery(
   intent: IntentName,
   entities: Record<string, string>,
+  cards?: CardInfo[],
 ): { sql: string; params: (string | number)[]; description: string } {
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -401,6 +525,16 @@ function buildQuery(
         conditions.push('amount < ?');
         params.push(num);
       }
+    }
+  }
+
+  // Card filter → resolve to cardId
+  let resolvedCard: { cardId: string; label: string } | null = null;
+  if (entities.card && cards) {
+    resolvedCard = resolveCard(entities.card, cards);
+    if (resolvedCard) {
+      conditions.push('cardId = ?');
+      params.push(resolvedCard.cardId);
     }
   }
 
@@ -462,6 +596,7 @@ function buildQuery(
 
   // Build human-readable description
   const parts: string[] = [description];
+  if (resolvedCard) parts.push(`on ${resolvedCard.label} card`);
   if (entities.merchant) parts.push(`for "${entities.merchant}"`);
   if (entities.category)
     parts.push(`in ${CATEGORY_CANONICAL[entities.category] ?? entities.category}`);
@@ -488,10 +623,10 @@ function buildQuery(
  * // result.params = ["%swiggy%", "2026-02-01", "2026-02-28"]
  * ```
  */
-export function processQuery(text: string): NLUResult {
+export function processQuery(text: string, cards?: CardInfo[]): NLUResult {
   const { intent, confidence } = predictIntent(text);
   const entities = predictEntities(text);
-  const { sql, params, description } = buildQuery(intent, entities);
+  const { sql, params, description } = buildQuery(intent, entities, cards);
 
   return { intent, confidence, entities, sql, params, description };
 }

@@ -1,2 +1,2 @@
-tensorflow>=2.15,<2.18
+tensorflow>=2.18
 numpy>=1.24

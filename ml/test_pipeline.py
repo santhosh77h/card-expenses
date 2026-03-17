@@ -13,7 +13,7 @@ import json
 import re
 import numpy as np
 import tensorflow as tf
-from training_data import CATEGORY_CANONICAL
+from training_data import CATEGORY_CANONICAL, CARD_CANONICAL
 
 OUTPUT_DIR = "output"
 SEQUENCE_LENGTH = 20
@@ -138,6 +138,15 @@ def entities_to_sql(intent, entities):
                 conditions.append("amount < ?")
                 params.append(num)
 
+    # Card filter
+    if "card" in entities:
+        card_text = entities["card"]
+        # Strip trailing "card", "credit card", "debit card"
+        cleaned = re.sub(r"\s*(credit|debit)?\s*card$", "", card_text).strip()
+        canonical = CARD_CANONICAL.get(cleaned, cleaned.upper())
+        # In real app this resolves to cardId UUID; here we use issuer name
+        conditions.append(f"/* card: {canonical} → cardId = ? */")
+
     # Date filter (simplified — mobile app would resolve "yesterday" etc.)
     if "date" in entities:
         date_val = entities["date"]
@@ -187,6 +196,22 @@ test_queries = [
     "monthly summary",
     "how many transactions last month",
     "total shopping expenses this week",
+    # Card queries
+    "show sbi card transactions",
+    "how much did I spend on hdfc card",
+    "hdfc card food expenses this month",
+    "biggest expense on icici card",
+    "sbi card transactions last month",
+    "average spending on axis card",
+    "how many kotak card transactions",
+    # Card + Merchant queries
+    "my swiggy transactions in sbi card",
+    "uber rides on hdfc card",
+    "amazon orders from my icici card",
+    # Card + Merchant + Date queries
+    "my swiggy transactions in january with sbi card",
+    "zomato orders last month on hdfc card",
+    "uber rides this week from icici card",
 ]
 
 print("=" * 70)
