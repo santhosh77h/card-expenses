@@ -10,6 +10,7 @@ import * as dbUsage from '../db/monthlyUsage';
 import * as dbFileHashes from '../db/fileHashes';
 import { generateCSV } from '../utils/api';
 import { syncWidgetData } from '../utils/widgetBridge';
+import { getDb } from '../db';
 
 // ---------------------------------------------------------------------------
 // Widget sync helper — call after state mutations that affect spending data
@@ -228,6 +229,7 @@ interface AppState {
     modified: { old: Transaction; new: Transaction }[],
     removedIds: string[],
   ) => void;
+  resetAllData: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -716,6 +718,34 @@ export const useStore = create<AppState>()(
             monthlyUsage,
           };
         });
+      },
+
+      resetAllData: () => {
+        const db = getDb();
+        db.executeSync('BEGIN');
+        try {
+          db.executeSync('DELETE FROM file_hashes');
+          db.executeSync('DELETE FROM enrichments');
+          db.executeSync('DELETE FROM monthly_usage');
+          db.executeSync('DELETE FROM transactions');
+          db.executeSync('DELETE FROM statements');
+          db.executeSync('COMMIT');
+        } catch (e) {
+          db.executeSync('ROLLBACK');
+          throw e;
+        }
+        // Clear persisted Zustand state (cards, activeCardId)
+        AsyncStorage.removeItem('vector-storage');
+        set({
+          cards: [],
+          statements: {},
+          activeCardId: null,
+          manualTransactions: [],
+          monthlyUsage: [],
+          enrichments: {},
+          uploadsThisMonth: 0,
+        });
+        _syncWidgets();
       },
 
       _hydrateSqlite: () => {

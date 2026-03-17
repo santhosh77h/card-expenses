@@ -1,11 +1,17 @@
 [
   "average_spend",
   "category_spend",
+  "compare_months",
   "count_transactions",
+  "frequent_merchant",
   "highest_transaction",
   "list_transactions",
   "lowest_transaction",
   "monthly_summary",
+  "spending_health",
+  "top_category",
   "total_spent",
-  "transactions_on_date"
+  "transactions_on_date",
+  "unusual_spend",
+  "weekly_summary"
 ]

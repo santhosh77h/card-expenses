@@ -13,14 +13,19 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import * as Haptics from 'expo-haptics';
 import { spacing, borderRadius, fontSize, formatCurrency } from '../theme';
 import type { ThemeColors, CurrencyCode } from '../theme';
 import { useColors } from '../hooks/useColors';
 import { useStore } from '../store';
-import { StructuredAnswer } from '../components/AskResultViews';
+import { ChartCarousel } from '../components/AskChartCarousel';
 import { getDb } from '../db';
 import { useNLU } from '../utils/useNLU';
 import type { NLUResult, CardInfo } from '../utils/nlu';
+import { capture, AnalyticsEvents } from '../utils/analytics';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -230,6 +235,7 @@ export default function AskScreen() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<QA[]>([]);
   const scrollRef = useRef<ScrollView>(null);
+  const qaRefs = useRef<Record<number, View | null>>({});
   const { defaultCurrency, cards } = useStore();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -277,6 +283,28 @@ export default function AskScreen() {
     }
 
     setInput('');
+  };
+
+  const handleShareQA = async (index: number) => {
+    const ref = qaRefs.current[index];
+    if (!ref) return;
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      const uri = await captureRef(ref, { format: 'png', quality: 1 });
+      const dest = `${FileSystem.cacheDirectory}vector-qa-${Date.now()}.png`;
+      await FileSystem.copyAsync({ from: uri, to: dest });
+
+      await Sharing.shareAsync(dest, {
+        mimeType: 'image/png',
+        dialogTitle: 'Share Vector Insight',
+      });
+      const intent = history[index]?.result.intent;
+      capture(AnalyticsEvents.QA_SHARED, { intent: intent ?? 'unknown' });
+    } catch {
+      // User cancelled or capture failed
+    }
   };
 
   return (
@@ -343,7 +371,12 @@ export default function AskScreen() {
 
         {/* Q&A History */}
         {history.map((qa, i) => (
-          <View key={i} style={styles.qaBlock}>
+          <View
+            key={i}
+            style={styles.qaBlock}
+            ref={(el) => { qaRefs.current[i] = el; }}
+            collapsable={false}
+          >
             {/* Question */}
             <View style={styles.questionRow}>
               <Text style={styles.questionText}>{qa.question}</Text>
@@ -358,8 +391,8 @@ export default function AskScreen() {
                   {Math.round(qa.result.confidence * 100)}%
                 </Text>
               </View>
-              <StructuredAnswer intent={qa.result.intent} answer={qa.answer} rows={qa.rows} />
-              {/* Debug: entities */}
+              <ChartCarousel intent={qa.result.intent} answer={qa.answer} rows={qa.rows} />
+              {/* Entities */}
               {Object.keys(qa.result.entities).length > 0 && (
                 <View style={styles.entitiesRow}>
                   {Object.entries(qa.result.entities).map(([key, val]) => (
@@ -370,6 +403,21 @@ export default function AskScreen() {
                   ))}
                 </View>
               )}
+              {/* Share action */}
+              <View style={styles.answerActions}>
+                <TouchableOpacity
+                  onPress={() => handleShareQA(i)}
+                  hitSlop={8}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="share" size={14} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Watermark (visible in captured image) */}
+            <View style={styles.watermark}>
+              <Text style={styles.watermarkBrand}>VECTOR</Text>
+              <Text style={styles.watermarkTagline}> · Your Money. Directed.</Text>
             </View>
           </View>
         ))}
@@ -491,6 +539,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   qaBlock: {
     marginBottom: spacing.xl,
     gap: spacing.sm,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
   },
   questionRow: {
     alignSelf: 'flex-end',
@@ -569,6 +620,31 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: '600',
     lineHeight: 16,
+  },
+  answerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  watermark: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.4,
+    paddingTop: spacing.xs,
+  },
+  watermarkBrand: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  watermarkTagline: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
   },
 
   // Input

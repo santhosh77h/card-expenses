@@ -22,7 +22,7 @@ const MIN_PASSWORD_LENGTH = 6;
 export default function BackupView() {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, statements, manualTransactions, enrichments } = useStore();
+  const { cards, statements, manualTransactions, enrichments, resetAllData } = useStore();
   const [exporting, setExporting] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -345,6 +345,47 @@ export default function BackupView() {
           All backups are AES-encrypted. Data stays on your device and is never uploaded.
         </Text>
       </View>
+
+      {/* Delete all data */}
+      {hasData && (
+        <Card style={styles.dangerCard}>
+          <View style={styles.cardHeader}>
+            <Feather name="trash-2" size={18} color={colors.debit} />
+            <Text style={[styles.cardTitle, { color: colors.debit }]}>Delete All Data</Text>
+          </View>
+          <Text style={styles.desc}>
+            Permanently delete all cards, statements, transactions, and enrichments. This cannot be undone.
+          </Text>
+          <TouchableOpacity
+            style={styles.dangerBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              Alert.alert(
+                'Delete All Data?',
+                'This will permanently erase everything — all cards, statements, transactions, and enrichments. This cannot be undone.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete Everything',
+                    style: 'destructive',
+                    onPress: () => {
+                      try {
+                        resetAllData();
+                        Alert.alert('Data Deleted', 'All your data has been erased. The app is now fresh.');
+                      } catch (e: any) {
+                        Alert.alert('Error', e?.message || 'Failed to delete data.');
+                      }
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Feather name="trash-2" size={16} color={colors.debit} />
+            <Text style={styles.dangerBtnText}>Delete All Data</Text>
+          </TouchableOpacity>
+        </Card>
+      )}
     </View>
   );
 }
@@ -483,5 +524,26 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: fontSize.xs,
     flex: 1,
     lineHeight: 16,
+  },
+  dangerCard: {
+    borderWidth: 1,
+    borderColor: colors.debit + '30',
+  },
+  dangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.debit + '50',
+    backgroundColor: colors.debit + '10',
+  },
+  dangerBtnText: {
+    color: colors.debit,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    lineHeight: 20,
   },
 });

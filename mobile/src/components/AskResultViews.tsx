@@ -112,11 +112,13 @@ function CategorySpendView({ rows }: { rows: Record<string, any>[] }) {
                 <Text style={s.catAmount}>{formatCurrency(total, currency)}</Text>
               </View>
               <View style={s.catBar}>
-                <ProgressBar
-                  progress={total / maxTotal}
-                  color={catColor}
-                  height={4}
-                />
+                <View style={s.catBarTrack}>
+                  <ProgressBar
+                    progress={total / maxTotal}
+                    color={catColor}
+                    height={4}
+                  />
+                </View>
                 <Text style={s.catCount}>{count} txn{count !== 1 ? 's' : ''}</Text>
               </View>
             </View>
@@ -136,7 +138,7 @@ const MONTH_LABELS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-function formatMonth(ym: string): string {
+export function formatMonth(ym: string): string {
   const [year, month] = ym.split('-');
   const idx = parseInt(month, 10) - 1;
   return `${MONTH_LABELS[idx] ?? month} ${year}`;
@@ -299,6 +301,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingLeft: 16, // align with text after dot
+  },
+  catBarTrack: {
+    flex: 1,
   },
   catCount: {
     color: colors.textMuted,

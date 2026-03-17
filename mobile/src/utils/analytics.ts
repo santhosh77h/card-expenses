@@ -23,6 +23,7 @@ export const AnalyticsEvents = {
   // Analysis
   TRANSACTIONS_IMPORTED: 'transactions_imported',
   CSV_EXPORTED: 'csv_exported',
+  QA_SHARED: 'qa_shared',
 
   // Profile
   UPGRADE_TAPPED: 'upgrade_tapped',

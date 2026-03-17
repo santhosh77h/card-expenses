@@ -4,10 +4,11 @@
  * Loads two TFLite models (intent classifier + entity extractor) and converts
  * natural language queries into structured SQL queries against the transactions table.
  *
- * Pipeline:  User question → tokenize → TFLite intent → TFLite entities → resolve → SQL
+ * Pipeline:  User question → spellcheck → tokenize → TFLite intent → TFLite entities → resolve → SQL
  */
 
 import { Platform } from 'react-native';
+import { closest, distance } from 'fastest-levenshtein';
 
 let loadTensorflowModel: typeof import('react-native-fast-tflite').loadTensorflowModel;
 type TensorflowModel = import('react-native-fast-tflite').TensorflowModel;
@@ -163,6 +164,96 @@ const CARD_CANONICAL: Record<string, string> = {
   revolut: 'Revolut',
   starling: 'Starling',
 };
+
+// ---------------------------------------------------------------------------
+// Spell correction
+// ---------------------------------------------------------------------------
+
+/** Merge both vocabs into a single word list for spell correction */
+const _allVocabWords: string[] = (() => {
+  const wordSet = new Set<string>();
+  for (const w of Object.keys(intentVocab)) {
+    if (w !== '<PAD>' && w !== '<UNK>') wordSet.add(w);
+  }
+  for (const w of Object.keys(entityVocab)) {
+    if (w !== '<PAD>' && w !== '<UNK>') wordSet.add(w);
+  }
+
+  // Add extra domain words that may not be in the model vocab but users type
+  const extraWords = [
+    // Common query words
+    'transactions', 'transaction', 'expenses', 'expense', 'payments', 'payment',
+    'purchases', 'purchase', 'orders', 'order', 'spending', 'spent',
+    'category', 'categories', 'merchant', 'merchants',
+    'monthly', 'weekly', 'daily', 'yearly',
+    'compare', 'comparison', 'breakdown', 'summary', 'average',
+    'highest', 'lowest', 'biggest', 'smallest', 'total',
+    // Amount modifiers
+    'more', 'less', 'than', 'above', 'below', 'over', 'under', 'greater', 'between',
+    // Common misspelled targets
+    'shopping', 'groceries', 'grocery', 'entertainment', 'transportation',
+    'utilities', 'education', 'dining', 'restaurant', 'travel', 'health', 'medical',
+    'finance', 'investment', 'transfers', 'transfer',
+  ];
+  for (const w of extraWords) wordSet.add(w);
+
+  return Array.from(wordSet);
+})();
+
+const _vocabSet = new Set(_allVocabWords);
+
+/** Max Levenshtein distance to accept a correction */
+const MAX_EDIT_DISTANCE = 2;
+
+/** Words that should never be "corrected" — numbers, single chars, etc. */
+function shouldSkipCorrection(word: string): boolean {
+  // Skip numbers and words with digits (e.g. "500", "10k")
+  if (/\d/.test(word)) return true;
+  // Skip very short words (1-2 chars) — too ambiguous
+  if (word.length <= 2) return true;
+  // Skip if already in vocab
+  if (_vocabSet.has(word)) return true;
+  return false;
+}
+
+/**
+ * Correct spelling of a user query against the NLU vocabulary.
+ * Uses Levenshtein distance (via fastest-levenshtein) to find the nearest
+ * vocab word for each unknown word. Returns the corrected text.
+ *
+ * Only corrects words within MAX_EDIT_DISTANCE (2) to avoid over-correction.
+ */
+function correctSpelling(text: string): string {
+  const words = text.toLowerCase().trim().split(/\s+/);
+  let corrected = false;
+
+  const result = words.map((word) => {
+    if (shouldSkipCorrection(word)) return word;
+
+    const match = closest(word, _allVocabWords);
+    const dist = distance(word, match);
+
+    // Only correct if distance is small relative to word length
+    // Short words (3-4 chars): max distance 1
+    // Longer words (5+): max distance 2
+    const maxDist = word.length <= 4 ? 1 : MAX_EDIT_DISTANCE;
+
+    if (dist > 0 && dist <= maxDist) {
+      corrected = true;
+      return match;
+    }
+
+    return word;
+  });
+
+  if (corrected) {
+    const correctedText = result.join(' ');
+    console.log(`[NLU] Spell corrected: "${text}" → "${correctedText}"`);
+    return correctedText;
+  }
+
+  return text;
+}
 
 // ---------------------------------------------------------------------------
 // Model loading (singleton)
@@ -325,6 +416,63 @@ function predictEntities(text: string): Record<string, string> {
   // Flush last entity
   if (currentEntity && currentWords.length > 0) {
     entities[currentEntity.toLowerCase()] = currentWords.join(' ');
+  }
+
+  return cleanEntities(entities, text);
+}
+
+// ---------------------------------------------------------------------------
+// Entity post-processing
+// ---------------------------------------------------------------------------
+
+/** Words that should never be treated as merchants — common false positives */
+const STOP_MERCHANTS = new Set([
+  'wise', 'category', 'categories', 'month', 'months', 'weekly',
+  'daily', 'total', 'average', 'more', 'less', 'above', 'below',
+  'over', 'under', 'than', 'transaction', 'transactions', 'expense',
+  'expenses', 'payment', 'payments', 'summary', 'breakdown', 'compare',
+  'comparison', 'highest', 'lowest', 'biggest', 'smallest',
+]);
+
+/**
+ * Post-process extracted entities: remove false positives and fix typos.
+ */
+function cleanEntities(
+  entities: Record<string, string>,
+  originalText: string,
+): Record<string, string> {
+  const lower = originalText.toLowerCase();
+
+  // Remove merchant if it's a stop word (e.g. "wise" from "category wise")
+  if (entities.merchant && STOP_MERCHANTS.has(entities.merchant.toLowerCase())) {
+    delete entities.merchant;
+  }
+
+  // Fix amount entity for typos: "less tan 500" → "less than 500"
+  // Tolerates: "tan"/"then"/"thn" for "than", "grater" for "greater"
+  const AMOUNT_MODIFIER_RE =
+    /\b(more\s+t[ah]*[ne]?n?|above|over|greater\s+t[ah]*[ne]?n?|grater\s+t[ah]*[ne]?n?|less\s+t[ah]*[ne]?n?|below|under)\s+(\d[\d,]*)/;
+
+  if (entities.amount) {
+    const hasNumber = /\d/.test(entities.amount);
+    if (!hasNumber) {
+      // Try to find amount pattern in the original text with typo tolerance
+      const amountMatch = lower.match(AMOUNT_MODIFIER_RE);
+      if (amountMatch) {
+        entities.amount = amountMatch[0];
+      } else {
+        // No usable amount — remove it to avoid broken SQL
+        delete entities.amount;
+      }
+    }
+  }
+
+  // If no amount entity but text clearly has an amount-filter pattern (handles typos)
+  if (!entities.amount) {
+    const typoAmountMatch = lower.match(AMOUNT_MODIFIER_RE);
+    if (typoAmountMatch) {
+      entities.amount = typoAmountMatch[0];
+    }
   }
 
   return entities;
@@ -494,6 +642,118 @@ function resolveCard(
 }
 
 // ---------------------------------------------------------------------------
+// Rule-based intent correction
+// ---------------------------------------------------------------------------
+
+/**
+ * Post-model correction: override the TFLite intent when clear textual
+ * patterns + entity signals indicate a different intent.  This catches
+ * common misclassifications (e.g. "transactions more than 500" → compare_months)
+ * without requiring a full retrain.
+ */
+function correctIntent(
+  text: string,
+  intent: IntentName,
+  confidence: number,
+  entities: Record<string, string>,
+): { intent: IntentName; confidence: number } {
+  const lower = text.toLowerCase().trim();
+
+  // ── Category-wise / category breakdown ───────────────────────────────
+  // "category wise transactions", "last month categories transaction",
+  // "spending by category", "categorywise breakdown", etc.
+  const categoryBreakdownRe =
+    /\b(categor(y|ies)\s*(wise|breakdown|split|distribution|summary)|by\s+categor(y|ies)|categor(y|ies)\s+wise)\b/;
+  if (categoryBreakdownRe.test(lower) && intent !== 'category_spend' && intent !== 'top_category') {
+    return { intent: 'category_spend', confidence: Math.max(confidence, 0.90) };
+  }
+  // Also catch: "<date> categories transaction" pattern
+  if (
+    /\bcategor(y|ies)\b/.test(lower) &&
+    /\btransactions?\b/.test(lower) &&
+    intent !== 'category_spend' &&
+    intent !== 'top_category'
+  ) {
+    return { intent: 'category_spend', confidence: Math.max(confidence, 0.88) };
+  }
+
+  // ── Amount-filtered listing ──────────────────────────────────────────
+  // Patterns: "transactions more than 500", "expenses above 1000",
+  //           "transactions under 200", "purchases below 500"
+  // Also handles typos: "less tan", "more then", "grater than"
+  const amountFilterRe =
+    /\b(transactions?|expenses?|payments?|purchases?|spends?|orders?)\b.*\b(more\s+t[ah]*[ne]?n?|above|over|greater\s+t[ah]*[ne]?n?|grater\s+t[ah]*[ne]?n?|less\s+t[ah]*[ne]?n?|below|under|between)\b.*\d/;
+  if (
+    amountFilterRe.test(lower) &&
+    intent !== 'list_transactions' &&
+    intent !== 'count_transactions' &&
+    intent !== 'total_spent' &&
+    intent !== 'highest_transaction' &&
+    intent !== 'lowest_transaction'
+  ) {
+    const isCount = /\b(how\s+many|count|number\s+of)\b/.test(lower);
+    const isTotal = /\b(total|sum|how\s+much)\b/.test(lower);
+    return {
+      intent: isCount ? 'count_transactions' : isTotal ? 'total_spent' : 'list_transactions',
+      confidence: Math.max(confidence, 0.85),
+    };
+  }
+
+  // ── Bare "transactions <amount-modifier> <number>" ───────────────────
+  // Very short queries like "transactions above 500" or "transactions > 500"
+  const bareAmountRe =
+    /^(show\s+|list\s+|get\s+|find\s+)?(all\s+)?(my\s+)?\w*\s*(transactions?|expenses?|payments?)(\s+(more|greater|grater|less|above|over|below|under)\s+(t[ah]*[ne]?n?\s+)?\d+|\s*[><]=?\s*\d+)/;
+  if (bareAmountRe.test(lower) && intent !== 'list_transactions') {
+    return { intent: 'list_transactions', confidence: Math.max(confidence, 0.90) };
+  }
+
+  // ── "show/list transactions" with no comparison keywords ─────────────
+  const listRe = /^(show|list|display|get|find|pull\s+up)\s+(me\s+)?(my\s+)?(all\s+)?(recent\s+)?(transactions?|expenses?|payments?|purchases?|orders?)\b/;
+  if (
+    listRe.test(lower) &&
+    intent !== 'list_transactions' &&
+    intent !== 'transactions_on_date' &&
+    !/\b(compar|vs|versus|month\s+over|month\s+to|trend|categor)/i.test(lower)
+  ) {
+    return { intent: 'list_transactions', confidence: Math.max(confidence, 0.85) };
+  }
+
+  // ── "how many" clearly indicates count ───────────────────────────────
+  if (/\b(how\s+many|count)\b/.test(lower) && intent !== 'count_transactions') {
+    return { intent: 'count_transactions', confidence: Math.max(confidence, 0.85) };
+  }
+
+  // ── "total spent" / "how much" clearly indicates total ───────────────
+  if (
+    /\b(total\s+spent|how\s+much\s+(did\s+I|have\s+I)?\s*spend|sum\s+of)\b/.test(lower) &&
+    intent !== 'total_spent'
+  ) {
+    return { intent: 'total_spent', confidence: Math.max(confidence, 0.85) };
+  }
+
+  // ── "biggest" / "highest" / "largest" → highest_transaction ──────────
+  // But NOT when "categories" is in the query (that's category_spend)
+  if (
+    /\b(biggest|highest|largest|most\s+expensive|maximum|costliest|priciest)\b/.test(lower) &&
+    !/\bcategor/i.test(lower) &&
+    intent !== 'highest_transaction'
+  ) {
+    return { intent: 'highest_transaction', confidence: Math.max(confidence, 0.85) };
+  }
+
+  // ── "smallest" / "lowest" / "cheapest" → lowest_transaction ──────────
+  if (
+    /\b(smallest|lowest|cheapest|least\s+expensive|minimum)\b/.test(lower) &&
+    !/\bcategor/i.test(lower) &&
+    intent !== 'lowest_transaction'
+  ) {
+    return { intent: 'lowest_transaction', confidence: Math.max(confidence, 0.85) };
+  }
+
+  return { intent, confidence };
+}
+
+// ---------------------------------------------------------------------------
 // SQL generation
 // ---------------------------------------------------------------------------
 
@@ -501,6 +761,7 @@ function buildQuery(
   intent: IntentName,
   entities: Record<string, string>,
   cards?: CardInfo[],
+  originalText?: string,
 ): { sql: string; params: (string | number)[]; description: string } {
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -518,16 +779,28 @@ function buildQuery(
     params.push(canonical);
   }
 
-  // Amount filter
-  if (entities.amount) {
-    const numbers = entities.amount.match(/\d+/);
+  // Amount filter — use entity if available, else fallback to regex on original text
+  // Typo-tolerant: "tan"/"then"/"thn" for "than", "grater" for "greater"
+  let amountStr = entities.amount;
+  if (!amountStr && originalText) {
+    const fallback = originalText.match(
+      /\b(more\s+t[ah]*[ne]?n?|above|over|greater\s+t[ah]*[ne]?n?|grater\s+t[ah]*[ne]?n?|less\s+t[ah]*[ne]?n?|below|under)\s+(\d[\d,]*)/i,
+    );
+    if (fallback) {
+      amountStr = fallback[0];
+      entities.amount = amountStr;
+    }
+  }
+
+  if (amountStr) {
+    const numbers = amountStr.match(/\d[\d,]*/);
     if (numbers) {
-      const num = parseInt(numbers[0], 10);
-      const str = entities.amount;
-      if (/above|over|more|greater/.test(str)) {
+      const num = parseInt(numbers[0].replace(/,/g, ''), 10);
+      const str = amountStr;
+      if (/above|over|more|greater|grater/i.test(str)) {
         conditions.push('amount > ?');
         params.push(num);
-      } else if (/below|under|less/.test(str)) {
+      } else if (/below|under|less/i.test(str)) {
         conditions.push('amount < ?');
         params.push(num);
       }
@@ -658,9 +931,18 @@ function buildQuery(
  * ```
  */
 export function processQuery(text: string, cards?: CardInfo[]): NLUResult {
-  const { intent, confidence } = predictIntent(text);
-  const entities = predictEntities(text);
-  const { sql, params, description } = buildQuery(intent, entities, cards);
+  // Step 1: Spell correction — fix typos before ML inference
+  const corrected = correctSpelling(text);
+
+  // Step 2: ML inference on corrected text
+  const raw = predictIntent(corrected);
+  const entities = predictEntities(corrected);
+
+  // Step 3: Rule-based intent correction using corrected text + entities
+  const { intent, confidence } = correctIntent(corrected, raw.intent, raw.confidence, entities);
+
+  // Step 4: SQL generation (pass original text as fallback for amount extraction)
+  const { sql, params, description } = buildQuery(intent, entities, cards, text);
 
   return { intent, confidence, entities, sql, params, description };
 }
