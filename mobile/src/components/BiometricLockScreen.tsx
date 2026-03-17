@@ -48,11 +48,12 @@ export default function BiometricLockScreen({ onUnlock }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: darkColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
+    zIndex: 9999,
   },
   brand: {
     color: darkColors.textPrimary,

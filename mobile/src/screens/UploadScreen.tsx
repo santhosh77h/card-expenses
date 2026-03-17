@@ -45,6 +45,7 @@ interface BatchFileItem {
 	fileHash?: string;
 	parseResult?: any;
 	statementId?: string;
+	cardId?: string;
 	existingStatementId?: string;
 	existingCardId?: string;
 }
@@ -190,6 +191,98 @@ export default function UploadScreen() {
 		}
 
 		return pool.slice(0, MAX_PASSWORD_POOL_SIZE);
+	};
+
+	// -----------------------------------------------------------------------
+	// Per-file card resolution helpers
+	// -----------------------------------------------------------------------
+
+	/** Find an existing card matching the parsed statement's bank + last4. Uses fresh Zustand state. */
+	const matchCardFromParsed = (parsed: any): CreditCard | null => {
+		const currentCards = useStore.getState().cards;
+		const bankDetected: string = parsed.bank_detected || 'generic';
+		const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+		const last4: string = parsed.card_info?.card_last4 || '';
+
+		if (last4) {
+			// Exact match: same issuer + same last4
+			const exactMatch = currentCards.find((c) => c.issuer === issuerName && c.last4 === last4);
+			if (exactMatch) return exactMatch;
+		}
+
+		// Issuer-only match: if exactly one card with this issuer exists
+		const issuerCards = currentCards.filter((c) => c.issuer === issuerName);
+		if (issuerCards.length === 1) return issuerCards[0];
+
+		return null;
+	};
+
+	/**
+	 * Resolve which card a parsed statement should be saved to.
+	 * Returns cardId if resolved, null if card confirm modal should be shown.
+	 */
+	const resolveTargetCard = (parsed: any, fallbackCardId: string | null): string | null => {
+		const bankDetected: string = parsed.bank_detected || 'generic';
+		const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+
+		// Check if per-file resolution is needed
+		const needsResolution = isNewCardFlow || (() => {
+			if (!fallbackCardId) return true;
+			const selectedCard = useStore.getState().cards.find((c) => c.id === fallbackCardId);
+			// Mismatch: parsed bank differs from selected card's issuer (skip if generic/Other)
+			return selectedCard && selectedCard.issuer !== issuerName && issuerName !== 'Other';
+		})();
+
+		if (!needsResolution && fallbackCardId) return fallbackCardId;
+
+		// Try auto-match
+		const matched = matchCardFromParsed(parsed);
+		if (matched) return matched.id;
+
+		return null; // No match — caller should show card confirm modal
+	};
+
+	/** Set up card confirmation modal state for a parsed file. */
+	const showCardConfirmForFile = (
+		idx: number,
+		parsed: any,
+		fileHash?: string,
+		passwordToSave?: string,
+	) => {
+		const cardInfo: CardInfo | null = parsed.card_info ?? null;
+		const bankDetected: string = parsed.bank_detected || 'generic';
+		const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+		const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
+		const network = normalizeNetwork(cardInfo?.card_network ?? null);
+
+		const newCard: CreditCard = {
+			id: `auto-${Date.now()}`,
+			nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
+			last4: cardInfo?.card_last4 || '',
+			issuer: issuerName,
+			network,
+			creditLimit: cardInfo?.credit_limit ?? 0,
+			billingCycle: '1',
+			color: pickUnusedColor(useStore.getState().cards),
+			totalAmountDue: cardInfo?.total_amount_due ?? undefined,
+			minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
+			paymentDueDate: cardInfo?.payment_due_date ?? undefined,
+			autoCreated: true,
+			currency: detectedCurrency,
+		};
+
+		setConfirmNickname(newCard.nickname);
+		setConfirmLast4(newCard.last4);
+		setConfirmIssuer(newCard.issuer);
+		setConfirmNetwork(newCard.network);
+		setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
+		setConfirmCurrency(detectedCurrency);
+		setPendingCardData(newCard);
+
+		updateBatchFile(idx, { status: 'parsing', fileHash, parseResult: parsed });
+		setPendingParseResult({ parsed, fileHash, passwordToSave });
+
+		setCardConfirmVisible(true);
 	};
 
 	// -----------------------------------------------------------------------
@@ -412,55 +505,13 @@ export default function UploadScreen() {
 				}
 			}
 
-			// --- Success handling (unchanged logic) ---
-
-			// New card flow — first successful parse, no card created yet
-			if (isNewCardFlow && !currentCardId) {
-				// Pause batch: show card confirmation
-				const cardInfo: CardInfo | null = parsed.card_info ?? null;
-				const bankDetected: string = parsed.bank_detected || 'generic';
-				const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
-				const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
-				const network = normalizeNetwork(cardInfo?.card_network ?? null);
-
-				const newCard: CreditCard = {
-					id: `auto-${Date.now()}`,
-					nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
-					last4: cardInfo?.card_last4 || '',
-					issuer: issuerName,
-					network,
-					creditLimit: cardInfo?.credit_limit ?? 0,
-					billingCycle: '1',
-					color: pickUnusedColor(cards),
-					totalAmountDue: cardInfo?.total_amount_due ?? undefined,
-					minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
-					paymentDueDate: cardInfo?.payment_due_date ?? undefined,
-					autoCreated: true,
-					currency: detectedCurrency,
-				};
-
-				setConfirmNickname(newCard.nickname);
-				setConfirmLast4(newCard.last4);
-				setConfirmIssuer(newCard.issuer);
-				setConfirmNetwork(newCard.network);
-				setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
-				setConfirmCurrency(detectedCurrency);
-				setPendingCardData(newCard);
-
-				// Store parse result for this file
-				updateBatchFile(i, { status: 'parsing', fileHash, parseResult: parsed });
-				setPendingParseResult({ parsed, fileHash, passwordToSave: usedPassword });
-
-				setCardConfirmVisible(true);
-				return; // Pause — handleCardConfirm will resume
-			}
+			// --- Success handling — per-file card resolution ---
 
 			// Check if this is a re-parse of an existing statement
 			const currentFile = batchFilesRef.current[i];
 			if (currentFile.existingStatementId && currentFile.existingCardId) {
 				// Re-parse flow → navigate to diff screen
 				updateBatchFile(i, { status: 'reparse', fileHash, parseResult: parsed });
-				// For single file: navigate immediately. For batch: pause and show after batch.
 				if (files.length === 1) {
 					setState('idle');
 					navigation.navigate('StatementDiff', {
@@ -470,13 +521,20 @@ export default function UploadScreen() {
 					});
 					return;
 				}
-				// In batch mode, store the info and continue — will show after batch completes
 				continue;
 			}
 
-			// Normal flow — save
-			const stmtId = finalizeSaveForBatch(currentCardId!, parsed, fileHash);
-			updateBatchFile(i, { status: 'success', fileHash, parseResult: parsed, statementId: stmtId });
+			// Resolve which card this file belongs to
+			const targetCardId = resolveTargetCard(parsed, currentCardId);
+			if (!targetCardId) {
+				// No matching card — show card confirmation modal
+				showCardConfirmForFile(i, parsed, fileHash, usedPassword);
+				return; // Pause — handleCardConfirm will resume
+			}
+
+			// Save to resolved card
+			const stmtId = finalizeSaveForBatch(targetCardId, parsed, fileHash);
+			updateBatchFile(i, { status: 'success', fileHash, parseResult: parsed, statementId: stmtId, cardId: targetCardId });
 		}
 
 		// Batch complete
@@ -498,7 +556,7 @@ export default function UploadScreen() {
 		if (totalCount === 1 && successCount === 1) {
 			const file = batchFilesRef.current[0];
 			setState('idle');
-			navigation.navigate('Analysis', { statementId: file.statementId!, cardId: currentCardId ?? batchCardId! });
+			navigation.navigate('Analysis', { statementId: file.statementId!, cardId: file.cardId ?? currentCardId ?? batchCardId! });
 		}
 	};
 
@@ -584,55 +642,25 @@ export default function UploadScreen() {
 				passwordPoolRef.current.add(usedPwd);
 				setBatchPassword(usedPwd);
 
-				// If new card flow and no card yet
-				const currentCardId = batchCardId;
-				if (isNewCardFlow && !currentCardId) {
-					const cardInfo: CardInfo | null = parsed.card_info ?? null;
-					const bankDetected: string = parsed.bank_detected || 'generic';
-					const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
-					const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
-					const network = normalizeNetwork(cardInfo?.card_network ?? null);
-
-					const newCard: CreditCard = {
-						id: `auto-${Date.now()}`,
-						nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
-						last4: cardInfo?.card_last4 || '',
-						issuer: issuerName,
-						network,
-						creditLimit: cardInfo?.credit_limit ?? 0,
-						billingCycle: '1',
-						color: pickUnusedColor(cards),
-						totalAmountDue: cardInfo?.total_amount_due ?? undefined,
-						minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
-						paymentDueDate: cardInfo?.payment_due_date ?? undefined,
-						autoCreated: true,
-						currency: detectedCurrency,
-					};
-
-					setConfirmNickname(newCard.nickname);
-					setConfirmLast4(newCard.last4);
-					setConfirmIssuer(newCard.issuer);
-					setConfirmNetwork(newCard.network);
-					setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
-					setConfirmCurrency(detectedCurrency);
-					setPendingCardData(newCard);
-					updateBatchFile(idx, { status: 'parsing', parseResult: parsed });
-					setPendingParseResult({ parsed, fileHash: file.fileHash, passwordToSave: shouldSave ? usedPwd : undefined });
-					setCardConfirmVisible(true);
+				// Per-file card resolution
+				const targetCardId = resolveTargetCard(parsed, batchCardId);
+				if (!targetCardId) {
+					// No matching card — show card confirmation modal
+					showCardConfirmForFile(idx, parsed, file.fileHash, shouldSave ? usedPwd : undefined);
 					return;
 				}
 
-				// Save this file
-				const stmtId = finalizeSaveForBatch(currentCardId!, parsed, file.fileHash);
-				updateBatchFile(idx, { status: 'success', parseResult: parsed, statementId: stmtId });
+				// Save this file to resolved card
+				const stmtId = finalizeSaveForBatch(targetCardId, parsed, file.fileHash);
+				updateBatchFile(idx, { status: 'success', parseResult: parsed, statementId: stmtId, cardId: targetCardId });
 
 				// Save password to card if requested
-				if (shouldSave && currentCardId) {
-					updateCard(currentCardId, { pdfPassword: usedPwd });
+				if (shouldSave && targetCardId) {
+					updateCard(targetCardId, { pdfPassword: usedPwd });
 				}
 
 				// Continue batch from next file
-				processBatch(idx + 1, currentCardId ?? undefined, usedPwd);
+				processBatch(idx + 1, batchCardId ?? undefined, usedPwd);
 			} catch (retryErr: any) {
 				const retryData = retryErr?.response?.data;
 				const retryCode = retryData?.error_code || retryData?.detail?.error_code;
@@ -790,19 +818,19 @@ export default function UploadScreen() {
 		setCardConfirmVisible(false);
 
 		if (state === 'batch') {
-			// Batch mode — save the first file, then resume
+			// Batch mode — save this file to the newly created card, then resume
 			const idx = batchFilesRef.current.findIndex((f) => f.status === 'parsing' && f.parseResult);
 			if (idx !== -1 && pendingParseResult) {
 				const stmtId = finalizeSaveForBatch(confirmedCard.id, pendingParseResult.parsed, pendingParseResult.fileHash);
-				updateBatchFile(idx, { status: 'success', statementId: stmtId });
+				updateBatchFile(idx, { status: 'success', statementId: stmtId, cardId: confirmedCard.id });
 			}
-			setBatchCardId(confirmedCard.id);
+			// Don't lock batchCardId — each file resolves its own card via resolveTargetCard
 			setPendingCardData(null);
 			setPendingParseResult(null);
 
-			// Resume from next file
+			// Resume from next file — pass original batchCardId so each file resolves independently
 			const nextIdx = (idx !== -1 ? idx : 0) + 1;
-			processBatch(nextIdx, confirmedCard.id, batchPassword);
+			processBatch(nextIdx, batchCardId ?? undefined, batchPassword);
 			return;
 		}
 

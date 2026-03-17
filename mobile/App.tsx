@@ -135,11 +135,12 @@ export default function App() {
     );
   }
 
-  if (locked) {
-    return <BiometricLockScreen onUnlock={handleUnlock} />;
-  }
-
-  return <AppContent />;
+  return (
+    <View style={{ flex: 1 }}>
+      <AppContent />
+      {locked && <BiometricLockScreen onUnlock={handleUnlock} />}
+    </View>
+  );
 }
 
 // Splash/loading/error screens always use dark theme (brand identity, renders before preference loads)
