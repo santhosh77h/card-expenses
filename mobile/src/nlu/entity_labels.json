@@ -7,5 +7,7 @@
   "B-DATE",
   "I-DATE",
   "B-AMOUNT",
-  "I-AMOUNT"
+  "I-AMOUNT",
+  "B-CARD",
+  "I-CARD"
 ]

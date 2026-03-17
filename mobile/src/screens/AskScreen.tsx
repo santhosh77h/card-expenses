@@ -130,6 +130,77 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
       return { answer: lines.join('\n') + suffix, rows };
     }
 
+    case 'compare_months': {
+      if (rows.length === 0) return { answer: 'No spending data to compare.', rows };
+      if (rows.length === 1) {
+        return {
+          answer: `Only one month of data: ${rows[0].month} — ${formatCurrency(rows[0].total as number, fallbackCurrency)}.`,
+          rows,
+        };
+      }
+      const [current, previous] = rows;
+      const diff = (current.total as number) - (previous.total as number);
+      const pct = previous.total ? Math.abs(Math.round((diff / (previous.total as number)) * 100)) : 0;
+      const direction = diff > 0 ? 'more' : diff < 0 ? 'less' : 'the same as';
+      return {
+        answer: `You spent ${formatCurrency(current.total as number, fallbackCurrency)} (${current.month}) vs ${formatCurrency(previous.total as number, fallbackCurrency)} (${previous.month}) — that's ${pct}% ${direction}.`,
+        rows,
+      };
+    }
+
+    case 'top_category': {
+      if (rows.length === 0) return { answer: 'No spending data found.', rows };
+      const lines = rows.slice(0, 5).map((r, i) =>
+        `${i + 1}. ${r.category}: ${formatCurrency(r.total as number, fallbackCurrency)} (${r.count} txns)`,
+      );
+      return { answer: `Your top categories:\n${lines.join('\n')}`, rows };
+    }
+
+    case 'spending_health': {
+      const total = (rows[0]?.total as number) ?? 0;
+      const count = (rows[0]?.count as number) ?? 0;
+      const avg = (rows[0]?.avg_amount as number) ?? 0;
+      const max = (rows[0]?.max_amount as number) ?? 0;
+      if (count === 0) return { answer: 'No transactions found to analyze.', rows };
+      return {
+        answer: `You've spent ${formatCurrency(total, fallbackCurrency)} across ${count} transaction${count !== 1 ? 's' : ''}. Average: ${formatCurrency(avg, fallbackCurrency)} per transaction. Largest: ${formatCurrency(max, fallbackCurrency)}.`,
+        rows,
+      };
+    }
+
+    case 'frequent_merchant': {
+      if (rows.length === 0) return { answer: 'No merchant data found.', rows };
+      const lines = rows.slice(0, 10).map((r, i) =>
+        `${i + 1}. ${r.description} — ${r.visit_count} time${(r.visit_count as number) !== 1 ? 's' : ''}, ${formatCurrency(r.total as number, fallbackCurrency)}`,
+      );
+      return { answer: `Your most frequent merchants:\n${lines.join('\n')}`, rows };
+    }
+
+    case 'unusual_spend': {
+      if (rows.length === 0) return { answer: 'No unusual transactions found — your spending looks normal!', rows };
+      const lines = rows.slice(0, 5).map((r) =>
+        `${r.date}: ${formatCurrency(r.amount as number, fallbackCurrency)} — ${r.description}`,
+      );
+      return {
+        answer: `Found ${rows.length} unusual transaction${rows.length !== 1 ? 's' : ''} (well above your average):\n${lines.join('\n')}`,
+        rows,
+      };
+    }
+
+    case 'weekly_summary': {
+      if (rows.length === 0) return { answer: 'No spending this week.', rows };
+      const total = rows.reduce((sum, r) => sum + ((r.total as number) || 0), 0);
+      const txnCount = rows.reduce((sum, r) => sum + ((r.count as number) || 0), 0);
+      const busiest = rows.reduce((mx, r) => ((r.total as number) > (mx.total as number) ? r : mx), rows[0]);
+      const lines = rows.map((r) =>
+        `${r.date}: ${formatCurrency(r.total as number, fallbackCurrency)} (${r.count} txns)`,
+      );
+      return {
+        answer: `This week: ${formatCurrency(total, fallbackCurrency)} across ${txnCount} transactions.\nBusiest day: ${busiest.date} (${formatCurrency(busiest.total as number, fallbackCurrency)})\n${lines.join('\n')}`,
+        rows,
+      };
+    }
+
     default:
       return { answer: `${rows.length} result(s) returned.`, rows };
   }

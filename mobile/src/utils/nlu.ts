@@ -40,7 +40,13 @@ export type IntentName =
   | 'highest_transaction'
   | 'lowest_transaction'
   | 'average_spend'
-  | 'monthly_summary';
+  | 'monthly_summary'
+  | 'compare_months'
+  | 'top_category'
+  | 'spending_health'
+  | 'frequent_merchant'
+  | 'unusual_spend'
+  | 'weekly_summary';
 
 export interface NLUResult {
   intent: IntentName;
@@ -588,6 +594,34 @@ function buildQuery(
     case 'monthly_summary':
       sql = `SELECT strftime('%Y-%m', date) as month, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY month ORDER BY month DESC`;
       description = 'Generating monthly summary';
+      break;
+    case 'compare_months':
+      sql = `SELECT strftime('%Y-%m', date) as month, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY month ORDER BY month DESC LIMIT 2`;
+      description = 'Comparing monthly spending';
+      break;
+    case 'top_category':
+      sql = `SELECT category, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY category ORDER BY total DESC LIMIT 5`;
+      description = 'Finding top spending categories';
+      break;
+    case 'spending_health':
+      sql = `SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count, COALESCE(ROUND(AVG(amount), 2), 0) as avg_amount, COALESCE(MAX(amount), 0) as max_amount FROM transactions WHERE type='debit' AND ${where}`;
+      description = 'Analyzing spending health';
+      break;
+    case 'frequent_merchant':
+      sql = `SELECT description, COUNT(*) as visit_count, SUM(amount) as total FROM transactions WHERE type='debit' AND ${where} GROUP BY description ORDER BY visit_count DESC LIMIT 10`;
+      description = 'Finding most frequent merchants';
+      break;
+    case 'unusual_spend':
+      sql = `SELECT *, (SELECT ROUND(AVG(amount), 2) FROM transactions WHERE type='debit') as _avg FROM transactions WHERE type='debit' AND amount > (SELECT AVG(amount) * 2 FROM transactions WHERE type='debit') AND ${where} ORDER BY amount DESC LIMIT 10`;
+      description = 'Finding unusual transactions';
+      break;
+    case 'weekly_summary':
+      if (!entities.date) {
+        sql = `SELECT date, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND date >= date('now', '-7 days') AND ${where} GROUP BY date ORDER BY date`;
+      } else {
+        sql = `SELECT date, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY date ORDER BY date`;
+      }
+      description = 'Weekly spending breakdown';
       break;
     default:
       sql = `SELECT * FROM transactions WHERE ${where} ORDER BY date DESC LIMIT 20`;

@@ -184,6 +184,9 @@ const RICH_INTENTS: Record<string, React.FC<{ rows: Record<string, any>[] }>> = 
   transactions_on_date: TransactionListView,
   category_spend: CategorySpendView,
   monthly_summary: MonthlySummaryView,
+  compare_months: MonthlySummaryView,
+  top_category: CategorySpendView,
+  unusual_spend: TransactionListView,
 };
 
 export function StructuredAnswer({ intent, answer, rows }: StructuredAnswerProps) {
