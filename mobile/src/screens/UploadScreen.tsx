@@ -33,6 +33,7 @@ import { capture, AnalyticsEvents } from '../utils/analytics';
 
 const FREE_TIER_UPLOAD_LIMIT = 3;
 const NEW_CARD_ID = '__new__';
+const MAX_PASSWORD_POOL_SIZE = 5;
 
 type FileStatus = 'pending' | 'hashing' | 'parsing' | 'success' | 'failed' | 'duplicate' | 'skipped' | 'reparse';
 
@@ -98,6 +99,8 @@ export default function UploadScreen() {
 	const batchFilesRef = useRef<BatchFileItem[]>([]);
 	// Track which batch index needs password retry
 	const batchPasswordIndexRef = useRef<number>(0);
+	// Pool of passwords tried during this batch session
+	const passwordPoolRef = useRef<Set<string>>(new Set());
 
 	const computeFileHash = async (fileUri: string): Promise<string> => {
 		const base64 = await FileSystem.readAsStringAsync(fileUri, {
@@ -138,7 +141,55 @@ export default function UploadScreen() {
 		setIsNewCardFlow(false);
 		batchCancelledRef.current = false;
 		batchFilesRef.current = [];
+		passwordPoolRef.current = new Set();
 		setState('idle');
+	};
+
+	// -----------------------------------------------------------------------
+	// Password pool helpers
+	// -----------------------------------------------------------------------
+
+	const tryPasswordPool = async (
+		fileUri: string,
+		fileName: string,
+		passwords: string[],
+	): Promise<{ parsed: any; usedPassword: string } | null> => {
+		for (const pwd of passwords) {
+			try {
+				const parsed = await parseStatement(fileUri, fileName, pwd);
+				return { parsed, usedPassword: pwd };
+			} catch (err: any) {
+				const code = err?.response?.data?.error_code || err?.response?.data?.detail?.error_code;
+				if (code === 'incorrect_password' || code === 'password_required') continue;
+				throw err; // non-password error — don't swallow
+			}
+		}
+		return null;
+	};
+
+	const collectPasswordPool = (currentCardId: string | null, alreadyTried?: string): string[] => {
+		const pool: string[] = [];
+		const seen = new Set<string>();
+		const add = (p: string | undefined | null) => {
+			if (p && !seen.has(p) && p !== alreadyTried) {
+				seen.add(p);
+				pool.push(p);
+			}
+		};
+
+		// 1. Current card's saved password
+		if (currentCardId) {
+			const card = cards.find((c) => c.id === currentCardId);
+			add(card?.pdfPassword);
+		}
+		// 2. Session pool passwords
+		for (const p of passwordPoolRef.current) add(p);
+		// 3. Other cards' saved passwords
+		for (const c of cards) {
+			if (c.id !== currentCardId) add(c.pdfPassword);
+		}
+
+		return pool.slice(0, MAX_PASSWORD_POOL_SIZE);
 	};
 
 	// -----------------------------------------------------------------------
@@ -288,108 +339,144 @@ export default function UploadScreen() {
 			// Parse
 			updateBatchFile(i, { status: 'parsing', fileHash });
 
-			// Determine password: batch password > card saved password
-			let pwd = currentPassword || undefined;
-			if (!pwd && currentCardId) {
-				const selectedCard = cards.find((c) => c.id === currentCardId);
-				if (selectedCard?.pdfPassword) pwd = selectedCard.pdfPassword;
+			// Determine initial password: batch password > first pool password > undefined
+			// Backend ignores passwords for unencrypted PDFs, so sending one is safe
+			let initialPwd = currentPassword || undefined;
+			if (!initialPwd) {
+				const poolPasswords = collectPasswordPool(currentCardId);
+				if (poolPasswords.length > 0) initialPwd = poolPasswords[0];
 			}
 
+			let parsed: any = null;
+			let usedPassword: string | undefined = initialPwd;
+
 			try {
-				const parsed = await parseStatement(files[i].uri, files[i].name, pwd);
-
-				// New card flow — first successful parse, no card created yet
-				if (isNewCardFlow && !currentCardId) {
-					// Pause batch: show card confirmation
-					const cardInfo: CardInfo | null = parsed.card_info ?? null;
-					const bankDetected: string = parsed.bank_detected || 'generic';
-					const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
-					const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
-					const network = normalizeNetwork(cardInfo?.card_network ?? null);
-
-					const newCard: CreditCard = {
-						id: `auto-${Date.now()}`,
-						nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
-						last4: cardInfo?.card_last4 || '',
-						issuer: issuerName,
-						network,
-						creditLimit: cardInfo?.credit_limit ?? 0,
-						billingCycle: '1',
-						color: pickUnusedColor(cards),
-						totalAmountDue: cardInfo?.total_amount_due ?? undefined,
-						minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
-						paymentDueDate: cardInfo?.payment_due_date ?? undefined,
-						autoCreated: true,
-						currency: detectedCurrency,
-					};
-
-					setConfirmNickname(newCard.nickname);
-					setConfirmLast4(newCard.last4);
-					setConfirmIssuer(newCard.issuer);
-					setConfirmNetwork(newCard.network);
-					setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
-					setConfirmCurrency(detectedCurrency);
-					setPendingCardData(newCard);
-
-					// Store parse result for this file
-					updateBatchFile(i, { status: 'parsing', fileHash, parseResult: parsed });
-					setPendingParseResult({ parsed, fileHash, passwordToSave: currentPassword || undefined });
-
-					setCardConfirmVisible(true);
-					return; // Pause — handleCardConfirm will resume
-				}
-
-				// Check if this is a re-parse of an existing statement
-				const currentFile = batchFilesRef.current[i];
-				if (currentFile.existingStatementId && currentFile.existingCardId) {
-					// Re-parse flow → navigate to diff screen
-					updateBatchFile(i, { status: 'reparse', fileHash, parseResult: parsed });
-					// For single file: navigate immediately. For batch: pause and show after batch.
-					if (files.length === 1) {
-						setState('idle');
-						navigation.navigate('StatementDiff', {
-							statementId: currentFile.existingStatementId,
-							cardId: currentFile.existingCardId,
-							newParsed: parsed,
-						});
-						return;
-					}
-					// In batch mode, store the info and continue — will show after batch completes
-					continue;
-				}
-
-				// Normal flow — save
-				const stmtId = finalizeSaveForBatch(currentCardId!, parsed, fileHash);
-				updateBatchFile(i, { status: 'success', fileHash, parseResult: parsed, statementId: stmtId });
+				parsed = await parseStatement(files[i].uri, files[i].name, initialPwd);
+				// Track which password worked
+				if (initialPwd) passwordPoolRef.current.add(initialPwd);
 			} catch (err: any) {
 				const respData = err?.response?.data;
 				const errorCode = respData?.error_code || respData?.detail?.error_code;
 
 				if (errorCode === 'password_required' || errorCode === 'incorrect_password') {
-					// First time needing password in batch — no batch password set yet
-					if (!currentPassword) {
+					// Try remaining passwords from the pool
+					const poolPasswords = collectPasswordPool(currentCardId, initialPwd);
+					if (poolPasswords.length > 0) {
+						try {
+							const poolResult = await tryPasswordPool(files[i].uri, files[i].name, poolPasswords);
+							if (poolResult) {
+								parsed = poolResult.parsed;
+								usedPassword = poolResult.usedPassword;
+								passwordPoolRef.current.add(poolResult.usedPassword);
+							}
+						} catch (poolErr) {
+							// Non-password error from pool attempt — treat as parse failure
+							const poolData = (poolErr as any)?.response?.data;
+							const msg =
+								poolData?.message ||
+								(typeof poolData?.detail === 'string' ? poolData.detail : poolData?.detail?.message) ||
+								(poolErr as any)?.message ||
+								'Failed to parse statement.';
+							const poolErrCode = poolData?.error_code || poolData?.detail?.error_code;
+							capture(AnalyticsEvents.STATEMENT_UPLOAD_FAILED, { error_code: poolErrCode || 'unknown' });
+							updateBatchFile(i, { status: 'failed', error: msg, fileHash });
+							continue;
+						}
+					}
+
+					// Pool exhausted — prompt user
+					if (!parsed) {
 						capture(AnalyticsEvents.STATEMENT_PASSWORD_REQUIRED);
 						batchPasswordIndexRef.current = i;
 						setPendingFile({ uri: files[i].uri, name: files[i].name });
-						setPasswordError(errorCode === 'incorrect_password' ? 'Incorrect password. Please try again.' : '');
+						setPasswordError(
+							passwordPoolRef.current.size > 0
+								? 'None of the saved passwords worked. Please enter the password for this file.'
+								: '',
+						);
 						setPassword('');
 						setSavePasswordChecked(false);
 						setPasswordModalVisible(true);
 						return; // Pause — handlePasswordSubmit will resume
 					}
-					// Already have a batch password but it failed for this file
-					updateBatchFile(i, { status: 'failed', error: 'Wrong password', fileHash });
+				} else {
+					// Non-password error
+					const msg =
+						respData?.message ||
+						(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
+						err?.message ||
+						'Failed to parse statement.';
+					capture(AnalyticsEvents.STATEMENT_UPLOAD_FAILED, { error_code: errorCode || 'unknown' });
+					updateBatchFile(i, { status: 'failed', error: msg, fileHash });
 					continue;
 				}
-
-				const msg =
-					respData?.message ||
-					(typeof respData?.detail === 'string' ? respData.detail : respData?.detail?.message) ||
-					err?.message ||
-					'Failed to parse statement.';
-				capture(AnalyticsEvents.STATEMENT_UPLOAD_FAILED, { error_code: errorCode || 'unknown' });
-				updateBatchFile(i, { status: 'failed', error: msg, fileHash });
 			}
+
+			// --- Success handling (unchanged logic) ---
+
+			// New card flow — first successful parse, no card created yet
+			if (isNewCardFlow && !currentCardId) {
+				// Pause batch: show card confirmation
+				const cardInfo: CardInfo | null = parsed.card_info ?? null;
+				const bankDetected: string = parsed.bank_detected || 'generic';
+				const issuerName = BANK_TO_ISSUER[bankDetected] || 'Other';
+				const detectedCurrency = (cardInfo?.currency || parsed.currency_detected || 'INR') as CurrencyCode;
+				const network = normalizeNetwork(cardInfo?.card_network ?? null);
+
+				const newCard: CreditCard = {
+					id: `auto-${Date.now()}`,
+					nickname: cardInfo?.card_last4 ? `${issuerName} \u2022${cardInfo.card_last4}` : `${issuerName} Card`,
+					last4: cardInfo?.card_last4 || '',
+					issuer: issuerName,
+					network,
+					creditLimit: cardInfo?.credit_limit ?? 0,
+					billingCycle: '1',
+					color: pickUnusedColor(cards),
+					totalAmountDue: cardInfo?.total_amount_due ?? undefined,
+					minimumAmountDue: cardInfo?.minimum_amount_due ?? undefined,
+					paymentDueDate: cardInfo?.payment_due_date ?? undefined,
+					autoCreated: true,
+					currency: detectedCurrency,
+				};
+
+				setConfirmNickname(newCard.nickname);
+				setConfirmLast4(newCard.last4);
+				setConfirmIssuer(newCard.issuer);
+				setConfirmNetwork(newCard.network);
+				setConfirmCreditLimit(newCard.creditLimit ? String(newCard.creditLimit) : '');
+				setConfirmCurrency(detectedCurrency);
+				setPendingCardData(newCard);
+
+				// Store parse result for this file
+				updateBatchFile(i, { status: 'parsing', fileHash, parseResult: parsed });
+				setPendingParseResult({ parsed, fileHash, passwordToSave: usedPassword });
+
+				setCardConfirmVisible(true);
+				return; // Pause — handleCardConfirm will resume
+			}
+
+			// Check if this is a re-parse of an existing statement
+			const currentFile = batchFilesRef.current[i];
+			if (currentFile.existingStatementId && currentFile.existingCardId) {
+				// Re-parse flow → navigate to diff screen
+				updateBatchFile(i, { status: 'reparse', fileHash, parseResult: parsed });
+				// For single file: navigate immediately. For batch: pause and show after batch.
+				if (files.length === 1) {
+					setState('idle');
+					navigation.navigate('StatementDiff', {
+						statementId: currentFile.existingStatementId,
+						cardId: currentFile.existingCardId,
+						newParsed: parsed,
+					});
+					return;
+				}
+				// In batch mode, store the info and continue — will show after batch completes
+				continue;
+			}
+
+			// Normal flow — save
+			const stmtId = finalizeSaveForBatch(currentCardId!, parsed, fileHash);
+			updateBatchFile(i, { status: 'success', fileHash, parseResult: parsed, statementId: stmtId });
 		}
 
 		// Batch complete
@@ -446,6 +533,11 @@ export default function UploadScreen() {
 			setBatchPassword(null);
 			batchCancelledRef.current = false;
 
+			// Pre-seed password pool with all saved card passwords
+			passwordPoolRef.current = new Set(
+				cards.map((c) => c.pdfPassword).filter((p): p is string => !!p),
+			);
+
 			capture(AnalyticsEvents.BATCH_UPLOAD_STARTED, { file_count: items.length });
 
 			if (selectedCardId === NEW_CARD_ID) {
@@ -488,7 +580,8 @@ export default function UploadScreen() {
 			try {
 				const parsed = await parseStatement(file.uri, file.name, usedPwd);
 
-				// Set batch password for remaining files
+				// Add to pool + set as batch password for remaining files
+				passwordPoolRef.current.add(usedPwd);
 				setBatchPassword(usedPwd);
 
 				// If new card flow and no card yet
@@ -637,14 +730,10 @@ export default function UploadScreen() {
 		setSavePasswordChecked(false);
 
 		if (state === 'batch') {
-			// Mark current file as failed, continue batch
+			// Mark current file as failed but continue batch — pool may work for next files
 			const idx = batchPasswordIndexRef.current;
 			updateBatchFile(idx, { status: 'failed', error: 'Password required' });
-			// Mark remaining as skipped (user chose to cancel)
-			for (let j = idx + 1; j < batchFilesRef.current.length; j++) {
-				updateBatchFile(j, { status: 'skipped' });
-			}
-			setBatchComplete(true);
+			processBatch(idx + 1, batchCardId ?? undefined, batchPassword);
 		}
 	};
 
