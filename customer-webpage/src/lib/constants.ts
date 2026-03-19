@@ -2,7 +2,7 @@ export const SITE = {
   name: "Vector Expense",
   tagline: "Your Money. Directed.",
   description:
-    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers.",
+    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights. Your PII is never saved on our servers.",
   url: "https://vectorexpense.com",
 };
 
@@ -15,40 +15,52 @@ export const NAV_LINKS = [
 
 export const FEATURES = [
   {
-    title: "AI-Powered Parsing",
+    title: "AI-Powered Statement Parsing",
     description:
-      "Intelligent 3-model consensus engine that extracts transactions with majority voting to eliminate errors.",
+      "Upload any bank's credit card statement PDF and let our 3-model AI consensus engine extract every transaction automatically. GPT-4o-mini, Claude, and Gemini parse in parallel with majority voting for near-perfect accuracy.",
     icon: "brain",
   },
   {
-    title: "Privacy First",
+    title: "Privacy-First Design",
     description:
-      "Zero data retention. PDFs processed in-memory and immediately discarded. No accounts needed.",
+      "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device — no accounts, no cloud sync, no tracking.",
     icon: "shield",
   },
   {
-    title: "Smart Categories",
+    title: "Smart Expense Categorization",
     description:
-      "12 spending categories auto-assigned via AI and keyword matching across multiple languages.",
+      "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers — all detected across multiple languages.",
     icon: "tags",
   },
   {
-    title: "Multi-Currency",
+    title: "Multi-Currency Support",
     description:
-      "Supports INR, USD, EUR, and GBP with locale-specific formatting across 33+ banks.",
+      "Track expenses in INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting. Supports 40+ banks across India, US, and UK including HDFC, Chase, Barclays, and American Express.",
     icon: "globe",
   },
   {
     title: "Multi-Card Management",
     description:
-      "Auto-detect cards, color-coded profiles, per-card analytics, and spending breakdowns.",
+      "Manage all your credit cards in one place. Auto-detect card details from statements, color-coded profiles, per-card spending analytics, utilization tracking, and trend sparklines.",
     icon: "credit-card",
   },
   {
-    title: "Offline & Secure",
+    title: "Offline & Encrypted Storage",
     description:
-      "All data stored locally in encrypted SQLite. Works without internet after initial parse.",
+      "All transaction data stored locally in AES-encrypted SQLite. Browse transactions, view analytics, and export reports without internet after initial parse. Password-protected backups for data portability.",
     icon: "lock",
+  },
+  {
+    title: "Demo Mode",
+    description:
+      "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap — full analytics, CSV export, and category breakdowns included.",
+    icon: "play-circle",
+  },
+  {
+    title: "Manual Transaction Entry",
+    description:
+      "Add expenses manually with live AI categorization as you type. Attach receipt photos, add notes, flag important transactions, and track spending alongside your parsed statements.",
+    icon: "pen-line",
   },
 ];
 
@@ -203,35 +215,35 @@ export const TESTIMONIALS = [
 
 export const PRICING = [
   {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Perfect for personal expense tracking",
+    name: "Monthly",
+    price: "$3",
+    period: "per month",
+    description: "Flexible month-to-month plan",
     features: [
-      "AI-powered parsing (3 uploads/month)",
+      "8 statement parses per month",
+      "3-model AI consensus engine",
       "12 spending categories",
       "Multi-card management",
-      "CSV export",
-      "Encrypted local storage",
-      "Demo mode",
+      "CSV export & encrypted backups",
+      "Offline access after parse",
     ],
-    cta: "Get Started",
+    cta: "Start Free Trial",
     highlighted: false,
   },
   {
-    name: "Pro",
-    price: "$4.99",
-    period: "per month",
-    description: "For power users who need unlimited tracking",
+    name: "Yearly",
+    price: "$24",
+    period: "per year",
+    description: "Best value — save 33% vs monthly",
     features: [
-      "Unlimited AI-powered parsing",
-      "All Free features included",
-      "Priority AI processing",
-      "Advanced analytics & trends",
-      "Encrypted cloud backups",
-      "Priority support",
+      "12 statement parses per month",
+      "3-model AI consensus engine",
+      "12 spending categories",
+      "Multi-card management",
+      "CSV export & encrypted backups",
+      "Offline access after parse",
     ],
-    cta: "Upgrade to Pro",
+    cta: "Start Free Trial",
     highlighted: true,
   },
 ];
@@ -248,6 +260,7 @@ export const BANKS = {
   uk: [
     "Barclays", "HSBC", "NatWest", "Lloyds", "Santander", "Halifax",
     "Nationwide", "Virgin Money", "Tesco Bank", "M&S Bank", "Monzo", "Starling",
+    "John Lewis", "Metro Bank",
   ],
   global: ["American Express", "HSBC"],
 };
@@ -275,12 +288,22 @@ export const FAQ_DATA = [
   {
     question: "Which banks and currencies are supported?",
     answer:
-      "Vector Expense supports 33+ banks across India, US, and UK, plus global cards like American Express and HSBC. Currencies supported: INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting.",
+      "Vector Expense supports 40+ banks across India, US, and UK, plus global cards like American Express and HSBC. Currencies supported: INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting.",
   },
   {
     question: "Can I use Vector Expense offline?",
     answer:
       "Yes! After the initial statement parse (which requires internet for AI processing), all features work completely offline. Your data is stored locally, so you can browse transactions, view analytics, and export reports without internet.",
+  },
+  {
+    question: "Does Vector Expense support password-protected PDFs?",
+    answer:
+      "Yes. Vector Expense auto-detects encrypted PDFs and prompts you for the password before parsing. You can optionally save the password for that card so future uploads from the same bank are unlocked automatically.",
+  },
+  {
+    question: "Can I add transactions manually?",
+    answer:
+      "Absolutely. You can add expenses manually with live AI categorization as you type. Attach receipt photos, add notes, flag important transactions, and track manual entries alongside your parsed statements in a unified view.",
   },
 ];
 

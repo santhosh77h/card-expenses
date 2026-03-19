@@ -46,6 +46,45 @@ export async function presentPaywall(offering?: PurchasesOffering): Promise<bool
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Subscription info for licensing module
+// ---------------------------------------------------------------------------
+
+export async function getSubscriptionInfo(): Promise<{
+	isActive: boolean;
+	planType: 'monthly' | 'yearly' | null;
+}> {
+	try {
+		const customerInfo = await Purchases.getCustomerInfo();
+		const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
+		if (!entitlement) return { isActive: false, planType: null };
+
+		const productId = entitlement.productIdentifier.toLowerCase();
+		const planType = productId.includes('annual') || productId.includes('yearly')
+			? 'yearly'
+			: 'monthly';
+		return { isActive: true, planType };
+	} catch {
+		return { isActive: false, planType: null };
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Credit purchases
+// ---------------------------------------------------------------------------
+
+const CREDIT_PRODUCT_MAP: Record<string, number> = {
+	'vector_credits_30': 30,
+	'vector_credits_70': 70,
+};
+
+export async function purchaseCredits(productId: string): Promise<number> {
+	await Purchases.purchaseStoreProduct({
+		identifier: productId,
+	} as any);
+	return CREDIT_PRODUCT_MAP[productId] ?? 30;
+}
+
 export async function presentPaywallIfNeeded(offering?: PurchasesOffering): Promise<PAYWALL_RESULT> {
 	const paywallResult: PAYWALL_RESULT = offering
 		? await RevenueCatUI.presentPaywallIfNeeded({

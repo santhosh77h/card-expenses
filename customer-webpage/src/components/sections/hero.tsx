@@ -18,7 +18,7 @@ const fadeUp = (delay: number, y = 20) => ({
 const trustSignals = [
   { icon: ShieldCheck, label: "No account needed" },
   { icon: Lock, label: "Privacy-first" },
-  { icon: Globe, label: "33+ banks supported" },
+  { icon: Globe, label: "40+ banks supported" },
 ];
 
 export function Hero() {
@@ -52,7 +52,7 @@ export function Hero() {
             >
               Upload any bank&apos;s PDF statement and get instant spending
               breakdowns, smart categorization, and exportable reports. No
-              account needed - your data never leaves your device.
+              account needed.
             </motion.p>
 
             {/* Dual CTA */}

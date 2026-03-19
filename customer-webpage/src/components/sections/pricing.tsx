@@ -4,7 +4,7 @@ import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/lib/config";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, Sparkles, Zap } from "lucide-react";
 import { useRef } from "react";
 
 export function Pricing() {
@@ -15,14 +15,17 @@ export function Pricing() {
     offset: ["start end", "end start"],
   });
 
+  const trialOpacity = useTransform(scrollYProgress, [0, 0.08, 0.2], [0, 0, 1]);
+  const trialY = useTransform(scrollYProgress, [0, 0.08, 0.2], [60, 60, 0]);
+
   const opacities = [
-    useTransform(scrollYProgress, [0, 0.1, 0.3], [0, 0, 1]),
-    useTransform(scrollYProgress, [0, 0.2, 0.4], [0, 0, 1]),
+    useTransform(scrollYProgress, [0, 0.15, 0.3], [0, 0, 1]),
+    useTransform(scrollYProgress, [0, 0.2, 0.35], [0, 0, 1]),
   ];
 
   const yTransforms = [
-    useTransform(scrollYProgress, [0, 0.1, 0.3], [100, 100, 0]),
-    useTransform(scrollYProgress, [0, 0.2, 0.4], [100, 100, 0]),
+    useTransform(scrollYProgress, [0, 0.15, 0.3], [100, 100, 0]),
+    useTransform(scrollYProgress, [0, 0.2, 0.35], [100, 100, 0]),
   ];
 
   return (
@@ -33,19 +36,57 @@ export function Pricing() {
       className="container px-10 mx-auto max-w-[var(--max-container-width)]"
       ref={ref}
     >
-      <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto py-10">
+      {/* Trial Banner */}
+      <motion.div
+        style={{ opacity: trialOpacity, y: trialY }}
+        className="max-w-3xl mx-auto mb-8"
+      >
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-sm font-semibold text-primary uppercase tracking-wider">
+              Free Trial
+            </span>
+          </div>
+          <p className="text-lg font-semibold">
+            {siteConfig.trial.statements} free statement parses over{" "}
+            {siteConfig.trial.days} days
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            No credit card required. Full access to all features.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Plan Cards */}
+      <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
         {siteConfig.pricing.map((plan, index) => (
           <motion.div
             key={plan.name}
             style={{ opacity: opacities[index], y: yTransforms[index] }}
-            className="bg-muted/60 p-6 rounded-3xl grid grid-rows-[auto_auto_1fr_auto]"
+            className={`relative bg-muted/60 p-6 rounded-3xl grid grid-rows-[auto_auto_1fr_auto] ${
+              plan.isPopular ? "ring-2 ring-primary" : ""
+            }`}
           >
+            {plan.isPopular && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
+                  <Zap className="h-3 w-3" />
+                  Best Value
+                </span>
+              </div>
+            )}
             <h2 className="text-2xl font-semibold mb-4">{plan.name}</h2>
             <div className="text-4xl font-bold text-primary mb-2">
               {plan.price}
               <span className="text-sm font-normal text-muted-foreground">
                 /{plan.period}
               </span>
+              {plan.name === "Yearly" && (
+                <span className="ml-2 text-sm font-medium text-primary/80">
+                  ($2/month)
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               {plan.description}
@@ -54,13 +95,13 @@ export function Pricing() {
             <div className="space-y-3 mb-6">
               {plan.features.map((feature, featureIndex) => (
                 <div key={featureIndex} className="flex items-center">
-                  <CheckIcon className="w-5 h-5 mr-2 text-primary" />
+                  <CheckIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
                   <span>{feature}</span>
                 </div>
               ))}
             </div>
             <Button
-              variant={"default"}
+              variant="default"
               size="sm"
               className="rounded-full text-white"
             >
@@ -70,6 +111,15 @@ export function Pricing() {
           </motion.div>
         ))}
       </div>
+
+      {/* Top-up Credit Packs Note */}
+      <motion.p
+        style={{ opacity: opacities[1], y: yTransforms[1] }}
+        className="text-center text-sm text-muted-foreground mt-8 max-w-xl mx-auto"
+      >
+        Need more parses? Top-up credit packs available: $10 for 30 statements
+        or $20 for 70 statements.
+      </motion.p>
     </Section>
   );
 }

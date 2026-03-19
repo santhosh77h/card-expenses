@@ -10,6 +10,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
 import { initRevenueCat, addSubscriptionListener } from './src/utils/revenueCat';
+import { initTrialIfNeeded, refreshSubscriptionAllowance, restoreCreditsFromRC } from './src/utils/licensing';
 import { configureNotifications, rescheduleAll } from './src/utils/notifications';
 import { useIsDark } from './src/hooks/useColors';
 import BiometricLockScreen from './src/components/BiometricLockScreen';
@@ -77,8 +78,22 @@ export default function App() {
         // RevenueCat failure is non-fatal — defaults to free tier
       }
 
+      // Licensing boot sequence
+      try {
+        await initTrialIfNeeded();
+        await refreshSubscriptionAllowance();
+        await restoreCreditsFromRC();
+        useStore.getState()._refreshLicenseInfo();
+      } catch {
+        // Licensing failure is non-fatal
+      }
+
       listenerRef.current = addSubscriptionListener((isPremium) => {
         useStore.getState()._setIsPremium(isPremium);
+        // Refresh license state when subscription changes
+        refreshSubscriptionAllowance()
+          .then(() => useStore.getState()._refreshLicenseInfo())
+          .catch(() => {});
       });
 
       // Reschedule notifications (non-blocking)

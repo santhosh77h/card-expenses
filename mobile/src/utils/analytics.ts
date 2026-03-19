@@ -27,6 +27,15 @@ export const AnalyticsEvents = {
 
   // Profile
   UPGRADE_TAPPED: 'upgrade_tapped',
+
+  // Licensing
+  TRIAL_STARTED: 'trial_started',
+  TRIAL_USED: 'trial_used',
+  SUB_USED: 'sub_used',
+  CREDIT_USED: 'credit_used',
+  PAYWALL_SHOWN: 'paywall_shown',
+  TOPUP_NUDGE_SHOWN: 'topup_nudge_shown',
+  TOPUP_PURCHASED: 'topup_purchased',
 } as const;
 
 // ---------------------------------------------------------------------------

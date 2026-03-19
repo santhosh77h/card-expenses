@@ -31,6 +31,7 @@
     "expo-image-picker": "~15.1.0",
     "expo-local-authentication": "~14.0.1",
     "expo-notifications": "~0.28.19",
+    "expo-secure-store": "~13.0.2",
     "expo-sharing": "~12.0.1",
     "expo-status-bar": "~1.12.1",
     "fastest-levenshtein": "^1.0.16",

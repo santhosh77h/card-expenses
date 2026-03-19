@@ -26,7 +26,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, statements, manualTransactions, isPremium, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency, biometricLockEnabled, setBiometricLockEnabled } = useStore();
+  const { cards, statements, manualTransactions, isPremium, licenseInfo, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency, biometricLockEnabled, setBiometricLockEnabled } = useStore();
   const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
 
   // Check biometric availability on mount
@@ -91,8 +91,27 @@ export default function ProfileScreen() {
         <Text style={styles.brand}>VECTOR</Text>
         <Text style={styles.tagline}>Your Money. Directed.</Text>
         <View style={styles.badgeRow}>
-          {isPremium ? (
-            <Badge text="PRO" color={colors.accent} />
+          {licenseInfo.tier === 'trial' ? (
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
+              <Badge text="TRIAL" color={colors.warning} />
+              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
+                {licenseInfo.trialRemaining} statement{licenseInfo.trialRemaining !== 1 ? 's' : ''} remaining
+              </Text>
+            </View>
+          ) : isPremium ? (
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
+              <Badge text="PRO" color={colors.accent} />
+              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
+                {licenseInfo.subAllowanceRemaining} this month{licenseInfo.creditBalance > 0 ? ` + ${licenseInfo.creditBalance} credits` : ''}
+              </Text>
+            </View>
+          ) : licenseInfo.creditBalance > 0 ? (
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
+              <Badge text="PAY-AS-YOU-GO" color={colors.textSecondary} />
+              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
+                {licenseInfo.creditBalance} credit{licenseInfo.creditBalance !== 1 ? 's' : ''} remaining
+              </Text>
+            </View>
           ) : (
             <TouchableOpacity
               style={styles.upgradeBtn}
@@ -138,7 +157,7 @@ export default function ProfileScreen() {
           subtitle="Export or restore your data"
           onPress={() => navigation.navigate('Backup')}
         />
-        {!isPremium && (
+        {!isPremium && licenseInfo.tier !== 'trial' && licenseInfo.creditBalance === 0 && (
           <MenuItem
             icon="zap"
             label="Upgrade to Pro"

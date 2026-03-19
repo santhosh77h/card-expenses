@@ -30,8 +30,8 @@ import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 import { capture, AnalyticsEvents } from '../utils/analytics';
-
-const FREE_TIER_UPLOAD_LIMIT = 3;
+import { checkUploadAllowed as licenseCheckUpload, consumeOneStatement, getLicenseInfo } from '../utils/licensing';
+import { presentPaywall } from '../utils/revenueCat';
 const NEW_CARD_ID = '__new__';
 const MAX_PASSWORD_POOL_SIZE = 5;
 
@@ -66,6 +66,7 @@ export default function UploadScreen() {
 		uploadsThisMonth,
 		_refreshUploadCount,
 		importStatementTransactions,
+		licenseInfo,
 	} = useStore();
 	const colors = useColors();
 	const styles = useMemo(() => createStyles(colors), [colors]);
@@ -119,8 +120,22 @@ export default function UploadScreen() {
 		return { isDuplicate: true, cardName, existingStatementId: existing.statementId, existingCardId: existing.cardId };
 	};
 
-	const checkUploadAllowed = async (): Promise<boolean> => {
-		return true;
+	const checkUploadAllowed = (): boolean => {
+		const result = licenseCheckUpload();
+		if (result.allowed) return true;
+
+		if (result.showPaywall) {
+			capture(AnalyticsEvents.PAYWALL_SHOWN, { source: 'upload' });
+			presentPaywall();
+		} else if (result.showTopUp) {
+			capture(AnalyticsEvents.TOPUP_NUDGE_SHOWN, { source: 'upload' });
+			Alert.alert(
+				'Monthly Limit Reached',
+				result.reason ?? 'Purchase additional credits to continue.',
+				[{ text: 'OK' }],
+			);
+		}
+		return false;
 	};
 
 	// -----------------------------------------------------------------------
@@ -315,6 +330,13 @@ export default function UploadScreen() {
 		};
 
 		addStatement(cardId, statement);
+
+		// Consume one statement credit (skip for demo)
+		if (cardId !== 'demo') {
+			consumeOneStatement();
+			useStore.getState()._refreshLicenseInfo();
+		}
+
 		capture(AnalyticsEvents.STATEMENT_UPLOAD_SUCCESS, {
 			bank: bankDetected,
 			transaction_count: parsed.transactions.length,
@@ -576,7 +598,7 @@ export default function UploadScreen() {
 
 	const handlePick = async () => {
 		try {
-			const allowed = await checkUploadAllowed();
+			const allowed = checkUploadAllowed();
 			if (!allowed) return;
 
 			const result = await DocumentPicker.getDocumentAsync({
@@ -586,6 +608,19 @@ export default function UploadScreen() {
 			});
 
 			if (result.canceled || !result.assets?.length) return;
+
+			// Batch gating: refuse entire batch if not enough balance
+			if (!__DEV__) {
+				const info = getLicenseInfo();
+				if (info.totalAvailable < result.assets.length) {
+					Alert.alert(
+						'Not Enough Balance',
+						`You selected ${result.assets.length} file${result.assets.length > 1 ? 's' : ''} but only have ${info.totalAvailable} statement${info.totalAvailable !== 1 ? 's' : ''} remaining.`,
+						[{ text: 'OK' }],
+					);
+					return;
+				}
+			}
 
 				// Build batch items
 			const items: BatchFileItem[] = result.assets.map((a) => ({
@@ -955,6 +990,27 @@ export default function UploadScreen() {
 				<View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
 					<Badge text="Your PDF is processed in memory and never stored" color={colors.accent} />
 				</View>
+
+				{/* License status bar */}
+				{!__DEV__ && state !== 'batch' && (
+					<View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
+						<View style={styles.licenseBar}>
+							<Feather
+								name={licenseInfo.tier === 'trial' ? 'gift' : licenseInfo.tier === 'subscription' ? 'zap' : licenseInfo.tier === 'credits' ? 'database' : 'lock'}
+								size={14}
+								color={licenseInfo.totalAvailable > 0 ? colors.accent : colors.debit}
+							/>
+							<Text style={[styles.licenseText, licenseInfo.totalAvailable === 0 && { color: colors.debit }]}>
+								{licenseInfo.totalAvailable > 0
+									? `${licenseInfo.totalAvailable} statement${licenseInfo.totalAvailable !== 1 ? 's' : ''} remaining`
+									: 'No statements remaining'}
+								{licenseInfo.tier === 'trial' && licenseInfo.trialExpiryDate
+									? ` · Trial ends ${new Date(licenseInfo.trialExpiryDate).toLocaleDateString()}`
+									: ''}
+							</Text>
+						</View>
+					</View>
+				)}
 
 				{/* Card selector - always visible */}
 				{state !== 'batch' && (
@@ -1675,5 +1731,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
 		fontSize: fontSize.md,
 		fontWeight: '600',
 		lineHeight: 20,
+	},
+	licenseBar: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: spacing.sm,
+		backgroundColor: colors.surface,
+		borderRadius: borderRadius.md,
+		paddingHorizontal: spacing.md,
+		paddingVertical: spacing.sm,
+	},
+	licenseText: {
+		color: colors.textSecondary,
+		fontSize: fontSize.xs,
+		fontWeight: '500',
+		lineHeight: 16,
 	},
 });

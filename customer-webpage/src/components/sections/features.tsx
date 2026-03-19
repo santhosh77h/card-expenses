@@ -10,7 +10,7 @@ export function Features() {
       subtitle="Powerful features"
       className="max-w-screen-lg mx-auto container px-10"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {services.map(({ name, description, icon: Icon }, index) => (
           <div
             key={index}

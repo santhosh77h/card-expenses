@@ -5,6 +5,8 @@ import {
   GlobeIcon,
   CreditCardIcon,
   LockIcon,
+  PlayCircleIcon,
+  PenLineIcon,
 } from "lucide-react";
 
 export const BLUR_FADE_DELAY = 0.15;
@@ -29,40 +31,52 @@ export const siteConfig = {
   },
   features: [
     {
-      name: "AI-Powered Parsing",
+      name: "AI-Powered Statement Parsing",
       description:
-        "Intelligent 3-model consensus engine that extracts transactions with majority voting to eliminate errors.",
+        "Upload any bank's credit card statement PDF and let our 3-model AI consensus engine extract every transaction automatically. GPT-4o-mini, Claude, and Gemini parse in parallel with majority voting for near-perfect accuracy.",
       icon: <BrainIcon className="h-6 w-6" />,
     },
     {
-      name: "Privacy First",
+      name: "Privacy-First Design",
       description:
-        "Zero data retention. PDFs processed in-memory and immediately discarded. No accounts needed.",
+        "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device — no accounts, no cloud sync, no tracking.",
       icon: <ShieldIcon className="h-6 w-6" />,
     },
     {
-      name: "Smart Categories",
+      name: "Smart Expense Categorization",
       description:
-        "12 spending categories auto-assigned via AI and keyword matching across multiple languages.",
+        "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers — all detected across multiple languages.",
       icon: <TagsIcon className="h-6 w-6" />,
     },
     {
-      name: "Multi-Currency",
+      name: "Multi-Currency Support",
       description:
-        "Supports INR, USD, EUR, and GBP with locale-specific formatting across 33+ banks.",
+        "Track expenses in INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting. Supports 40+ banks across India, US, and UK including HDFC, Chase, Barclays, and American Express.",
       icon: <GlobeIcon className="h-6 w-6" />,
     },
     {
       name: "Multi-Card Management",
       description:
-        "Auto-detect cards, color-coded profiles, per-card analytics, and spending breakdowns.",
+        "Manage all your credit cards in one place. Auto-detect card details from statements, color-coded profiles, per-card spending analytics, utilization tracking, and trend sparklines.",
       icon: <CreditCardIcon className="h-6 w-6" />,
     },
     {
-      name: "Offline & Secure",
+      name: "Offline & Encrypted Storage",
       description:
-        "All data stored locally in encrypted SQLite. Works without internet after initial parse.",
+        "All transaction data stored locally in AES-encrypted SQLite. Browse transactions, view analytics, and export reports without internet after initial parse. Password-protected backups for data portability.",
       icon: <LockIcon className="h-6 w-6" />,
+    },
+    {
+      name: "Demo Mode",
+      description:
+        "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap — full analytics, CSV export, and category breakdowns included.",
+      icon: <PlayCircleIcon className="h-6 w-6" />,
+    },
+    {
+      name: "Manual Transaction Entry",
+      description:
+        "Add expenses manually with live AI categorization as you type. Attach receipt photos, add notes, flag important transactions, and track spending alongside your parsed statements.",
+      icon: <PenLineIcon className="h-6 w-6" />,
     },
   ],
   featureHighlight: [
@@ -95,7 +109,7 @@ export const siteConfig = {
     {
       title: "AI-Powered Parsing",
       content:
-        "Our 3-model consensus engine uses GPT-4o-mini, Claude 3.5 Haiku, and Gemini 2.0 Flash to parse every statement in parallel. Fields are resolved by majority voting.",
+        "Our 3-model consensus engine uses GPT-4o-mini, Claude, and Gemini to parse every statement in parallel. A document intelligence pre-parse probe detects layout, currency, and bank before extraction — fields are resolved by majority voting for near-perfect accuracy.",
       imageSrc: "/screenshots/home.svg",
       imageAlt: "Vector Expense home screen",
       fullWidth: true,
@@ -111,7 +125,7 @@ export const siteConfig = {
     {
       title: "Transaction Details",
       content:
-        "Browse every transaction with merchant names, amounts, dates, and categories. Flag, annotate, and attach receipts.",
+        "Browse every transaction with merchant names, amounts, dates, and categories. Supports 11 transaction types — purchase, payment, refund, EMI, fee, interest, cashback, reward, reversal, adjustment, and transfer. Flag, annotate, and attach receipts.",
       imageSrc: "/screenshots/transactions.svg",
       imageAlt: "Transaction list",
       fullWidth: false,
@@ -148,41 +162,46 @@ export const siteConfig = {
       image: "/screenshots/transactions.svg",
     },
   ],
+  trial: {
+    statements: 15,
+    days: 15,
+    description: "15 free statement parses over 15 days. No credit card required.",
+  },
   pricing: [
     {
-      name: "Free",
+      name: "Monthly",
       href: "#",
-      price: "$0",
-      period: "forever",
-      yearlyPrice: "$0",
+      price: "$3",
+      period: "month",
+      yearlyPrice: "$3",
       features: [
-        "AI-powered parsing (3 uploads/month)",
+        "8 statement parses per month",
+        "3-model AI consensus engine",
         "12 spending categories",
         "Multi-card management",
-        "CSV export",
-        "Encrypted local storage",
-        "Demo mode",
+        "CSV export & encrypted backups",
+        "Offline access after parse",
       ],
-      description: "Perfect for personal expense tracking",
-      buttonText: "Get Started",
+      description: "Flexible month-to-month plan",
+      buttonText: "Start Free Trial",
       isPopular: false,
     },
     {
-      name: "Pro",
+      name: "Yearly",
       href: "#",
-      price: "$4.99",
-      period: "month",
-      yearlyPrice: "$49.99",
+      price: "$24",
+      period: "year",
+      yearlyPrice: "$24",
       features: [
-        "Unlimited AI-powered parsing",
-        "All Free features included",
-        "Priority AI processing",
-        "Advanced analytics & trends",
-        "Encrypted cloud backups",
-        "Priority support",
+        "12 statement parses per month",
+        "3-model AI consensus engine",
+        "12 spending categories",
+        "Multi-card management",
+        "CSV export & encrypted backups",
+        "Offline access after parse",
       ],
-      description: "For power users who need unlimited tracking",
-      buttonText: "Upgrade to Pro",
+      description: "Best value — save 33% vs monthly",
+      buttonText: "Start Free Trial",
       isPopular: true,
     },
   ],
@@ -223,9 +242,9 @@ export const siteConfig = {
       question: "Which banks and currencies are supported?",
       answer: (
         <span>
-          Vector Expense supports 33+ banks across India, US, and UK, plus global cards
-          like American Express and HSBC. Currencies supported: INR, USD, EUR,
-          and GBP with locale-specific formatting.
+          Vector Expense supports 40+ banks across India, US, and UK, plus global cards
+          like American Express and HSBC. Currencies supported: INR (&rupee;), USD ($), EUR
+          (&euro;), and GBP (&pound;) with locale-specific formatting.
         </span>
       ),
     },
@@ -237,6 +256,28 @@ export const siteConfig = {
           processing), all features work completely offline. Your data is stored
           locally, so you can browse transactions, view analytics, and export
           reports without internet.
+        </span>
+      ),
+    },
+    {
+      question: "Does Vector Expense support password-protected PDFs?",
+      answer: (
+        <span>
+          Yes. Vector Expense auto-detects encrypted PDFs and prompts you for
+          the password before parsing. You can optionally save the password for
+          that card so future uploads from the same bank are unlocked
+          automatically.
+        </span>
+      ),
+    },
+    {
+      question: "Can I add transactions manually?",
+      answer: (
+        <span>
+          Absolutely. You can add expenses manually with live AI categorization
+          as you type. Attach receipt photos, add notes, flag important
+          transactions, and track manual entries alongside your parsed
+          statements in a unified view.
         </span>
       ),
     },

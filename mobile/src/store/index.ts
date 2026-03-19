@@ -11,6 +11,7 @@ import * as dbFileHashes from '../db/fileHashes';
 import { generateCSV } from '../utils/api';
 import { syncWidgetData } from '../utils/widgetBridge';
 import { getDb } from '../db';
+import { getLicenseInfo, type LicenseInfo } from '../utils/licensing';
 
 // ---------------------------------------------------------------------------
 // Widget sync helper - call after state mutations that affect spending data
@@ -183,6 +184,7 @@ interface AppState {
   enrichments: Record<string, TransactionEnrichment>;
   isPremium: boolean;
   uploadsThisMonth: number;
+  licenseInfo: LicenseInfo;
   themeMode: ThemeMode;
   defaultCurrency: CurrencyCode;
   globalReminderDay: number | null;
@@ -206,6 +208,7 @@ interface AppState {
   _hydrateSqlite: () => void;
   _setIsPremium: (value: boolean) => void;
   _refreshUploadCount: () => void;
+  _refreshLicenseInfo: () => void;
   addMonthlyUsage: (usage: MonthlyUsage) => void;
   updateEnrichment: (txnId: string, patch: Partial<TransactionEnrichment>) => void;
   toggleFlag: (txnId: string) => void;
@@ -243,6 +246,16 @@ export const useStore = create<AppState>()(
       enrichments: {},
       isPremium: false,
       uploadsThisMonth: 0,
+      licenseInfo: {
+        tier: 'none',
+        trialRemaining: 0,
+        trialExpired: true,
+        trialExpiryDate: null,
+        subAllowanceRemaining: 0,
+        subPlanType: null,
+        creditBalance: 0,
+        totalAvailable: 0,
+      },
       themeMode: 'dark',
       defaultCurrency: 'INR',
       globalReminderDay: null,
@@ -767,7 +780,10 @@ export const useStore = create<AppState>()(
         let uploadsThisMonth = 0;
         try { uploadsThisMonth = dbStmts.getStatementCountSince(firstOfMonth); } catch (e) { console.error('Hydrate uploadCount failed:', e); }
 
-        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth });
+        let licenseInfo: LicenseInfo | undefined;
+        try { licenseInfo = getLicenseInfo(); } catch (e) { console.error('Hydrate licenseInfo failed:', e); }
+
+        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth, ...(licenseInfo ? { licenseInfo } : {}) });
         _syncWidgets();
       },
 
@@ -777,6 +793,14 @@ export const useStore = create<AppState>()(
         const now = new Date();
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
         set({ uploadsThisMonth: dbStmts.getStatementCountSince(firstOfMonth) });
+      },
+
+      _refreshLicenseInfo: () => {
+        try {
+          set({ licenseInfo: getLicenseInfo() });
+        } catch (e) {
+          console.error('Failed to refresh license info:', e);
+        }
       },
     }),
     {
