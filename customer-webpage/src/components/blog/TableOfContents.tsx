@@ -56,7 +56,7 @@ export default function TableOfContents({
 
   return (
     <>
-      {/* Invisible placeholder — keeps the aside width in the layout */}
+      {/* Invisible placeholder - keeps the aside width in the layout */}
       <div ref={placeholderRef} className="w-full" aria-hidden />
 
       {/* Fixed TOC pinned to the viewport */}

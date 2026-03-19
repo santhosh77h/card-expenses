@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import type { CreditCard } from '../store';
 
 // ---------------------------------------------------------------------------
-// Setup — call once at app startup
+// Setup - call once at app startup
 // ---------------------------------------------------------------------------
 
 export function configureNotifications() {
@@ -28,7 +28,7 @@ export async function requestPermissions(): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// Identifier helpers — deterministic IDs so we can cancel & replace
+// Identifier helpers - deterministic IDs so we can cancel & replace
 // ---------------------------------------------------------------------------
 
 function cardReminderId(cardId: string) {
@@ -106,7 +106,7 @@ export async function cancelGlobalReminder(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Reschedule all — call on app start / after preference changes
+// Reschedule all - call on app start / after preference changes
 // ---------------------------------------------------------------------------
 
 export async function rescheduleAll(
@@ -137,6 +137,6 @@ async function cancelById(id: string) {
   try {
     await Notifications.cancelScheduledNotificationAsync(id);
   } catch {
-    // Notification may not exist — that's fine
+    // Notification may not exist - that's fine
   }
 }

@@ -13,7 +13,7 @@ import { syncWidgetData } from '../utils/widgetBridge';
 import { getDb } from '../db';
 
 // ---------------------------------------------------------------------------
-// Widget sync helper — call after state mutations that affect spending data
+// Widget sync helper - call after state mutations that affect spending data
 // ---------------------------------------------------------------------------
 
 function _syncWidgets() {

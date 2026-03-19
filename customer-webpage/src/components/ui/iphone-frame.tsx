@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 interface IPhoneFrameProps {
   children: React.ReactNode;
   className?: string;
-  /** Compact mode uses a smaller Dynamic Island and hides status bar text — for small displays */
+  /** Compact mode uses a smaller Dynamic Island and hides status bar text - for small displays */
   compact?: boolean;
 }
 
@@ -31,7 +31,7 @@ export function IPhoneFrame({ children, className, compact = false }: IPhoneFram
         >
           {/* Screen */}
           <div className="relative overflow-hidden rounded-[2.4rem] bg-black">
-            {/* Status bar + Dynamic Island — absolute overlay */}
+            {/* Status bar + Dynamic Island - absolute overlay */}
             <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-3 pb-2"
               style={{
                 background: "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 70%, transparent 100%)",
@@ -97,7 +97,7 @@ export function IPhoneFrame({ children, className, compact = false }: IPhoneFram
               </div>
             </div>
 
-            {/* Status bar spacer — pushes content below the absolute status bar */}
+            {/* Status bar spacer - pushes content below the absolute status bar */}
             <div className={compact ? "h-[28px]" : "h-[36px]"} />
 
             {/* Content */}
@@ -106,13 +106,13 @@ export function IPhoneFrame({ children, className, compact = false }: IPhoneFram
         </div>
       </div>
 
-      {/* Side button — right (power) */}
+      {/* Side button - right (power) */}
       <div
         className="absolute -right-[1.5px] top-[26%] w-[3px] h-[9%] rounded-r-[2px]"
         style={{ background: "linear-gradient(90deg, #888, #aaa, #888)" }}
       />
 
-      {/* Side buttons — left (volume up, volume down, action button) */}
+      {/* Side buttons - left (volume up, volume down, action button) */}
       <div
         className="absolute -left-[1.5px] top-[18%] w-[3px] h-[5%] rounded-l-[2px]"
         style={{ background: "linear-gradient(270deg, #888, #aaa, #888)" }}

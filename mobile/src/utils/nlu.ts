@@ -205,11 +205,11 @@ const _vocabSet = new Set(_allVocabWords);
 /** Max Levenshtein distance to accept a correction */
 const MAX_EDIT_DISTANCE = 2;
 
-/** Words that should never be "corrected" — numbers, single chars, etc. */
+/** Words that should never be "corrected" - numbers, single chars, etc. */
 function shouldSkipCorrection(word: string): boolean {
   // Skip numbers and words with digits (e.g. "500", "10k")
   if (/\d/.test(word)) return true;
-  // Skip very short words (1-2 chars) — too ambiguous
+  // Skip very short words (1-2 chars) - too ambiguous
   if (word.length <= 2) return true;
   // Skip if already in vocab
   if (_vocabSet.has(word)) return true;
@@ -295,7 +295,7 @@ export async function initNLU(): Promise<void> {
 
   if (!loadTensorflowModel) {
     throw new Error(
-      `TFLite native module not available. ${_tfliteImportError ? `Reason: ${_tfliteImportError}` : 'The native module was not found — did you rebuild the native app?'}`,
+      `TFLite native module not available. ${_tfliteImportError ? `Reason: ${_tfliteImportError}` : 'The native module was not found - did you rebuild the native app?'}`,
     );
   }
 
@@ -344,7 +344,7 @@ function tokenize(text: string, vocab: Record<string, number>): Int32Array {
 // ---------------------------------------------------------------------------
 
 function predictIntent(text: string): { intent: IntentName; confidence: number } {
-  if (!intentModel) throw new Error('NLU not initialized — call initNLU() first');
+  if (!intentModel) throw new Error('NLU not initialized - call initNLU() first');
 
   const input = tokenize(text, intentVocab);
   const output = intentModel.runSync([input]);
@@ -370,7 +370,7 @@ function predictIntent(text: string): { intent: IntentName; confidence: number }
 // ---------------------------------------------------------------------------
 
 function predictEntities(text: string): Record<string, string> {
-  if (!entityModel) throw new Error('NLU not initialized — call initNLU() first');
+  if (!entityModel) throw new Error('NLU not initialized - call initNLU() first');
 
   const words = text.toLowerCase().trim().split(/\s+/);
   const input = tokenize(text, entityVocab);
@@ -425,7 +425,7 @@ function predictEntities(text: string): Record<string, string> {
 // Entity post-processing
 // ---------------------------------------------------------------------------
 
-/** Words that should never be treated as merchants — common false positives */
+/** Words that should never be treated as merchants - common false positives */
 const STOP_MERCHANTS = new Set([
   'wise', 'category', 'categories', 'month', 'months', 'weekly',
   'daily', 'total', 'average', 'more', 'less', 'above', 'below',
@@ -461,7 +461,7 @@ function cleanEntities(
       if (amountMatch) {
         entities.amount = amountMatch[0];
       } else {
-        // No usable amount — remove it to avoid broken SQL
+        // No usable amount - remove it to avoid broken SQL
         delete entities.amount;
       }
     }
@@ -779,7 +779,7 @@ function buildQuery(
     params.push(canonical);
   }
 
-  // Amount filter — use entity if available, else fallback to regex on original text
+  // Amount filter - use entity if available, else fallback to regex on original text
   // Typo-tolerant: "tan"/"then"/"thn" for "than", "grater" for "greater"
   let amountStr = entities.amount;
   if (!amountStr && originalText) {
@@ -931,7 +931,7 @@ function buildQuery(
  * ```
  */
 export function processQuery(text: string, cards?: CardInfo[]): NLUResult {
-  // Step 1: Spell correction — fix typos before ML inference
+  // Step 1: Spell correction - fix typos before ML inference
   const corrected = correctSpelling(text);
 
   // Step 2: ML inference on corrected text

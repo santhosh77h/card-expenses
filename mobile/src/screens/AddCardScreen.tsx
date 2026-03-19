@@ -18,7 +18,7 @@ import { useColors } from '../hooks/useColors';
 import { useStore, CreditCard } from '../store';
 import { Card, PrimaryButton } from '../components/ui';
 import CreditCardView from '../components/CreditCardView';
-import { scanCardImage } from '../utils/api';
+import { scanCardLocally } from '../utils/cardOcr';
 import { ISSUERS, NETWORKS, ISSUER_CURRENCY, CARD_COLORS } from '../constants/cards';
 
 function matchIssuer(scanned: string | null): string {
@@ -86,7 +86,7 @@ export default function AddCardScreen() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.6,
+      quality: 0.8,
       allowsEditing: false,
     });
 
@@ -96,7 +96,7 @@ export default function AddCardScreen() {
     setScanning(true);
 
     try {
-      const scanned = await scanCardImage(imageUri);
+      const scanned = await scanCardLocally(imageUri);
 
       // Pre-fill form fields from scanned data
       if (scanned.last4) setLast4(scanned.last4);
@@ -117,12 +117,12 @@ export default function AddCardScreen() {
         `Detected: ${scanned.last4 ? `····${scanned.last4}` : 'No number found'} · ${scanned.issuer || 'Unknown issuer'} · ${scanned.network || 'Unknown network'}\n\nReview and fill in the remaining fields.`,
       );
     } catch (e: any) {
-      Alert.alert('Scan Failed', e?.response?.data?.detail || e?.message || 'Could not read card details. Try again or enter manually.');
+      Alert.alert('Scan Failed', e?.message || 'Could not read card details. Try again or enter manually.');
     } finally {
       setScanning(false);
     }
 
-    // Image is never saved — expo-image-picker's temp file will be cleaned up by OS
+    // Image is never saved - expo-image-picker's temp file will be cleaned up by OS
   };
 
   const handleSave = () => {
@@ -226,7 +226,7 @@ export default function AddCardScreen() {
           {/* Currency picker */}
           <Text style={styles.inputLabel}>Currency</Text>
           <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}>
-            <Text style={styles.pickerText}>{CURRENCY_CONFIG[currency].symbol} {currency} — {CURRENCY_CONFIG[currency].label}</Text>
+            <Text style={styles.pickerText}>{CURRENCY_CONFIG[currency].symbol} {currency} - {CURRENCY_CONFIG[currency].label}</Text>
             <Feather name={showCurrencyPicker ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
           </TouchableOpacity>
           {showCurrencyPicker && (
@@ -234,7 +234,7 @@ export default function AddCardScreen() {
               {SUPPORTED_CURRENCIES.map((c) => (
                 <TouchableOpacity key={c} style={[styles.pickerItem, currency === c && styles.pickerItemActive]} onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}>
                   <Text style={[styles.pickerItemText, currency === c && { color: colors.accent }]}>
-                    {CURRENCY_CONFIG[c].symbol} {c} — {CURRENCY_CONFIG[c].label}
+                    {CURRENCY_CONFIG[c].symbol} {c} - {CURRENCY_CONFIG[c].label}
                   </Text>
                 </TouchableOpacity>
               ))}

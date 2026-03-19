@@ -90,7 +90,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
       const r = rows[0];
       const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
       return {
-        answer: `Highest: ${formatCurrency(r.amount as number, currency)} — ${r.description} on ${r.date}.`,
+        answer: `Highest: ${formatCurrency(r.amount as number, currency)} - ${r.description} on ${r.date}.`,
         rows,
       };
     }
@@ -100,7 +100,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
       const r = rows[0];
       const currency = (r.currency as CurrencyCode) ?? fallbackCurrency;
       return {
-        answer: `Lowest: ${formatCurrency(r.amount as number, currency)} — ${r.description} on ${r.date}.`,
+        answer: `Lowest: ${formatCurrency(r.amount as number, currency)} - ${r.description} on ${r.date}.`,
         rows,
       };
     }
@@ -139,7 +139,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
       if (rows.length === 0) return { answer: 'No spending data to compare.', rows };
       if (rows.length === 1) {
         return {
-          answer: `Only one month of data: ${rows[0].month} — ${formatCurrency(rows[0].total as number, fallbackCurrency)}.`,
+          answer: `Only one month of data: ${rows[0].month} - ${formatCurrency(rows[0].total as number, fallbackCurrency)}.`,
           rows,
         };
       }
@@ -148,7 +148,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
       const pct = previous.total ? Math.abs(Math.round((diff / (previous.total as number)) * 100)) : 0;
       const direction = diff > 0 ? 'more' : diff < 0 ? 'less' : 'the same as';
       return {
-        answer: `You spent ${formatCurrency(current.total as number, fallbackCurrency)} (${current.month}) vs ${formatCurrency(previous.total as number, fallbackCurrency)} (${previous.month}) — that's ${pct}% ${direction}.`,
+        answer: `You spent ${formatCurrency(current.total as number, fallbackCurrency)} (${current.month}) vs ${formatCurrency(previous.total as number, fallbackCurrency)} (${previous.month}) - that's ${pct}% ${direction}.`,
         rows,
       };
     }
@@ -176,15 +176,15 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
     case 'frequent_merchant': {
       if (rows.length === 0) return { answer: 'No merchant data found.', rows };
       const lines = rows.slice(0, 10).map((r, i) =>
-        `${i + 1}. ${r.description} — ${r.visit_count} time${(r.visit_count as number) !== 1 ? 's' : ''}, ${formatCurrency(r.total as number, fallbackCurrency)}`,
+        `${i + 1}. ${r.description} - ${r.visit_count} time${(r.visit_count as number) !== 1 ? 's' : ''}, ${formatCurrency(r.total as number, fallbackCurrency)}`,
       );
       return { answer: `Your most frequent merchants:\n${lines.join('\n')}`, rows };
     }
 
     case 'unusual_spend': {
-      if (rows.length === 0) return { answer: 'No unusual transactions found — your spending looks normal!', rows };
+      if (rows.length === 0) return { answer: 'No unusual transactions found - your spending looks normal!', rows };
       const lines = rows.slice(0, 5).map((r) =>
-        `${r.date}: ${formatCurrency(r.amount as number, fallbackCurrency)} — ${r.description}`,
+        `${r.date}: ${formatCurrency(r.amount as number, fallbackCurrency)} - ${r.description}`,
       );
       return {
         answer: `Found ${rows.length} unusual transaction${rows.length !== 1 ? 's' : ''} (well above your average):\n${lines.join('\n')}`,
@@ -349,7 +349,7 @@ export default function AskScreen() {
             <Feather name="search" size={40} color={colors.textMuted} />
             <Text style={styles.emptyTitle}>Ask anything about your expenses</Text>
             <Text style={styles.emptySubtitle}>
-              Powered by on-device AI — works offline
+              Powered by on-device AI - works offline
             </Text>
             <View style={styles.suggestions}>
               {suggestions.map((s) => (

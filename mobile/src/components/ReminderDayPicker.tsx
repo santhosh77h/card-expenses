@@ -51,7 +51,7 @@ export default function ReminderDayPicker({ label, subtitle, value, onChange }: 
         )}
       </TouchableOpacity>
 
-      {/* Day grid — shown when setting/changing */}
+      {/* Day grid - shown when setting/changing */}
       {(expanded || enabled) && (
         <TouchableOpacity
           style={styles.changeBtn}

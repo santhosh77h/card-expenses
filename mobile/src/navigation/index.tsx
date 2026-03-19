@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import Constants from 'expo-constants';
 import { useColors, useIsDark } from '../hooks/useColors';
+import { useStore } from '../store';
 import { setPostHogClient } from '../utils/analytics';
 import HomeScreen from '../screens/HomeScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
@@ -47,6 +48,8 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 function TabNavigator() {
   const colors = useColors();
+  const { cards } = useStore();
+  const hasCards = cards.length > 0;
 
   return (
     <Tab.Navigator
@@ -77,7 +80,7 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Transactions" component={TransactionsScreen} />
       <Tab.Screen name="Upload" component={UploadScreen} />
-      <Tab.Screen name="Cards" component={CardsScreen} />
+      {hasCards && <Tab.Screen name="Cards" component={CardsScreen} />}
       <Tab.Screen name="You" component={ProfileScreen} />
     </Tab.Navigator>
   );

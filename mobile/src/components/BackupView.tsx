@@ -195,7 +195,7 @@ export default function BackupView() {
           <Text style={styles.cardTitle}>Export Backup</Text>
         </View>
         <Text style={styles.desc}>
-          Your backup is encrypted with a password to protect your financial data. Remember this password — you'll need it to restore.
+          Your backup is encrypted with a password to protect your financial data. Remember this password - you'll need it to restore.
         </Text>
 
         {/* Password */}
@@ -243,7 +243,7 @@ export default function BackupView() {
           <Text style={styles.cardTitle}>Export to CSV</Text>
         </View>
         <Text style={styles.desc}>
-          Export all your transactions as a plain CSV file. No encryption — great for spreadsheets and personal analysis.
+          Export all your transactions as a plain CSV file. No encryption - great for spreadsheets and personal analysis.
         </Text>
         <StatRow label="Total transactions" value={String(allTransactions.length)} />
         <View style={{ height: spacing.sm }} />
@@ -362,7 +362,7 @@ export default function BackupView() {
             onPress={() => {
               Alert.alert(
                 'Delete All Data?',
-                'This will permanently erase everything — all cards, statements, transactions, and enrichments. This cannot be undone.',
+                'This will permanently erase everything - all cards, statements, transactions, and enrichments. This cannot be undone.',
                 [
                   { text: 'Cancel', style: 'cancel' },
                   {

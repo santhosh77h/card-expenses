@@ -46,7 +46,7 @@ export async function parseStatement(fileUri: string, fileName: string, password
 }
 
 // ---------------------------------------------------------------------------
-// Demo mode — 24 realistic mock transactions across 12 categories
+// Demo mode - 24 realistic mock transactions across 12 categories
 // ---------------------------------------------------------------------------
 
 export function parseDemoStatement(): ParseResult {
@@ -335,7 +335,7 @@ export function parseDemoStatement(): ParseResult {
 }
 
 // ---------------------------------------------------------------------------
-// Client-side categorizer — mirrors backend categorizer.py
+// Client-side categorizer - mirrors backend categorizer.py
 // ---------------------------------------------------------------------------
 
 const categoryKeywords: { category: string; icon: string; keywords: string[] }[] = [
@@ -622,7 +622,7 @@ function validateParseResult(data: any): ParseResult {
 }
 
 // ---------------------------------------------------------------------------
-// Card scanning via camera — extracts last4, issuer, network from a photo
+// Card scanning types - used by cardOcr.ts (on-device ML Kit OCR)
 // ---------------------------------------------------------------------------
 
 export interface ScannedCardInfo {
@@ -630,22 +630,6 @@ export interface ScannedCardInfo {
 	issuer: string | null;
 	network: string | null;
 	cardholder_name: string | null;
-}
-
-export async function scanCardImage(imageUri: string): Promise<ScannedCardInfo> {
-	const formData = new FormData();
-	formData.append('file', {
-		uri: imageUri,
-		name: 'card.jpg',
-		type: 'image/jpeg',
-	} as any);
-
-	const response = await axios.post<ScannedCardInfo>(`${API_URL}/scan-card`, formData, {
-		headers: { 'Content-Type': 'multipart/form-data', 'X-Vector-API-Key': VECTOR_API_KEY },
-		timeout: 30000,
-	});
-
-	return response.data;
 }
 
 export function generateCSV(transactions: Transaction[]): string {

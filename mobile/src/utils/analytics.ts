@@ -2,7 +2,7 @@ import type { PostHog } from 'posthog-react-native';
 export { usePostHog } from 'posthog-react-native';
 
 // ---------------------------------------------------------------------------
-// Event name constants — single source of truth
+// Event name constants - single source of truth
 // ---------------------------------------------------------------------------
 
 export const AnalyticsEvents = {

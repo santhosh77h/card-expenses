@@ -9,7 +9,7 @@ import { Footer } from "@/components/sections/footer";
 import { Header } from "@/components/sections/header";
 import { Hero } from "@/components/sections/hero";
 import { Pricing } from "@/components/sections/pricing";
-import { Testimonials } from "@/components/sections/testimonials";
+// import { Testimonials } from "@/components/sections/testimonials";
 import { siteConfig } from "@/lib/config";
 
 const softwareAppJsonLd = {
@@ -19,7 +19,7 @@ const softwareAppJsonLd = {
   applicationCategory: "FinanceApplication",
   operatingSystem: "iOS, Android",
   description:
-    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights — no data ever stored on our servers.",
+    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers.",
   offers: {
     "@type": "Offer",
     price: "0",
@@ -72,7 +72,7 @@ export default function Home() {
       <BentoGrid />
       <Benefits />
       <Features />
-      <Testimonials />
+      {/* <Testimonials /> */}
       <Pricing />
       <FAQ />
       <CTA />

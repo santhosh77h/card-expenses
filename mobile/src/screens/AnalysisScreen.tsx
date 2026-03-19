@@ -291,7 +291,7 @@ function OverviewTab({
 
   return (
     <View style={{ padding: spacing.lg }}>
-      {/* Payment Due — hero card (if available) */}
+      {/* Payment Due - hero card (if available) */}
       {hasDueInfo && (
         <Card>
           <View style={styles.cardHeaderRow}>

@@ -27,7 +27,7 @@ interface StructuredAnswerProps {
 }
 
 // ---------------------------------------------------------------------------
-// Transaction List — list_transactions / transactions_on_date
+// Transaction List - list_transactions / transactions_on_date
 // ---------------------------------------------------------------------------
 
 function TransactionListView({ rows }: { rows: Record<string, any>[] }) {

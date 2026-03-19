@@ -320,7 +320,7 @@ function EditForm({
           {/* Currency picker */}
           <Text style={styles.inputLabel}>Currency</Text>
           <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}>
-            <Text style={styles.pickerText}>{CURRENCY_CONFIG[currency].symbol} {currency} — {CURRENCY_CONFIG[currency].label}</Text>
+            <Text style={styles.pickerText}>{CURRENCY_CONFIG[currency].symbol} {currency} - {CURRENCY_CONFIG[currency].label}</Text>
             <Feather name={showCurrencyPicker ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
           </TouchableOpacity>
           {showCurrencyPicker && (
@@ -328,7 +328,7 @@ function EditForm({
               {SUPPORTED_CURRENCIES.map((c) => (
                 <TouchableOpacity key={c} style={[styles.pickerItem, currency === c && styles.pickerItemActive]} onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}>
                   <Text style={[styles.pickerItemText, currency === c && { color: colors.accent }]}>
-                    {CURRENCY_CONFIG[c].symbol} {c} — {CURRENCY_CONFIG[c].label}
+                    {CURRENCY_CONFIG[c].symbol} {c} - {CURRENCY_CONFIG[c].label}
                   </Text>
                 </TouchableOpacity>
               ))}

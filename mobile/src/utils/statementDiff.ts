@@ -18,7 +18,7 @@ function matchKey(t: Transaction): string {
  * Compute the diff between old and new transaction lists for a single statement.
  *
  * Matching logic: group by date+description, then match by order of appearance
- * within each group. If matched, compare amount/type/category — any difference
+ * within each group. If matched, compare amount/type/category - any difference
  * means "modified". Unmatched old = removed, unmatched new = added.
  */
 export function computeStatementDiff(

@@ -45,7 +45,7 @@ function shortDay(dateStr: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Category Donut Chart — category_spend / top_category
+// Category Donut Chart - category_spend / top_category
 // ---------------------------------------------------------------------------
 
 const CategoryDonutChartView = React.memo(function CategoryDonutChartView({
@@ -96,7 +96,7 @@ const CategoryDonutChartView = React.memo(function CategoryDonutChartView({
 });
 
 // ---------------------------------------------------------------------------
-// Monthly Bar Chart — monthly_summary / compare_months
+// Monthly Bar Chart - monthly_summary / compare_months
 // ---------------------------------------------------------------------------
 
 const MonthlyBarChartView = React.memo(function MonthlyBarChartView({
@@ -157,7 +157,7 @@ const MonthlyBarChartView = React.memo(function MonthlyBarChartView({
 });
 
 // ---------------------------------------------------------------------------
-// Weekly Bar Chart — weekly_summary
+// Weekly Bar Chart - weekly_summary
 // ---------------------------------------------------------------------------
 
 const WeeklyBarChartView = React.memo(function WeeklyBarChartView({
@@ -213,7 +213,7 @@ const WeeklyBarChartView = React.memo(function WeeklyBarChartView({
 });
 
 // ---------------------------------------------------------------------------
-// Frequency Horizontal Bar Chart — frequent_merchant
+// Frequency Horizontal Bar Chart - frequent_merchant
 // ---------------------------------------------------------------------------
 
 const FrequencyBarChartView = React.memo(function FrequencyBarChartView({

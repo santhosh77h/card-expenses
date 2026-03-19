@@ -6,7 +6,7 @@ Copy everything below the line and paste it into Claude along with your topic/id
 
 ## Prompt
 
-I need you to generate a blog post for **Vector Expense** (vectorexpense.io) — a privacy-first, AI-powered credit card statement parser app. The blog lives at `/blog` on our marketing site.
+I need you to generate a blog post for **Vector Expense** (vectorexpense.com) — a privacy-first, AI-powered credit card statement parser app. The blog lives at `/blog` on our marketing site.
 
 **Output each field separately so I can copy-paste them into the admin form.**
 

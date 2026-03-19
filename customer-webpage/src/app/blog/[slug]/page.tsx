@@ -16,13 +16,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const post = await getBlogPost(slug);
-  if (!post) return { title: "Post Not Found — Vector Expense" };
+  if (!post) return { title: "Post Not Found - Vector Expense" };
 
   const url = `${siteConfig.url}/blog/${post.slug}`;
   const images = post.cover_image ? [post.cover_image] : [];
 
   return {
-    title: `${post.title} — Vector Expense Blog`,
+    title: `${post.title} - Vector Expense Blog`,
     description: post.excerpt,
     alternates: { canonical: url },
     openGraph: {
@@ -117,7 +117,7 @@ export default async function BlogPostPage({
         }}
       />
 
-      {/* FAQPage structured data — only for authored FAQ */}
+      {/* FAQPage structured data - only for authored FAQ */}
       {faq.length > 0 && (
         <script
           type="application/ld+json"
@@ -186,7 +186,7 @@ export default async function BlogPostPage({
           </aside>
         </div>
 
-        {/* Related posts — full width below */}
+        {/* Related posts - full width below */}
         {filtered.length > 0 && (
           <div className="mt-16 pt-10 border-t border-border max-w-3xl">
             <h3 className="text-xl font-semibold mb-6">Related Posts</h3>

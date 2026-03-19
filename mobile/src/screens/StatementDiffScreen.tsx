@@ -43,7 +43,7 @@ export default function StatementDiffScreen() {
     return computeStatementDiff(oldStatement.transactions, newParsed.transactions);
   }, [oldStatement, newParsed.transactions]);
 
-  // Selection state — added & modified default checked, removed default unchecked
+  // Selection state - added & modified default checked, removed default unchecked
   const [selectedAdded, setSelectedAdded] = useState<Set<string>>(
     () => new Set(diff.added.map((t) => t.id)),
   );

@@ -2,8 +2,8 @@ export const SITE = {
   name: "Vector Expense",
   tagline: "Your Money. Directed.",
   description:
-    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights — no data ever stored on our servers.",
-  url: "https://vectorexpense.io",
+    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers.",
+  url: "https://vectorexpense.com",
 };
 
 export const NAV_LINKS = [
@@ -109,7 +109,7 @@ export const HOW_IT_WORKS = [
     step: 3,
     title: "Insights",
     description:
-      "Get instant spending breakdowns, category charts, and exportable CSV reports — all stored locally.",
+      "Get instant spending breakdowns, category charts, and exportable CSV reports - all stored locally.",
     icon: "bar-chart",
   },
 ];
@@ -260,12 +260,12 @@ export const FAQ_DATA = [
   {
     question: "How does the AI parsing work?",
     answer:
-      "Vector Expense uses a 3-model consensus engine — GPT-4o-mini, Claude 3.5 Haiku, and Gemini 2.0 Flash parse every statement in parallel. Fields are resolved by majority voting, eliminating hallucinations. Each transaction gets a confidence score.",
+      "Vector Expense uses a 3-model consensus engine - GPT-4o-mini, Claude 3.5 Haiku, and Gemini 2.0 Flash parse every statement in parallel. Fields are resolved by majority voting, eliminating hallucinations. Each transaction gets a confidence score.",
   },
   {
     question: "Is my financial data safe?",
     answer:
-      "Absolutely. Vector Expense processes PDFs entirely in-memory — no financial data is ever written to disk on our servers. All your data is stored locally on your device in an encrypted SQLite database. No accounts, no cloud sync, no tracking.",
+      "Absolutely. Vector Expense processes PDFs entirely in-memory - no financial data is ever written to disk on our servers. All your data is stored locally on your device in an encrypted SQLite database. No accounts, no cloud sync, no tracking.",
   },
   {
     question: "Can I integrate Vector Expense with other apps?",

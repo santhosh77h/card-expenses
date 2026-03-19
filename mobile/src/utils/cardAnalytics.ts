@@ -304,7 +304,7 @@ export function getCardDetail(
 }
 
 /**
- * Per-card monthly usage for the manage view — utilization bars.
+ * Per-card monthly usage for the manage view - utilization bars.
  */
 export interface CardMonthlyBill {
   month: string;
@@ -902,7 +902,7 @@ export function generateInsights(
     insights.push({
       type: 'best_month',
       label: '✓ Best month',
-      text: `${stats.lowestMonth.label} was your lowest spend month — ${pctBelow}% below your yearly average.`,
+      text: `${stats.lowestMonth.label} was your lowest spend month - ${pctBelow}% below your yearly average.`,
       highlightColor: '#4ecb8a',
     });
   }

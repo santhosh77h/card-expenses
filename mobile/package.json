@@ -20,6 +20,7 @@
     "axios": "^1.7.2",
     "crypto-js": "^4.2.0",
     "expo": "~51.0.0",
+    "expo-build-properties": "~0.12.5",
     "expo-constants": "~16.0.2",
     "expo-crypto": "~13.0.2",
     "expo-dev-client": "~4.0.29",
@@ -46,6 +47,7 @@
     "react-native-svg": "15.2.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-view-shot": "3.8.0",
+    "rn-mlkit-ocr": "^0.3.1",
     "victory-native": "^37.0.2",
     "zustand": "^4.5.2"
   },

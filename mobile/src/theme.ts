@@ -200,7 +200,7 @@ export function dateFormatForCurrency(currency: CurrencyCode): DateFormat {
 }
 
 // ---------------------------------------------------------------------------
-// Transaction type metadata — label + icon for each transaction_type value
+// Transaction type metadata - label + icon for each transaction_type value
 // ---------------------------------------------------------------------------
 
 export const TRANSACTION_TYPE_META: Record<string, { label: string; icon: string }> = {
@@ -218,7 +218,7 @@ export const TRANSACTION_TYPE_META: Record<string, { label: string; icon: string
 };
 
 // ---------------------------------------------------------------------------
-// Chart palette — 10 high-contrast colors for multi-series charts on dark bg
+// Chart palette - 10 high-contrast colors for multi-series charts on dark bg
 // ---------------------------------------------------------------------------
 
 export const chartPalette = [

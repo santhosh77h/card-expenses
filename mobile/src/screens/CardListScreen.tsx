@@ -85,17 +85,31 @@ export default function CardListScreen() {
           ) : null
         }
         ListFooterComponent={
-          <TouchableOpacity
-            style={styles.addCardBtn}
-            onPress={() => navigation.navigate('AddCard')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.addCardIcon}>
-              <Feather name="plus" size={18} color={colors.accent} />
-            </View>
-            <Text style={styles.addCardText}>Add New Card</Text>
-            <Feather name="chevron-right" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
+          cards.length === 0 ? (
+            <TouchableOpacity
+              style={styles.addCardBtn}
+              onPress={() => navigation.navigate('Tabs', { screen: 'Upload' })}
+              activeOpacity={0.7}
+            >
+              <View style={styles.addCardIcon}>
+                <Feather name="upload" size={18} color={colors.accent} />
+              </View>
+              <Text style={styles.addCardText}>Upload Statement</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.addCardBtn}
+              onPress={() => navigation.navigate('AddCard')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.addCardIcon}>
+                <Feather name="plus" size={18} color={colors.accent} />
+              </View>
+              <Text style={styles.addCardText}>Add New Card</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          )
         }
         ListEmptyComponent={
           <View style={styles.empty}>

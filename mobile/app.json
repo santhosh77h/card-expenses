@@ -1,54 +1,63 @@
 {
-	"expo": {
-		"name": "Vector Expense",
-		"slug": "vector-expense",
-		"version": "1.0.0",
-		"scheme": "vector",
-		"orientation": "portrait",
-		"icon": "./assets/icon.png",
-		"userInterfaceStyle": "dark",
-		"splash": {
-			"image": "./assets/splash.png",
-			"resizeMode": "contain",
-			"backgroundColor": "#0A0E1A"
-		},
-		"assetBundlePatterns": ["**/*"],
-		"ios": {
-			"supportsTablet": true,
-			"bundleIdentifier": "com.cardlytics.app",
-			"backgroundColor": "#0A0E1A",
-			"infoPlist": {
-				"ITSAppUsesNonExemptEncryption": false,
-				"NSFaceIDUsageDescription": "Vector uses Face ID to protect your financial data."
-			}
-		},
-		"android": {
-			"adaptiveIcon": {
-				"foregroundImage": "./assets/adaptive-icon.png",
-				"backgroundColor": "#0A0E1A"
-			},
-			"minSdkVersion": 24,
-			"package": "com.cardlytics.app"
-		},
-		"web": {
-			"favicon": "./assets/favicon.png",
-			"backgroundColor": "#0A0E1A"
-		},
-		"plugins": [
-			"expo-font",
-			"expo-document-picker",
-			"expo-image-picker",
-			"expo-notifications",
-			["react-native-fast-tflite", { "enableCoreMLDelegate": true }],
-			"./plugins/withVectorWidgets"
-		],
-		"extra": {
-			"posthogApiKey": "phc_H2RGC5HdtLY7XJccoxAmpWdmPAm4BwfzddNOfwh7mYn",
-			"posthogHost": "https://us.i.posthog.com",
-			"eas": {
-				"projectId": "01f80520-dfae-453d-a23a-7c12fc7dcd87"
-			}
-		},
-		"owner": "santhosh7h"
-	}
+  "expo": {
+    "name": "Vector Expense",
+    "slug": "vector-expense",
+    "version": "1.0.0",
+    "scheme": "vector",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0E1A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cardlytics.app",
+      "backgroundColor": "#0A0E1A",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Vector uses Face ID to protect your financial data."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0E1A"
+      },
+      "minSdkVersion": 24,
+      "package": "com.cardlytics.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "backgroundColor": "#0A0E1A"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-document-picker",
+      "expo-image-picker",
+      "expo-notifications",
+      [
+        "react-native-fast-tflite",
+        {
+          "enableCoreMLDelegate": true
+        }
+      ],
+      ["expo-build-properties", { "ios": { "deploymentTarget": "15.5" } }],
+      ["rn-mlkit-ocr", { "ocrModels": ["latin"], "ocrUseBundled": true }],
+      "./plugins/withVectorWidgets"
+    ],
+    "extra": {
+      "posthogApiKey": "phc_H2RGC5HdtLY7XJccoxAmpWdmPAm4BwfzddNOfwh7mYn",
+      "posthogHost": "https://us.i.posthog.com",
+      "eas": {
+        "projectId": "01f80520-dfae-453d-a23a-7c12fc7dcd87"
+      }
+    },
+    "owner": "santhosh7h"
+  }
 }

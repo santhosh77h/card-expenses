@@ -26,7 +26,7 @@ export function Hero() {
     <Section id="hero" className="min-h-[90vh] w-full overflow-hidden">
       <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center min-h-[80vh]">
-          {/* Left side — text content */}
+          {/* Left side - text content */}
           <div className="lg:col-span-7 text-center lg:text-left pt-12 sm:pt-16 lg:pt-0">
             {/* Pill badge */}
             <motion.div {...fadeUp(0.1, 10)}>
@@ -52,7 +52,7 @@ export function Hero() {
             >
               Upload any bank&apos;s PDF statement and get instant spending
               breakdowns, smart categorization, and exportable reports. No
-              account needed — your data never leaves your device.
+              account needed - your data never leaves your device.
             </motion.p>
 
             {/* Dual CTA */}
@@ -101,7 +101,7 @@ export function Hero() {
             </motion.div>
           </div>
 
-          {/* Right side — phone mockups */}
+          {/* Right side - phone mockups */}
           <div className="lg:col-span-5 flex items-center justify-center relative py-8 lg:py-0">
             {/* Background glow */}
             <div
@@ -113,7 +113,7 @@ export function Hero() {
               }}
             />
 
-            {/* Back phone (Upload) — offset behind */}
+            {/* Back phone (Upload) - offset behind */}
             <motion.div
               initial={{ opacity: 0, x: 40, rotate: 0, scale: 0.85 }}
               animate={{ opacity: 0.85, x: 0, rotate: -6, scale: 0.9 }}
@@ -127,7 +127,7 @@ export function Hero() {
               </IPhoneFrame>
             </motion.div>
 
-            {/* Front phone (Analytics) — main */}
+            {/* Front phone (Analytics) - main */}
             <motion.div
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}

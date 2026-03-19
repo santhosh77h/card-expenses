@@ -307,9 +307,9 @@ export default function HomeScreen() {
         />
         <View style={styles.paddedSection}>
           <PrimaryButton
-            title="Add Your First Card"
-            icon="plus"
-            onPress={() => navigation.navigate('Tabs', { screen: 'Cards' })}
+            title="Upload Statement"
+            icon="upload"
+            onPress={() => navigation.navigate('Tabs', { screen: 'Upload' })}
           />
           <View style={{ height: spacing.md }} />
           <PrimaryButton
@@ -331,7 +331,7 @@ export default function HomeScreen() {
         <Text style={styles.subtitle}>Your Money. Directed.</Text>
       </View>
 
-      {/* Portfolio Card — swipeable by month */}
+      {/* Portfolio Card - swipeable by month */}
       <MonthlyPortfolioCard
         cards={cards}
         monthlyUsage={monthlyUsage}
@@ -345,7 +345,7 @@ export default function HomeScreen() {
         currencyKeys={currencyKeys}
       />
 
-      {/* Your Cards — read-only detail view */}
+      {/* Your Cards - read-only detail view */}
       <SectionHeader
         title="Your Cards"
         action="Manage"

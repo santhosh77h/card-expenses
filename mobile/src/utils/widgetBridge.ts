@@ -114,14 +114,14 @@ function buildWidgetData(
 }
 
 // ---------------------------------------------------------------------------
-// Public API — call after state mutations
+// Public API - call after state mutations
 // ---------------------------------------------------------------------------
 
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Debounced sync: writes widget-data.json to shared storage and reloads widgets.
- * Safe to call frequently — batches rapid mutations into a single write.
+ * Safe to call frequently - batches rapid mutations into a single write.
  */
 export function syncWidgetData(
   cards: CreditCard[],

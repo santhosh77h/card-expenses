@@ -147,7 +147,7 @@ function DailySpendingChart({
             />
           )}
 
-          {/* Data point dots — glow ring + white border + solid core */}
+          {/* Data point dots - glow ring + white border + solid core */}
           {debitsByDay.map((d) => (
             <React.Fragment key={`d-${d.day}`}>
               <Circle

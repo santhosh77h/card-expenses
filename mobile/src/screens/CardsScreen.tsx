@@ -75,7 +75,7 @@ export default function CardsScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Analytics View — 12-Month Overview with 7 Sections
+// Analytics View - 12-Month Overview with 7 Sections
 // ---------------------------------------------------------------------------
 
 function AnalyticsView({
@@ -252,7 +252,7 @@ function AnalyticsView({
       {categories.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Top spending categories — last {effectivePeriod.months.length} months
+            Top spending categories - last {effectivePeriod.months.length} months
           </Text>
 
           {/* Donut chart */}

@@ -19,10 +19,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: `${siteConfig.name} | ${siteConfig.description}`,
   description:
-    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights — no data ever stored on our servers. Supports 33+ banks across India, US, and UK.",
+    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers. Supports 33+ banks across India, US, and UK.",
   keywords: siteConfig.keywords,
   openGraph: {
-    title: `${siteConfig.name} — ${siteConfig.description}`,
+    title: `${siteConfig.name} - ${siteConfig.description}`,
     description:
       "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights.",
     type: "website",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${siteConfig.name} — ${siteConfig.description}`,
+    title: `${siteConfig.name} - ${siteConfig.description}`,
     description:
       "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights.",
   },

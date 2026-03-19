@@ -13,7 +13,7 @@ export const siteConfig = {
   name: "Vector Expense",
   description: "Your Money. Directed.",
   cta: "Download App",
-  url: process.env.NEXT_PUBLIC_APP_URL || "https://vectorexpense.io",
+  url: process.env.NEXT_PUBLIC_APP_URL || "https://vectorexpense.com",
   keywords: [
     "Credit Card Statement Parser",
     "Expense Tracker",
@@ -22,7 +22,7 @@ export const siteConfig = {
     "Spending Insights",
   ],
   links: {
-    email: "support@vectorexpense.io",
+    email: "support@vectorexpense.com",
     twitter: "https://x.com/Vector_Expense",
     instagram: "https://www.instagram.com/vector_expense/",
     linkedin: "https://www.linkedin.com/company/vector-expense",

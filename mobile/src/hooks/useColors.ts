@@ -33,7 +33,7 @@ export function useIsDark(): boolean {
 
 /**
  * Non-hook sync getter for class components (e.g. ErrorBoundary).
- * Reads directly from the store — cannot react to system scheme changes.
+ * Reads directly from the store - cannot react to system scheme changes.
  */
 export function getColors(): ThemeColors {
   const themeMode = useStore.getState().themeMode;

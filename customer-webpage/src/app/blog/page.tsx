@@ -6,12 +6,12 @@ import BlogCard from "@/components/blog/BlogCard";
 import FeaturedBlogCard from "@/components/blog/FeaturedBlogCard";
 
 export const metadata: Metadata = {
-  title: "Blog — Vector Expense",
+  title: "Blog - Vector Expense",
   description:
     "Insights on privacy-first finance, AI-powered parsing, and personal expense management.",
   alternates: { canonical: `${siteConfig.url}/blog` },
   openGraph: {
-    title: "Blog — Vector Expense",
+    title: "Blog - Vector Expense",
     description:
       "Insights on privacy-first finance, AI-powered parsing, and personal expense management.",
     type: "website",

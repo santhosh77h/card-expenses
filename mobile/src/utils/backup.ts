@@ -42,7 +42,7 @@ export interface BackupData {
   };
 }
 
-// Envelope for encrypted backups — keeps appName visible so we can identify
+// Envelope for encrypted backups - keeps appName visible so we can identify
 // the file without decrypting, and the summary so we can show a preview.
 export interface EncryptedBackup {
   appName: 'vector';
@@ -193,7 +193,7 @@ export async function exportBackup(password: string): Promise<void> {
   try {
     await FileSystem.deleteAsync(filePath, { idempotent: true });
   } catch {
-    // Non-fatal — cache will be cleaned up by OS eventually
+    // Non-fatal - cache will be cleaned up by OS eventually
   }
 }
 

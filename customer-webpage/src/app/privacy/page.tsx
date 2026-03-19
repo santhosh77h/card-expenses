@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Vector Expense",
+  title: "Privacy Policy - Vector Expense",
   description:
     "Vector Expense privacy policy. Your data stays on your device. No accounts, no tracking, no server storage.",
 };
@@ -85,12 +85,12 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">Contact Us</h2>
             <p>If you have questions about this privacy policy or Vector Expense&apos;s privacy practices, please reach out:</p>
-            <p className="mt-3"><a href="mailto:privacy@vectorapp.io" className="text-primary hover:text-primary/80 transition-colors underline underline-offset-4">privacy@vectorapp.io</a></p>
+            <p className="mt-3"><a href="mailto:privacy@vectorexpense.com" className="text-primary hover:text-primary/80 transition-colors underline underline-offset-4">privacy@vectorexpense.com</a></p>
           </section>
         </div>
 
         <div className="mt-16 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>Vector Expense — Your Money. Directed.</p>
+          <p>Vector Expense - Your Money. Directed.</p>
         </div>
       </div>
     </main>

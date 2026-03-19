@@ -24,7 +24,7 @@ export function ChartCarousel({ intent, answer, rows }: ChartCarouselProps) {
   const ChartComponent = CHART_COMPONENTS[intent];
   const hasChart = !!ChartComponent && !!rows && rows.length > 0;
 
-  // No chart available — render text directly (zero overhead)
+  // No chart available - render text directly (zero overhead)
   if (!hasChart) {
     return <StructuredAnswer intent={intent} answer={answer} rows={rows} />;
   }

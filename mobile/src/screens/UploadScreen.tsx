@@ -65,6 +65,7 @@ export default function UploadScreen() {
 		isPremium,
 		uploadsThisMonth,
 		_refreshUploadCount,
+		importStatementTransactions,
 	} = useStore();
 	const colors = useColors();
 	const styles = useMemo(() => createStyles(colors), [colors]);
@@ -162,7 +163,7 @@ export default function UploadScreen() {
 			} catch (err: any) {
 				const code = err?.response?.data?.error_code || err?.response?.data?.detail?.error_code;
 				if (code === 'incorrect_password' || code === 'password_required') continue;
-				throw err; // non-password error — don't swallow
+				throw err; // non-password error - don't swallow
 			}
 		}
 		return null;
@@ -239,7 +240,7 @@ export default function UploadScreen() {
 		const matched = matchCardFromParsed(parsed);
 		if (matched) return matched.id;
 
-		return null; // No match — caller should show card confirm modal
+		return null; // No match - caller should show card confirm modal
 	};
 
 	/** Set up card confirmation modal state for a parsed file. */
@@ -286,7 +287,7 @@ export default function UploadScreen() {
 	};
 
 	// -----------------------------------------------------------------------
-	// finalizeSaveForBatch — saves statement + returns statementId, no nav
+	// finalizeSaveForBatch - saves statement + returns statementId, no nav
 	// -----------------------------------------------------------------------
 
 	const finalizeSaveForBatch = (
@@ -360,7 +361,7 @@ export default function UploadScreen() {
 	};
 
 	// -----------------------------------------------------------------------
-	// finalizeSave — single-file path (demo + legacy), saves + navigates
+	// finalizeSave - single-file path (demo + legacy), saves + navigates
 	// -----------------------------------------------------------------------
 
 	const finalizeSave = (
@@ -379,7 +380,7 @@ export default function UploadScreen() {
 	};
 
 	// -----------------------------------------------------------------------
-	// processBatch — sequential processing loop
+	// processBatch - sequential processing loop
 	// -----------------------------------------------------------------------
 
 	const processBatch = async (startIndex: number, cardIdOverride?: string, passwordOverride?: string | null) => {
@@ -405,7 +406,7 @@ export default function UploadScreen() {
 				fileHash = await computeFileHash(files[i].uri);
 				const dupResult = checkDuplicateSilent(fileHash);
 				if (dupResult.isDuplicate) {
-					// Pause batch — ask user whether to re-parse or skip
+					// Pause batch - ask user whether to re-parse or skip
 					updateBatchFile(i, { status: 'duplicate', fileHash, existingStatementId: dupResult.existingStatementId, existingCardId: dupResult.existingCardId });
 					const userChoice = await new Promise<'skip' | 'reparse'>((resolve) => {
 						Alert.alert(
@@ -421,7 +422,7 @@ export default function UploadScreen() {
 					if (userChoice === 'skip') {
 						continue;
 					}
-					// User chose re-parse — continue to parsing below, mark with existing info
+					// User chose re-parse - continue to parsing below, mark with existing info
 					updateBatchFile(i, { status: 'parsing', fileHash, existingStatementId: dupResult.existingStatementId, existingCardId: dupResult.existingCardId });
 				}
 			} catch {
@@ -463,7 +464,7 @@ export default function UploadScreen() {
 								passwordPoolRef.current.add(poolResult.usedPassword);
 							}
 						} catch (poolErr) {
-							// Non-password error from pool attempt — treat as parse failure
+							// Non-password error from pool attempt - treat as parse failure
 							const poolData = (poolErr as any)?.response?.data;
 							const msg =
 								poolData?.message ||
@@ -477,7 +478,7 @@ export default function UploadScreen() {
 						}
 					}
 
-					// Pool exhausted — prompt user
+					// Pool exhausted - prompt user
 					if (!parsed) {
 						capture(AnalyticsEvents.STATEMENT_PASSWORD_REQUIRED);
 						batchPasswordIndexRef.current = i;
@@ -490,7 +491,7 @@ export default function UploadScreen() {
 						setPassword('');
 						setSavePasswordChecked(false);
 						setPasswordModalVisible(true);
-						return; // Pause — handlePasswordSubmit will resume
+						return; // Pause - handlePasswordSubmit will resume
 					}
 				} else {
 					// Non-password error
@@ -505,7 +506,7 @@ export default function UploadScreen() {
 				}
 			}
 
-			// --- Success handling — per-file card resolution ---
+			// --- Success handling - per-file card resolution ---
 
 			// Check if this is a re-parse of an existing statement
 			const currentFile = batchFilesRef.current[i];
@@ -527,9 +528,9 @@ export default function UploadScreen() {
 			// Resolve which card this file belongs to
 			const targetCardId = resolveTargetCard(parsed, currentCardId);
 			if (!targetCardId) {
-				// No matching card — show card confirmation modal
+				// No matching card - show card confirmation modal
 				showCardConfirmForFile(i, parsed, fileHash, usedPassword);
-				return; // Pause — handleCardConfirm will resume
+				return; // Pause - handleCardConfirm will resume
 			}
 
 			// Save to resolved card
@@ -557,11 +558,20 @@ export default function UploadScreen() {
 			const file = batchFilesRef.current[0];
 			setState('idle');
 			navigation.navigate('Analysis', { statementId: file.statementId!, cardId: file.cardId ?? currentCardId ?? batchCardId! });
+		} else if (totalCount === 1) {
+			// Single file that didn't succeed - reset to error/idle so the upload area is visible again
+			const file = batchFilesRef.current[0];
+			if (file.status === 'failed') {
+				setState('error');
+				setError(file.error || 'Failed to parse statement.');
+			} else {
+				resetBatch();
+			}
 		}
 	};
 
 	// -----------------------------------------------------------------------
-	// handlePick — file picker (batch-aware)
+	// handlePick - file picker (batch-aware)
 	// -----------------------------------------------------------------------
 
 	const handlePick = async () => {
@@ -616,7 +626,7 @@ export default function UploadScreen() {
 	};
 
 	// -----------------------------------------------------------------------
-	// handlePasswordSubmit — batch-aware
+	// handlePasswordSubmit - batch-aware
 	// -----------------------------------------------------------------------
 
 	const handlePasswordSubmit = async () => {
@@ -629,7 +639,7 @@ export default function UploadScreen() {
 		setSavePasswordChecked(false);
 
 		if (state === 'batch') {
-			// Batch mode — retry current file with password, then continue
+			// Batch mode - retry current file with password, then continue
 			const idx = batchPasswordIndexRef.current;
 			const file = batchFilesRef.current[idx];
 
@@ -645,7 +655,7 @@ export default function UploadScreen() {
 				// Per-file card resolution
 				const targetCardId = resolveTargetCard(parsed, batchCardId);
 				if (!targetCardId) {
-					// No matching card — show card confirmation modal
+					// No matching card - show card confirmation modal
 					showCardConfirmForFile(idx, parsed, file.fileHash, shouldSave ? usedPwd : undefined);
 					return;
 				}
@@ -758,7 +768,7 @@ export default function UploadScreen() {
 		setSavePasswordChecked(false);
 
 		if (state === 'batch') {
-			// Mark current file as failed but continue batch — pool may work for next files
+			// Mark current file as failed but continue batch - pool may work for next files
 			const idx = batchPasswordIndexRef.current;
 			updateBatchFile(idx, { status: 'failed', error: 'Password required' });
 			processBatch(idx + 1, batchCardId ?? undefined, batchPassword);
@@ -766,7 +776,7 @@ export default function UploadScreen() {
 	};
 
 	// -----------------------------------------------------------------------
-	// handleDemo — unchanged single-file flow
+	// handleDemo - unchanged single-file flow
 	// -----------------------------------------------------------------------
 
 	const handleDemo = async () => {
@@ -799,7 +809,7 @@ export default function UploadScreen() {
 	};
 
 	// -----------------------------------------------------------------------
-	// handleCardConfirm — batch-aware
+	// handleCardConfirm - batch-aware
 	// -----------------------------------------------------------------------
 
 	const handleCardConfirm = () => {
@@ -818,17 +828,17 @@ export default function UploadScreen() {
 		setCardConfirmVisible(false);
 
 		if (state === 'batch') {
-			// Batch mode — save this file to the newly created card, then resume
+			// Batch mode - save this file to the newly created card, then resume
 			const idx = batchFilesRef.current.findIndex((f) => f.status === 'parsing' && f.parseResult);
 			if (idx !== -1 && pendingParseResult) {
 				const stmtId = finalizeSaveForBatch(confirmedCard.id, pendingParseResult.parsed, pendingParseResult.fileHash);
 				updateBatchFile(idx, { status: 'success', statementId: stmtId, cardId: confirmedCard.id });
 			}
-			// Don't lock batchCardId — each file resolves its own card via resolveTargetCard
+			// Don't lock batchCardId - each file resolves its own card via resolveTargetCard
 			setPendingCardData(null);
 			setPendingParseResult(null);
 
-			// Resume from next file — pass original batchCardId so each file resolves independently
+			// Resume from next file - pass original batchCardId so each file resolves independently
 			const nextIdx = (idx !== -1 ? idx : 0) + 1;
 			processBatch(nextIdx, batchCardId ?? undefined, batchPassword);
 			return;
@@ -855,7 +865,12 @@ export default function UploadScreen() {
 					updateBatchFile(j, { status: 'skipped' });
 				}
 			}
-			setBatchComplete(true);
+			if (batchFilesRef.current.length <= 1) {
+				// Single file - reset to idle so the upload area is visible again
+				resetBatch();
+			} else {
+				setBatchComplete(true);
+			}
 		} else {
 			setState('idle');
 		}
@@ -899,11 +914,11 @@ export default function UploadScreen() {
 			case 'failed':
 				return file.error || 'Failed';
 			case 'duplicate':
-				return 'Duplicate — Skipped';
+				return 'Duplicate - Skipped';
 			case 'skipped':
 				return 'Skipped';
 			case 'reparse':
-				return 'Re-parsed — Review changes';
+				return 'Re-parsed - Review changes';
 			default:
 				return undefined;
 		}
@@ -941,7 +956,7 @@ export default function UploadScreen() {
 					<Badge text="Your PDF is processed in memory and never stored" color={colors.accent} />
 				</View>
 
-				{/* Card selector — always visible */}
+				{/* Card selector - always visible */}
 				{state !== 'batch' && (
 					<View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
 						<Text style={styles.label}>Select Card</Text>
@@ -1056,7 +1071,7 @@ export default function UploadScreen() {
 													resetBatch();
 													navigation.navigate('Analysis', {
 														statementId: file.statementId!,
-														cardId: batchCardId!,
+														cardId: file.cardId!,
 													});
 												} else if (canReview) {
 													resetBatch();
@@ -1097,8 +1112,26 @@ export default function UploadScreen() {
 								})}
 							</View>
 
-							{/* Done button */}
-							<View style={{ width: '100%', marginTop: spacing.xl }}>
+							{/* Import All + Done buttons */}
+							<View style={{ width: '100%', marginTop: spacing.xl, gap: spacing.md }}>
+								{batchSuccessCount > 0 && (
+									<PrimaryButton
+										title={`Add All ${batchSuccessCount} to Transactions`}
+										icon="plus"
+										onPress={() => {
+											const successFiles = batchFilesRef.current.filter(
+												(f) => f.status === 'success' && f.statementId
+											);
+											for (const f of successFiles) {
+												importStatementTransactions(f.statementId!);
+											}
+											Alert.alert(
+												'Added Successfully',
+												`Transactions from ${successFiles.length} statement${successFiles.length > 1 ? 's' : ''} have been added to your Transactions list.`,
+											);
+										}}
+									/>
+								)}
 								<PrimaryButton title="Done" icon="check" onPress={resetBatch} />
 							</View>
 						</View>

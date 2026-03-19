@@ -57,7 +57,7 @@ export const SectionHeader = React.memo(function SectionHeader({
 });
 
 // ---------------------------------------------------------------------------
-// Stat row — label + value
+// Stat row - label + value
 // ---------------------------------------------------------------------------
 
 export const StatRow = React.memo(function StatRow({

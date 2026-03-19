@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — Vector Expense",
+  title: "Terms of Service - Vector Expense",
   description:
     "Vector Expense terms of service. Understand your rights and responsibilities when using Vector Expense.",
 };
@@ -59,7 +59,7 @@ export default function TermsPage() {
               Vector Expense is a privacy-first credit card statement parser that
               extracts transaction data from PDF statements and provides
               spending insights. The App processes your documents, categorizes
-              transactions, and presents analytics — all with a focus on keeping
+              transactions, and presents analytics - all with a focus on keeping
               your data private and under your control.
             </p>
           </section>
@@ -266,17 +266,17 @@ export default function TermsPage() {
             </p>
             <p className="mt-3">
               <a
-                href="mailto:legal@vectorapp.io"
+                href="mailto:legal@vectorexpense.com"
                 className="text-primary hover:text-primary/80 transition-colors underline underline-offset-4"
               >
-                legal@vectorapp.io
+                legal@vectorexpense.com
               </a>
             </p>
           </section>
         </div>
 
         <div className="mt-16 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>Vector Expense — Your Money. Directed.</p>
+          <p>Vector Expense - Your Money. Directed.</p>
         </div>
       </div>
     </main>
