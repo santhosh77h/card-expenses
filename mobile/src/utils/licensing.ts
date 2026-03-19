@@ -1,4 +1,3 @@
-import * as SecureStore from 'expo-secure-store';
 import { getMeta, setMeta, getMetaInt, setMetaInt } from '../db/meta';
 import { getSubscriptionInfo, purchaseCredits as rcPurchaseCredits } from './revenueCat';
 import Purchases from 'react-native-purchases';
@@ -20,6 +19,9 @@ const META_SUB_ALLOWANCE_REMAINING = 'sub_allowance_remaining';
 const META_SUB_ALLOWANCE_RESET_MONTH = 'sub_allowance_reset_month';
 const META_SUB_PLAN_TYPE = 'sub_plan_type';
 const META_CREDIT_BALANCE = 'credit_balance';
+
+// Lazy-load SecureStore to avoid crash when native module isn't linked (dev client)
+const getSecureStore = () => require('expo-secure-store') as typeof import('expo-secure-store');
 
 // SecureStore key (survives reinstall on iOS, persists across app data clear)
 const SECURE_TRIAL_GRANTED = 'vector_trial_granted';
@@ -61,7 +63,7 @@ export async function initTrialIfNeeded(): Promise<void> {
   if (__DEV__) return;
 
   // Check SecureStore first (survives reinstall on iOS)
-  const secureFlag = await SecureStore.getItemAsync(SECURE_TRIAL_GRANTED);
+  const secureFlag = await getSecureStore().getItemAsync(SECURE_TRIAL_GRANTED);
   if (secureFlag === 'true') return; // Already granted in past install
 
   // Check meta table (current install)
@@ -75,7 +77,7 @@ export async function initTrialIfNeeded(): Promise<void> {
   setMetaInt(META_TRIAL_REMAINING, TRIAL_STATEMENTS);
   setMeta(META_TRIAL_EXPIRY, expiry.toISOString());
 
-  await SecureStore.setItemAsync(SECURE_TRIAL_GRANTED, 'true');
+  await getSecureStore().setItemAsync(SECURE_TRIAL_GRANTED, 'true');
   capture('trial_started', { statements: TRIAL_STATEMENTS, days: TRIAL_DAYS });
 }
 

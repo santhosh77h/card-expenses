@@ -1,0 +1,7 @@
+diff --git a/node_modules/rn-mlkit-ocr/lib/module/package.json b/node_modules/rn-mlkit-ocr/lib/module/package.json
+deleted file mode 100644
+index 089153b..0000000
+--- a/node_modules/rn-mlkit-ocr/lib/module/package.json
++++ /dev/null
+@@ -1 +0,0 @@
+-{"type":"module"}
