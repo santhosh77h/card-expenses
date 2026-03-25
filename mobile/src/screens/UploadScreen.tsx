@@ -32,6 +32,7 @@ import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, p
 import { capture, AnalyticsEvents } from '../utils/analytics';
 import { checkUploadAllowed as licenseCheckUpload, consumeOneStatement, getLicenseInfo } from '../utils/licensing';
 import { presentPaywall } from '../utils/revenueCat';
+import { biometricGuard } from '../utils/biometricGuard';
 const NEW_CARD_ID = '__new__';
 const MAX_PASSWORD_POOL_SIZE = 5;
 
@@ -126,7 +127,7 @@ export default function UploadScreen() {
 
 		if (result.showPaywall) {
 			capture(AnalyticsEvents.PAYWALL_SHOWN, { source: 'upload' });
-			presentPaywall();
+			presentPaywall().catch(() => {});
 		} else if (result.showTopUp) {
 			capture(AnalyticsEvents.TOPUP_NUDGE_SHOWN, { source: 'upload' });
 			Alert.alert(
@@ -601,11 +602,13 @@ export default function UploadScreen() {
 			const allowed = checkUploadAllowed();
 			if (!allowed) return;
 
+			biometricGuard.suppress();
 			const result = await DocumentPicker.getDocumentAsync({
 				type: 'application/pdf',
 				copyToCacheDirectory: true,
 				multiple: true,
 			});
+			biometricGuard.resume();
 
 			if (result.canceled || !result.assets?.length) return;
 
@@ -655,6 +658,7 @@ export default function UploadScreen() {
 				processBatch(0, selectedCardId, null);
 			}
 		} catch {
+			biometricGuard.resume();
 			setState('error');
 			setError('Could not open file picker.');
 		}

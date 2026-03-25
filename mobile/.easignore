@@ -1,0 +1,30 @@
+# Dependencies - EAS installs these from package.json
+node_modules/
+
+# Native build artifacts - EAS runs prebuild
+android/
+ios/
+
+# Backend - not needed for mobile build
+../backend/
+../ml/
+../web/
+../customer-webpage/
+../.claude/
+
+# Docs
+../CLAUDE.md
+../PRICING.md
+../MIGRATION_GUIDE.md
+../*.md
+FEATURES.md
+
+# Git
+../.git/
+
+# Tests & config
+../.github/
+
+# OS files
+.DS_Store
+**/.DS_Store

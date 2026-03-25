@@ -256,7 +256,7 @@ export const useStore = create<AppState>()(
         creditBalance: 0,
         totalAvailable: 0,
       },
-      themeMode: 'dark',
+      themeMode: 'light',
       defaultCurrency: 'INR',
       globalReminderDay: null,
       biometricLockEnabled: false,

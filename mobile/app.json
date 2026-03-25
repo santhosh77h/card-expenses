@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Vector Expense",
-    "slug": "vector-expense",
+    "slug": "cardlytics",
     "version": "1.0.0",
     "scheme": "vector",
     "orientation": "portrait",
@@ -18,11 +18,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cardlytics.app",
+      "appleTeamId": "6BCFGQHZBT",
       "backgroundColor": "#0A0E1A",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "Vector uses Face ID to protect your financial data."
-      }
+      },
+      "buildNumber": "20"
     },
     "android": {
       "adaptiveIcon": {
@@ -47,9 +49,23 @@
           "enableCoreMLDelegate": true
         }
       ],
-      ["expo-build-properties", { "ios": { "deploymentTarget": "15.5" } }],
-      ["rn-mlkit-ocr", { "ocrModels": ["latin"], "ocrUseBundled": true }],
-      "./plugins/withVectorWidgets"
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.5"
+          }
+        }
+      ],
+      [
+        "rn-mlkit-ocr",
+        {
+          "ocrModels": [
+            "latin"
+          ],
+          "ocrUseBundled": true
+        }
+      ]
     ],
     "extra": {
       "posthogApiKey": "phc_H2RGC5HdtLY7XJccoxAmpWdmPAm4BwfzddNOfwh7mYn",

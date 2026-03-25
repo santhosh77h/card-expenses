@@ -115,7 +115,7 @@ export default function ProfileScreen() {
           ) : (
             <TouchableOpacity
               style={styles.upgradeBtn}
-              onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_header' }); presentPaywall(); }}
+              onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_header' }); presentPaywall().catch(() => {}); }}
               activeOpacity={0.8}
             >
               <Feather name="zap" size={14} color={colors.warning} style={{ marginRight: spacing.xs }} />
@@ -163,7 +163,7 @@ export default function ProfileScreen() {
             label="Upgrade to Pro"
             subtitle="Unlock all features"
             iconColor={colors.warning}
-            onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' }); presentPaywall(); }}
+            onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' }); presentPaywall().catch(() => {}); }}
           />
         )}
       </View>

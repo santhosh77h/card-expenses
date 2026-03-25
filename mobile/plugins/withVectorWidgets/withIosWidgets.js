@@ -166,6 +166,9 @@ function withWidgetExtensionTarget(config) {
           cfg.buildSettings.CURRENT_PROJECT_VERSION = '1';
           cfg.buildSettings.GENERATE_INFOPLIST_FILE = 'NO';
           cfg.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = `"${WIDGET_BUNDLE_ID}"`;
+          cfg.buildSettings.DEVELOPMENT_TEAM = '6BCFGQHZBT';
+          cfg.buildSettings.CODE_SIGN_STYLE = 'Automatic';
+          cfg.buildSettings.CODE_SIGN_IDENTITY = '"Apple Development"';
         }
       }
 

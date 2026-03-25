@@ -9,11 +9,12 @@ import Navigation from './src/navigation';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
-import { initRevenueCat, addSubscriptionListener } from './src/utils/revenueCat';
+import { initRevenueCat, addSubscriptionListener, diagnoseRevenueCat } from './src/utils/revenueCat';
 import { initTrialIfNeeded, refreshSubscriptionAllowance, restoreCreditsFromRC } from './src/utils/licensing';
 import { configureNotifications, rescheduleAll } from './src/utils/notifications';
 import { useIsDark } from './src/hooks/useColors';
 import BiometricLockScreen from './src/components/BiometricLockScreen';
+import { biometricGuard } from './src/utils/biometricGuard';
 import { darkColors, fontSize, spacing } from './src/theme';
 
 configureNotifications();
@@ -43,13 +44,14 @@ export default function App() {
 
   const handleUnlock = useCallback(() => setLocked(false), []);
 
-  // Re-lock when app comes back from background
+  // Re-lock when app returns from background (skip if biometric guard is suppressed, e.g. document picker)
   useEffect(() => {
     const sub = RNAppState.addEventListener('change', (nextState) => {
       if (
-        appStateRef.current.match(/inactive|background/) &&
+        appStateRef.current === 'background' &&
         nextState === 'active' &&
-        useStore.getState().biometricLockEnabled
+        useStore.getState().biometricLockEnabled &&
+        !biometricGuard.isSuppressed()
       ) {
         setLocked(true);
       }
@@ -74,6 +76,7 @@ export default function App() {
       try {
         const isPremium = await initRevenueCat();
         useStore.getState()._setIsPremium(isPremium);
+        if (__DEV__) diagnoseRevenueCat();
       } catch {
         // RevenueCat failure is non-fatal — defaults to free tier
       }
