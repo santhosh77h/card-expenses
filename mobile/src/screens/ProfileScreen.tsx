@@ -102,7 +102,7 @@ export default function ProfileScreen() {
             <View style={{ alignItems: 'center', gap: spacing.xs }}>
               <Badge text="PRO" color={colors.accent} />
               <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
-                {licenseInfo.subAllowanceRemaining} this month{licenseInfo.creditBalance > 0 ? ` + ${licenseInfo.creditBalance} credits` : ''}
+                {licenseInfo.subAllowanceRemaining} of 4 parses this month{licenseInfo.creditBalance > 0 ? ` + ${licenseInfo.creditBalance} credits` : ''}
               </Text>
             </View>
           ) : licenseInfo.creditBalance > 0 ? (

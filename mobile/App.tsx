@@ -10,7 +10,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
 import { initRevenueCat, addSubscriptionListener, diagnoseRevenueCat } from './src/utils/revenueCat';
-import { initTrialIfNeeded, refreshSubscriptionAllowance, restoreCreditsFromRC } from './src/utils/licensing';
+import { initTrialIfNeeded, refreshSubscriptionStatus, restoreCreditsFromRC } from './src/utils/licensing';
 import { configureNotifications, rescheduleAll } from './src/utils/notifications';
 import { useIsDark } from './src/hooks/useColors';
 import BiometricLockScreen from './src/components/BiometricLockScreen';
@@ -84,7 +84,7 @@ export default function App() {
       // Licensing boot sequence
       try {
         await initTrialIfNeeded();
-        await refreshSubscriptionAllowance();
+        await refreshSubscriptionStatus();
         await restoreCreditsFromRC();
         useStore.getState()._refreshLicenseInfo();
       } catch {
@@ -94,7 +94,7 @@ export default function App() {
       listenerRef.current = addSubscriptionListener((isPremium) => {
         useStore.getState()._setIsPremium(isPremium);
         // Refresh license state when subscription changes
-        refreshSubscriptionAllowance()
+        refreshSubscriptionStatus()
           .then(() => useStore.getState()._refreshLicenseInfo())
           .catch(() => {});
       });

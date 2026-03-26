@@ -9,15 +9,15 @@ import { capture } from './analytics';
 
 export const TRIAL_DAYS = 15;
 export const TRIAL_STATEMENTS = 15;
-export const MONTHLY_ALLOWANCE = 8;
-export const YEARLY_ALLOWANCE = 12;
+export const SUB_MONTHLY_PARSES = 4;
 
 // Meta table keys
 const META_TRIAL_REMAINING = 'trial_remaining';
 const META_TRIAL_EXPIRY = 'trial_expiry';
-const META_SUB_ALLOWANCE_REMAINING = 'sub_allowance_remaining';
-const META_SUB_ALLOWANCE_RESET_MONTH = 'sub_allowance_reset_month';
+const META_SUB_ACTIVE = 'sub_active';
 const META_SUB_PLAN_TYPE = 'sub_plan_type';
+const META_SUB_ALLOWANCE_REMAINING = 'sub_allowance_remaining';
+const META_SUB_ALLOWANCE_RESET_DATE = 'sub_allowance_reset_date';
 const META_CREDIT_BALANCE = 'credit_balance';
 
 // Lazy-load SecureStore to avoid crash when native module isn't linked (dev client)
@@ -40,6 +40,7 @@ export interface LicenseInfo {
   trialRemaining: number;
   trialExpired: boolean;
   trialExpiryDate: string | null;
+  subscriptionActive: boolean;
   subAllowanceRemaining: number;
   subPlanType: 'monthly' | 'yearly' | null;
   creditBalance: number;
@@ -90,7 +91,8 @@ export function getLicenseInfo(): LicenseInfo {
   const trialExpiryStr = getMeta(META_TRIAL_EXPIRY);
   const trialExpired = trialExpiryStr ? new Date(trialExpiryStr) < new Date() : true;
 
-  const subAllowanceRemaining = getMetaInt(META_SUB_ALLOWANCE_REMAINING);
+  const subscriptionActive = getMeta(META_SUB_ACTIVE) === '1';
+  const subAllowanceRemaining = subscriptionActive ? getMetaInt(META_SUB_ALLOWANCE_REMAINING) : 0;
   const subPlanTypeRaw = getMeta(META_SUB_PLAN_TYPE);
   const subPlanType = (subPlanTypeRaw === 'monthly' || subPlanTypeRaw === 'yearly')
     ? subPlanTypeRaw
@@ -103,7 +105,7 @@ export function getLicenseInfo(): LicenseInfo {
   const trialActive = trialRemaining > 0 && !trialExpired;
   if (trialActive) {
     tier = 'trial';
-  } else if (subAllowanceRemaining > 0) {
+  } else if (subscriptionActive && subAllowanceRemaining > 0) {
     tier = 'subscription';
   } else if (creditBalance > 0) {
     tier = 'credits';
@@ -119,6 +121,7 @@ export function getLicenseInfo(): LicenseInfo {
     trialRemaining,
     trialExpired,
     trialExpiryDate: trialExpiryStr,
+    subscriptionActive,
     subAllowanceRemaining,
     subPlanType,
     creditBalance,
@@ -140,8 +143,8 @@ export function checkUploadAllowed(): CheckResult {
     return { allowed: true, tier: 'trial' };
   }
 
-  // Subscription allowance available
-  if (info.subAllowanceRemaining > 0) {
+  // Active subscription with remaining allowance
+  if (info.subscriptionActive && info.subAllowanceRemaining > 0) {
     return { allowed: true, tier: 'subscription' };
   }
 
@@ -150,18 +153,17 @@ export function checkUploadAllowed(): CheckResult {
     return { allowed: true, tier: 'credits' };
   }
 
-  // Nothing available — decide what to show
-  if (info.subPlanType) {
-    // Has subscription but exhausted monthly allowance
+  // Subscriber but exhausted monthly parses — nudge top-up
+  if (info.subscriptionActive) {
     return {
       allowed: false,
-      reason: 'Monthly statement limit reached. Purchase additional credits to continue.',
+      reason: 'You\u2019ve used all 4 parses this month. Purchase credits to continue.',
       showPaywall: false,
       showTopUp: true,
     };
   }
 
-  // No subscription at all
+  // No subscription at all — show paywall
   return {
     allowed: false,
     reason: 'Your trial has ended. Subscribe to continue parsing statements.',
@@ -185,9 +187,10 @@ export function consumeOneStatement(): void {
     return;
   }
 
-  if (info.subAllowanceRemaining > 0) {
+  // Active subscription — decrement monthly allowance
+  if (info.subscriptionActive && info.subAllowanceRemaining > 0) {
     setMetaInt(META_SUB_ALLOWANCE_REMAINING, info.subAllowanceRemaining - 1);
-    capture('sub_used', { remaining: info.subAllowanceRemaining - 1 });
+    capture('sub_used', { remaining: info.subAllowanceRemaining - 1, plan: info.subPlanType ?? 'unknown' });
     return;
   }
 
@@ -195,38 +198,44 @@ export function consumeOneStatement(): void {
     const newBalance = info.creditBalance - 1;
     setMetaInt(META_CREDIT_BALANCE, newBalance);
     capture('credit_used', { remaining: newBalance });
-    // Sync to RevenueCat subscriber attributes
     Purchases.setAttributes({ [RC_ATTR_CREDIT_BALANCE]: String(newBalance) });
   }
 }
 
 // ---------------------------------------------------------------------------
-// refreshSubscriptionAllowance — reset on month boundary
+// refreshSubscriptionStatus — sync subscription state from RevenueCat
 // ---------------------------------------------------------------------------
 
-export async function refreshSubscriptionAllowance(): Promise<void> {
+export async function refreshSubscriptionStatus(): Promise<void> {
   if (__DEV__) return;
 
   const subInfo = await getSubscriptionInfo();
+
   if (!subInfo.isActive) {
-    // No active subscription — clear sub state
+    setMeta(META_SUB_ACTIVE, '0');
     setMeta(META_SUB_PLAN_TYPE, '');
     setMetaInt(META_SUB_ALLOWANCE_REMAINING, 0);
     return;
   }
 
-  const planType = subInfo.planType ?? 'monthly';
-  setMeta(META_SUB_PLAN_TYPE, planType);
+  setMeta(META_SUB_ACTIVE, '1');
+  setMeta(META_SUB_PLAN_TYPE, subInfo.planType ?? 'monthly');
 
+  // Rolling 30-day allowance reset — fair regardless of when user subscribes
+  const resetDateStr = getMeta(META_SUB_ALLOWANCE_RESET_DATE);
   const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const storedResetMonth = getMeta(META_SUB_ALLOWANCE_RESET_MONTH);
 
-  if (storedResetMonth !== currentMonth) {
-    // New month — reset allowance
-    const allowance = planType === 'yearly' ? YEARLY_ALLOWANCE : MONTHLY_ALLOWANCE;
-    setMetaInt(META_SUB_ALLOWANCE_REMAINING, allowance);
-    setMeta(META_SUB_ALLOWANCE_RESET_MONTH, currentMonth);
+  if (!resetDateStr) {
+    // First time — grant allowance
+    setMetaInt(META_SUB_ALLOWANCE_REMAINING, SUB_MONTHLY_PARSES);
+    setMeta(META_SUB_ALLOWANCE_RESET_DATE, now.toISOString());
+  } else {
+    const resetDate = new Date(resetDateStr);
+    const daysSinceReset = (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceReset >= 30) {
+      setMetaInt(META_SUB_ALLOWANCE_REMAINING, SUB_MONTHLY_PARSES);
+      setMeta(META_SUB_ALLOWANCE_RESET_DATE, now.toISOString());
+    }
   }
 }
 

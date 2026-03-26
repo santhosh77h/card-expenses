@@ -30,27 +30,27 @@ Two options only. No other plans shown.
 | | Monthly | Yearly |
 |---|---|---|
 | **Price** | $3 / month | $24 / year *(= $2/month)* |
-| **Statements** | 8 per month | 12 per month |
+| **Parses** | 4 per month | 4 per month |
 | **Billed** | Every month | Once a year |
 | **Best for** | Trying it out | Regular users |
 | | | ⭐ Best Value |
 
-> Monthly allowance resets on the 1st of every calendar month.
-> Unused monthly statements do not carry over.
+> Allowance resets every 30 days from when you subscribed (not calendar month).
+> Subscription status is verified via RevenueCat / Apple on each app launch.
 
 ---
 
-## Step 3 — Top-Up Credits (Shown Only When Monthly Limit Is Hit)
+## Step 3 — Credit Packs (For Non-Subscribers)
 
-Shown as a non-intrusive nudge: *"Need more this month? Top up instantly."*
-Credits never expire and stack on top of the subscription allowance.
+Available for users who prefer pay-as-you-go over a subscription.
+Credits never expire.
 
 | Pack | Price | Statements | Rate per Statement |
 |------|-------|------------|--------------------|
 | **Starter** | $10 | 30 | $0.33 each |
 | **Standard** | $20 | 70 | ~$0.29 each |
 
-> Credits are consumed only after the monthly subscription allowance is exhausted.
+> Credits are consumed one per statement parsed.
 > Credits are non-refundable once purchased.
 > No expiry — credits persist until used.
 
@@ -63,8 +63,7 @@ First launch
     └── 15-day trial (15 statements, no card)
             ├── Trial ends or statements used up
             │       └── Paywall: Monthly ($3) or Yearly ($24) ⭐
-            │               └── Monthly limit hit mid-month?
-            │                       └── Top-up nudge: $10 or $20
+            │               └── Unlimited uploads while subscribed
             └── User subscribes during trial
                     └── Trial balance used first, then subscription kicks in
 ```
@@ -90,7 +89,7 @@ First launch
 | **Trial grant trigger** | On first app launch, write `trial_statements: 15`, `trial_expiry: now + 15 days` to local SQLite |
 | **Trial expiry check** | On every parse attempt, check `trial_expiry` date — zero out if past expiry |
 | **Paywall trigger** | Show on trial end OR when `trial_statements == 0` |
-| **Top-up nudge trigger** | Show only when monthly subscription allowance hits 0, never proactively |
+| **Subscription check** | On boot + subscription change, sync active status from RevenueCat to local SQLite |
 | **Credit type** | Consumable one-time purchase via RevenueCat |
 | **Credit storage** | Persist credit balance in local SQLite, no expiry date set |
-| **Parse order** | Trial balance → Monthly subscription allowance → Credit pack balance |
+| **Parse order** | Trial balance → Subscription allowance (4/month) → Credit pack balance |

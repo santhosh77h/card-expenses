@@ -1005,9 +1005,11 @@ export default function UploadScreen() {
 								color={licenseInfo.totalAvailable > 0 ? colors.accent : colors.debit}
 							/>
 							<Text style={[styles.licenseText, licenseInfo.totalAvailable === 0 && { color: colors.debit }]}>
-								{licenseInfo.totalAvailable > 0
-									? `${licenseInfo.totalAvailable} statement${licenseInfo.totalAvailable !== 1 ? 's' : ''} remaining`
-									: 'No statements remaining'}
+								{licenseInfo.subscriptionActive
+									? `Pro · ${licenseInfo.subAllowanceRemaining} of 4 parses remaining`
+									: licenseInfo.totalAvailable > 0
+										? `${licenseInfo.totalAvailable} statement${licenseInfo.totalAvailable !== 1 ? 's' : ''} remaining`
+										: 'No statements remaining'}
 								{licenseInfo.tier === 'trial' && licenseInfo.trialExpiryDate
 									? ` · Trial ends ${new Date(licenseInfo.trialExpiryDate).toLocaleDateString()}`
 									: ''}

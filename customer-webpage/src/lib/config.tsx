@@ -175,7 +175,7 @@ export const siteConfig = {
       period: "month",
       yearlyPrice: "$3",
       features: [
-        "8 statement parses per month",
+        "4 statement parses per month",
         "3-model AI consensus engine",
         "12 spending categories",
         "Multi-card management",
@@ -193,7 +193,7 @@ export const siteConfig = {
       period: "year",
       yearlyPrice: "$24",
       features: [
-        "12 statement parses per month",
+        "4 statement parses per month",
         "3-model AI consensus engine",
         "12 spending categories",
         "Multi-card management",

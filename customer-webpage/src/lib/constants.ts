@@ -220,7 +220,7 @@ export const PRICING = [
     period: "per month",
     description: "Flexible month-to-month plan",
     features: [
-      "8 statement parses per month",
+      "4 statement parses per month",
       "3-model AI consensus engine",
       "12 spending categories",
       "Multi-card management",
@@ -236,7 +236,7 @@ export const PRICING = [
     period: "per year",
     description: "Best value — save 33% vs monthly",
     features: [
-      "12 statement parses per month",
+      "4 statement parses per month",
       "3-model AI consensus engine",
       "12 spending categories",
       "Multi-card management",
