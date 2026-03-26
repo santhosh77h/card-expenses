@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Transaction, StatementSummary } from '../store';
 import { categoryColors } from '../theme';
 import { getAccessToken } from './appleAuth';
+import { signRequest } from './hmac';
 import { API_URL, VECTOR_API_KEY } from './constants';
 
 export interface CardInfo {
@@ -38,6 +39,7 @@ export async function parseStatement(fileUri: string, fileName: string, password
 	const headers: Record<string, string> = {
 		'Content-Type': 'multipart/form-data',
 		'X-Vector-API-Key': VECTOR_API_KEY,
+		...signRequest('/parse-statement/json'),
 	};
 
 	// Include auth header for server-side usage tracking

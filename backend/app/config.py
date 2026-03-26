@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     # --- RevenueCat Webhook ---
     REVENUECAT_WEBHOOK_SECRET: str = ""
 
+    # --- HMAC Request Signing ---
+    HMAC_SECRET: str = ""
+
     # --- LangSmith ---
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str = ""

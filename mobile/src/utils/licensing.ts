@@ -10,7 +10,7 @@ import { capture } from './analytics';
 
 export const TRIAL_DAYS = 15;
 export const TRIAL_STATEMENTS = 15;
-export const SUB_MONTHLY_PARSES = 8;
+export const SUB_MONTHLY_PARSES = 4;
 
 // Meta table keys
 const META_TRIAL_REMAINING = 'trial_remaining';
@@ -207,6 +207,7 @@ export function consumeOneStatement(): void {
 // syncLicenseFromServer — sync from backend when authenticated
 // ---------------------------------------------------------------------------
 
+import { signRequest } from './hmac';
 import { API_URL, VECTOR_API_KEY } from './constants';
 
 export async function syncLicenseFromServer(): Promise<boolean> {
@@ -218,6 +219,7 @@ export async function syncLicenseFromServer(): Promise<boolean> {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'X-Vector-API-Key': VECTOR_API_KEY,
+        ...signRequest('/api/subscription'),
       },
     });
 

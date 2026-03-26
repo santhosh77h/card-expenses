@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Parse-limit constants
 # ---------------------------------------------------------------------------
 
-MONTHLY_MAX_PARSES = 8
-YEARLY_MAX_PARSES = 999
+MONTHLY_MAX_PARSES = 4
+YEARLY_MAX_PARSES = 4
 
 
 def _plan_max_parses(plan: str | None) -> int:
