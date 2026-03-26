@@ -4,6 +4,7 @@ import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -59,6 +60,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-R1K3YW8Q6G"
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-R1K3YW8Q6G');
+        `}
+      </Script>
       <body
         className={cn(
           `${geistSans.variable} ${geistMono.variable}`,

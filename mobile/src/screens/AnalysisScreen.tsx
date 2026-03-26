@@ -25,6 +25,7 @@ import { CategoryPieChart, CategoryBarChart } from '../components/CategoryChart'
 import TransactionDetailModal from '../components/TransactionDetailModal';
 import type { RootStackParamList } from '../navigation';
 import { capture, AnalyticsEvents } from '../utils/analytics';
+import DatePickerField from '../components/DatePickerField';
 
 type Tab = 'overview' | 'transactions' | 'categories';
 
@@ -331,13 +332,7 @@ function OverviewTab({
                 </View>
                 <View style={styles.editStatRow}>
                   <Text style={styles.editStatLabel}>Due Date</Text>
-                  <TextInput
-                    style={styles.editStatInput}
-                    value={editDueDate}
-                    onChangeText={setEditDueDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.textMuted}
-                  />
+                  <DatePickerField value={editDueDate} onChange={setEditDueDate} />
                 </View>
                 <TouchableOpacity style={styles.inlineSaveBtn} onPress={saveDueEdits}>
                   <Feather name="check" size={14} color="#fff" />
@@ -400,23 +395,11 @@ function OverviewTab({
             <>
               <View style={styles.editStatRow}>
                 <Text style={styles.editStatLabel}>Period From</Text>
-                <TextInput
-                  style={styles.editStatInput}
-                  value={editPeriodFrom}
-                  onChangeText={setEditPeriodFrom}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                />
+                <DatePickerField value={editPeriodFrom} onChange={setEditPeriodFrom} />
               </View>
               <View style={styles.editStatRow}>
                 <Text style={styles.editStatLabel}>Period To</Text>
-                <TextInput
-                  style={styles.editStatInput}
-                  value={editPeriodTo}
-                  onChangeText={setEditPeriodTo}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                />
+                <DatePickerField value={editPeriodTo} onChange={setEditPeriodTo} />
               </View>
               <TouchableOpacity style={styles.inlineSaveBtn} onPress={savePeriodEdits}>
                 <Feather name="check" size={14} color="#fff" />
@@ -622,6 +605,9 @@ function TransactionsTab({
               )}
               {!!enrichment?.receiptUri && (
                 <Feather name="paperclip" size={11} color={colors.textMuted} />
+              )}
+              {txn.isEdited && (
+                <Feather name="edit-3" size={11} color={colors.warning} />
               )}
             </View>
           </View>

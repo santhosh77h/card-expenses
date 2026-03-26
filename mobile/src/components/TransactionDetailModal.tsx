@@ -20,6 +20,7 @@ import { useStore, Transaction, CreditCard } from '../store';
 import { Badge } from './ui';
 import { pickReceiptImage, captureReceiptPhoto, saveReceipt, deleteReceipt } from '../utils/receipts';
 import { CATEGORIES } from '../utils/api';
+import EditTransactionSheet from './EditTransactionSheet';
 
 interface Props {
   visible: boolean;
@@ -53,62 +54,8 @@ export default function TransactionDetailModal({
   const [notes, setNotes] = useState(enrichment?.notes ?? '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Edit mode state
-  const [isEditing, setIsEditing] = useState(false);
-  const [editDescription, setEditDescription] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [editCategory, setEditCategory] = useState('');
-  const [editCategoryColor, setEditCategoryColor] = useState('');
-  const [editCategoryIcon, setEditCategoryIcon] = useState('');
-  const [editType, setEditType] = useState<'debit' | 'credit'>('debit');
-
-  // Enter edit mode
-  const startEditing = useCallback(() => {
-    if (!transaction) return;
-    setEditDescription(transaction.description);
-    setEditAmount(transaction.amount.toString());
-    setEditDate(transaction.date);
-    setEditCategory(transaction.category);
-    setEditCategoryColor(transaction.category_color);
-    setEditCategoryIcon(transaction.category_icon);
-    setEditType(transaction.type);
-    setIsEditing(true);
-  }, [transaction]);
-
-  const cancelEditing = useCallback(() => {
-    setIsEditing(false);
-  }, []);
-
-  const saveEdits = useCallback(() => {
-    if (!transaction || !onUpdateTransaction) return;
-    const amount = parseFloat(editAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid positive number.');
-      return;
-    }
-    onUpdateTransaction(transaction.id, {
-      description: editDescription.trim() || transaction.description,
-      amount,
-      date: editDate || transaction.date,
-      category: editCategory,
-      category_color: editCategoryColor,
-      category_icon: editCategoryIcon,
-      type: editType,
-    });
-    setIsEditing(false);
-  }, [transaction, onUpdateTransaction, editDescription, editAmount, editDate, editCategory, editCategoryColor, editCategoryIcon, editType]);
-
-  const selectCategory = useCallback((cat: { name: string; color: string; icon: string }) => {
-    setEditCategory(cat.name);
-    setEditCategoryColor(cat.color);
-    setEditCategoryIcon(cat.icon);
-  }, []);
-
-  // Reset edit mode when transaction changes
-  useEffect(() => {
-    setIsEditing(false);
-  }, [transaction?.id]);
+  // Edit sheet state
+  const [showEditSheet, setShowEditSheet] = useState(false);
 
   // Sync notes when transaction changes
   useEffect(() => {
@@ -240,32 +187,27 @@ export default function TransactionDetailModal({
             {/* Header: description + flag + edit */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
-                <View style={[styles.categoryDot, { backgroundColor: isEditing ? editCategoryColor : transaction.category_color }]} />
-                {isEditing ? (
-                  <TextInput
-                    style={styles.editInput}
-                    value={editDescription}
-                    onChangeText={setEditDescription}
-                    placeholder="Description"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                ) : (
-                  <Text style={styles.description} numberOfLines={2}>
-                    {transaction.description}
-                  </Text>
-                )}
+                <View style={[styles.categoryDot, { backgroundColor: transaction.category_color }]} />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <Text style={styles.description} numberOfLines={2}>
+                      {transaction.description}
+                    </Text>
+                    {transaction.isEdited && (
+                      <View style={styles.editedPill}>
+                        <Text style={styles.editedPillText}>edited</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
               </View>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 {onUpdateTransaction && (
                   <TouchableOpacity
-                    onPress={isEditing ? cancelEditing : startEditing}
+                    onPress={() => setShowEditSheet(true)}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
-                    <Feather
-                      name={isEditing ? 'x' : 'edit-2'}
-                      size={18}
-                      color={isEditing ? colors.textMuted : colors.textMuted}
-                    />
+                    <Feather name="edit-2" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={handleToggleFlag} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -280,94 +222,25 @@ export default function TransactionDetailModal({
             </View>
 
             {/* Amount */}
-            {isEditing ? (
-              <TextInput
-                style={[
-                  styles.amount,
-                  styles.editAmountInput,
-                  { color: editType === 'debit' ? colors.debit : colors.credit },
-                ]}
-                value={editAmount}
-                onChangeText={setEditAmount}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-              />
-            ) : (
-              <Text
-                style={[
-                  styles.amount,
-                  { color: transaction.type === 'debit' ? colors.debit : colors.credit },
-                ]}
-              >
-                {transaction.type === 'debit' ? '-' : '+'}
-                {formatCurrency(transaction.amount, currency)}
-              </Text>
-            )}
-
-            {/* Type toggle (edit mode) */}
-            {isEditing && (
-              <View style={styles.typeToggleRow}>
-                <TouchableOpacity
-                  style={[styles.typeBtn, editType === 'debit' && styles.typeBtnActiveDebit]}
-                  onPress={() => setEditType('debit')}
-                >
-                  <Text style={[styles.typeBtnText, editType === 'debit' && styles.typeBtnTextActive]}>Debit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.typeBtn, editType === 'credit' && styles.typeBtnActiveCredit]}
-                  onPress={() => setEditType('credit')}
-                >
-                  <Text style={[styles.typeBtnText, editType === 'credit' && styles.typeBtnTextActive]}>Credit</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <Text
+              style={[
+                styles.amount,
+                { color: transaction.type === 'debit' ? colors.debit : colors.credit },
+              ]}
+            >
+              {transaction.type === 'debit' ? '-' : '+'}
+              {formatCurrency(transaction.amount, currency)}
+            </Text>
 
             {/* Details */}
             <View style={styles.detailsSection}>
               <View style={styles.detailRow}>
                 <Feather name="calendar" size={14} color={colors.textMuted} />
-                {isEditing ? (
-                  <TextInput
-                    style={styles.editDetailInput}
-                    value={editDate}
-                    onChangeText={setEditDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                ) : (
-                  <Text style={styles.detailText}>{formatDate(transaction.date, resolvedDateFormat)}</Text>
-                )}
+                <Text style={styles.detailText}>{formatDate(transaction.date, resolvedDateFormat)}</Text>
               </View>
-              <View style={[styles.detailRow, isEditing && { flexDirection: 'column', alignItems: 'flex-start' }]}>
-                {!isEditing && <Feather name="tag" size={14} color={colors.textMuted} />}
-                {isEditing ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPickerRow}>
-                    {CATEGORIES.map((cat) => (
-                      <TouchableOpacity
-                        key={cat.name}
-                        style={[
-                          styles.categoryChip,
-                          editCategory === cat.name && styles.categoryChipActive,
-                        ]}
-                        onPress={() => selectCategory(cat)}
-                      >
-                        <View style={[styles.categoryChipDot, { backgroundColor: cat.color }]} />
-                        <Text
-                          style={[
-                            styles.categoryChipText,
-                            editCategory === cat.name && styles.categoryChipTextActive,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Badge text={transaction.category} color={transaction.category_color} />
-                )}
+              <View style={styles.detailRow}>
+                <Feather name="tag" size={14} color={colors.textMuted} />
+                <Badge text={transaction.category} color={transaction.category_color} />
               </View>
               {card && (
                 <View style={styles.detailRow}>
@@ -377,19 +250,6 @@ export default function TransactionDetailModal({
                 </View>
               )}
             </View>
-
-            {/* Save / Cancel buttons (edit mode) */}
-            {isEditing && (
-              <View style={styles.editActions}>
-                <TouchableOpacity style={styles.saveBtn} onPress={saveEdits}>
-                  <Feather name="check" size={16} color="#fff" />
-                  <Text style={styles.saveBtnText}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditing}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             {/* Notes */}
             <Text style={styles.sectionLabel}>Notes</Text>
@@ -437,6 +297,18 @@ export default function TransactionDetailModal({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Edit Transaction Sheet */}
+      <EditTransactionSheet
+        visible={showEditSheet && !!onUpdateTransaction}
+        transaction={transaction}
+        card={card}
+        onClose={() => setShowEditSheet(false)}
+        onSave={(txnId, updates) => {
+          onUpdateTransaction!(txnId, updates);
+          setShowEditSheet(false);
+        }}
+      />
     </Modal>
   );
 }
@@ -721,10 +593,48 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   categoryChipTextActive: {
     color: colors.accent,
   },
+  editedPill: {
+    backgroundColor: colors.warning + '20',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+  },
+  editedPillText: {
+    color: colors.warning,
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+  },
+  originalRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
+  originalText: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    fontStyle: 'italic' as const,
+    flex: 1,
+  },
+  revertAllBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.warning + '50',
+  },
+  revertAllBtnText: {
+    color: colors.warning,
+    fontSize: fontSize.sm,
+    fontWeight: '600' as const,
+  },
   editActions: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginBottom: spacing.lg,
   },
   saveBtn: {
     flex: 1,

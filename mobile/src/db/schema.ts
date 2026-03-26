@@ -1,6 +1,6 @@
 import type { DB } from '@op-engineering/op-sqlite';
 
-export const LATEST_VERSION = 3;
+export const LATEST_VERSION = 5;
 
 export type MigrationFn = (db: DB) => void;
 
@@ -105,6 +105,43 @@ export const migrations: Record<number, MigrationFn> = {
   3: (db) => {
     db.executeSync(
       `ALTER TABLE transactions ADD COLUMN transaction_type TEXT NOT NULL DEFAULT 'purchase'`,
+    );
+  },
+
+  // v3 → v4: Add missing indexes
+  4: (db) => {
+    db.executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_mu_statementId ON monthly_usage(statementId)`,
+    );
+    db.executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_fh_statementId ON file_hashes(statementId)`,
+    );
+    db.executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_fh_cardId ON file_hashes(cardId)`,
+    );
+    db.executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_stmt_parsedAt ON statements(parsedAt)`,
+    );
+  },
+
+  // v4 → v5: Non-destructive transaction editing (YNAB/Monarch model)
+  5: (db) => {
+    db.executeSync(
+      `CREATE TABLE IF NOT EXISTS transaction_edits (
+        id              TEXT PRIMARY KEY,
+        transaction_id  TEXT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+        field           TEXT NOT NULL,
+        old_value       TEXT NOT NULL,
+        new_value       TEXT NOT NULL,
+        edited_at       INTEGER NOT NULL,
+        edit_source     TEXT NOT NULL DEFAULT 'user'
+      )`,
+    );
+    db.executeSync(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_txn_edit_field ON transaction_edits(transaction_id, field)`,
+    );
+    db.executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_txn_edit_txn_id ON transaction_edits(transaction_id)`,
     );
   },
 };

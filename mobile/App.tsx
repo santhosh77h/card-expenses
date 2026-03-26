@@ -1,7 +1,7 @@
 import './src/utils/cryptoPolyfill';
 import 'react-native-url-polyfill/auto';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, AppState as RNAppState } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Image, AppState as RNAppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -159,8 +159,13 @@ export default function App() {
   if (!dbReady) {
     return (
       <View style={styles.loadingContainer}>
+        <Image
+          source={require('./assets/icon.png')}
+          style={styles.splashLogo}
+        />
         <Text style={styles.brandTitle}>VECTOR</Text>
-        <ActivityIndicator size="small" color={darkColors.accent} style={{ marginTop: spacing.lg }} />
+        <Text style={styles.brandTagline}>Your Money. Directed.</Text>
+        <ActivityIndicator size="small" color={darkColors.accent} style={{ marginTop: spacing.xxl }} />
       </View>
     );
   }
@@ -181,11 +186,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  splashLogo: {
+    width: 96,
+    height: 96,
+    borderRadius: 22,
+    marginBottom: spacing.xxl,
+  },
   brandTitle: {
     color: darkColors.textPrimary,
     fontSize: fontSize.hero,
     fontWeight: '800',
     letterSpacing: 4,
+  },
+  brandTagline: {
+    color: darkColors.textMuted,
+    fontSize: fontSize.md,
+    fontWeight: '400',
+    marginTop: spacing.sm,
+    letterSpacing: 1,
   },
   errorContainer: {
     flex: 1,

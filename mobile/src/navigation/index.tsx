@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NavigationContainer, DefaultTheme, NavigatorScreenParams, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -21,6 +21,7 @@ import EditCardScreen from '../screens/EditCardScreen';
 import AddCardScreen from '../screens/AddCardScreen';
 import AskScreen from '../screens/AskScreen';
 import StatementDiffScreen from '../screens/StatementDiffScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import type { ParseResult } from '../utils/api';
 
 export type RootStackParamList = {
@@ -122,6 +123,8 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function Navigation() {
   const colors = useColors();
   const isDark = useIsDark();
+  const hasSeenOnboarding = useStore((s) => s.hasSeenOnboarding);
+  const [showOnboarding, setShowOnboarding] = useState(!hasSeenOnboarding);
 
   const navTheme = useMemo(() => ({
     ...DefaultTheme,
@@ -222,6 +225,10 @@ export default function Navigation() {
       />
     </Stack.Navigator>
   );
+
+  if (showOnboarding) {
+    return <OnboardingScreen onDone={() => setShowOnboarding(false)} />;
+  }
 
   return (
     <NavigationContainer theme={navTheme} linking={linking}>

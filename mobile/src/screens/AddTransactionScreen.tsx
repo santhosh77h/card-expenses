@@ -17,6 +17,7 @@ import { useColors } from '../hooks/useColors';
 import { useStore, CreditCard } from '../store';
 import { categorizeTransaction } from '../utils/api';
 import { Badge, PrimaryButton } from '../components/ui';
+import DatePickerField from '../components/DatePickerField';
 import { capture, AnalyticsEvents } from '../utils/analytics';
 
 export default function AddTransactionScreen() {
@@ -136,16 +137,7 @@ export default function AddTransactionScreen() {
 
         {/* Date */}
         <Text style={styles.label}>Date</Text>
-        <TextInput
-          ref={dateRef}
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textMuted}
-          value={date}
-          onChangeText={setDate}
-          returnKeyType="next"
-          onSubmitEditing={() => notesRef.current?.focus()}
-        />
+        <DatePickerField value={date} onChange={setDate} />
 
         {/* Card selector */}
         {cards.length > 0 && (

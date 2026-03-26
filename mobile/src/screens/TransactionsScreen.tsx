@@ -35,7 +35,7 @@ export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, manualTransactions, enrichments, defaultCurrency } = useStore();
+  const { cards, manualTransactions, enrichments, defaultCurrency, updateManualTransaction } = useStore();
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -217,6 +217,9 @@ export default function TransactionsScreen() {
           )}
           {!!enrichment?.receiptUri && (
             <Feather name="paperclip" size={11} color={colors.textMuted} />
+          )}
+          {item.isEdited && (
+            <Feather name="edit-3" size={11} color={colors.warning} />
           )}
         </View>
       </View>
@@ -459,6 +462,10 @@ export default function TransactionsScreen() {
         isManual
         onPrev={handlePrev}
         onNext={handleNext}
+        onUpdateTransaction={(txnId, updates) => {
+          updateManualTransaction(txnId, updates);
+          setSelectedTxn((prev) => prev ? { ...prev, ...updates } : null);
+        }}
       />
     </View>
   );

@@ -21,6 +21,7 @@ try {
 }
 import type { RootStackParamList } from '../navigation';
 import { capture, AnalyticsEvents } from '../utils/analytics';
+import { getTotalTransactionCount } from '../db/transactions';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -64,14 +65,7 @@ export default function ProfileScreen() {
     [statements],
   );
 
-  const txnCount = useMemo(
-    () =>
-      Object.values(statements).reduce(
-        (sum, arr) => sum + arr.reduce((s, st) => s + st.transactions.length, 0),
-        0,
-      ) + manualTransactions.length,
-    [statements, manualTransactions],
-  );
+  const txnCount = useMemo(() => getTotalTransactionCount(), [statements, manualTransactions]);
 
   const allStatements = useMemo(() => {
     const result: (StatementData & { cardNickname: string; cardCurrency: CurrencyCode })[] = [];

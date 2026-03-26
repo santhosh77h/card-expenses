@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import type { CurrencyCode, DateFormat, ThemeMode } from '../theme';
 import * as dbTxns from '../db/transactions';
+import * as dbEdits from '../db/transactionEdits';
 import * as dbStmts from '../db/statements';
 import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
@@ -89,6 +90,7 @@ export interface Transaction {
   transaction_type?: TransactionType;
   cardId?: string;
   currency?: CurrencyCode;
+  isEdited?: boolean;
 }
 
 export interface CategorySummary {
@@ -191,7 +193,9 @@ interface AppState {
   defaultCurrency: CurrencyCode;
   globalReminderDay: number | null;
   biometricLockEnabled: boolean;
+  hasSeenOnboarding: boolean;
 
+  setHasSeenOnboarding: (value: boolean) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setDefaultCurrency: (currency: CurrencyCode) => void;
   setGlobalReminderDay: (day: number | null) => void;
@@ -205,6 +209,9 @@ interface AppState {
   clearStatements: (cardId: string) => void;
   addTransaction: (txn: Transaction) => void;
   importStatementTransactions: (statementId: string) => void;
+  updateManualTransaction: (txnId: string, updates: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'category_color' | 'category_icon' | 'type'>>) => void;
+  revertTransactionField: (txnId: string, field: string) => void;
+  revertAllTransactionEdits: (txnId: string) => void;
   removeTransaction: (id: string) => void;
   clearManualTransactions: () => void;
   _hydrateSqlite: () => void;
@@ -262,11 +269,13 @@ export const useStore = create<AppState>()(
         creditBalance: 0,
         totalAvailable: 0,
       },
-      themeMode: 'light',
+      themeMode: 'system',
       defaultCurrency: 'INR',
       globalReminderDay: null,
       biometricLockEnabled: false,
+      hasSeenOnboarding: false,
 
+      setHasSeenOnboarding: (value) => set({ hasSeenOnboarding: value }),
       setThemeMode: (mode) => set({ themeMode: mode }),
       setDefaultCurrency: (currency) => set({ defaultCurrency: currency }),
       setGlobalReminderDay: (day) => set({ globalReminderDay: day }),
@@ -384,6 +393,79 @@ export const useStore = create<AppState>()(
             manualTransactions: dbTxns.getVisibleTransactions(),
           };
         }),
+
+      updateManualTransaction: (txnId, updates) => {
+        try {
+          dbTxns.updateTransaction(txnId, updates);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to update transaction.');
+          return;
+        }
+        set((state) => ({
+          manualTransactions: state.manualTransactions.map((t) =>
+            t.id === txnId ? { ...t, ...updates, isEdited: true } : t,
+          ),
+        }));
+        _syncWidgets();
+      },
+
+      revertTransactionField: (txnId, field) => {
+        try {
+          dbEdits.deleteEdit(txnId, field);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to revert field.');
+          return;
+        }
+        // Re-read the resolved transaction to get the correct state
+        const original = dbTxns.getOriginalTransaction(txnId);
+        if (!original) return;
+        const stillEdited = dbEdits.hasEdits(txnId);
+        const revertedValue = { [field]: original[field as keyof typeof original] };
+        set((state) => ({
+          manualTransactions: state.manualTransactions.map((t) =>
+            t.id === txnId ? { ...t, ...revertedValue, isEdited: stillEdited } : t,
+          ),
+          // Also update statement transactions
+          statements: Object.fromEntries(
+            Object.entries(state.statements).map(([cardId, stmts]) => [
+              cardId,
+              stmts.map((stmt) => ({
+                ...stmt,
+                transactions: stmt.transactions.map((t) =>
+                  t.id === txnId ? { ...t, ...revertedValue, isEdited: stillEdited } : t,
+                ),
+              })),
+            ]),
+          ),
+        }));
+      },
+
+      revertAllTransactionEdits: (txnId) => {
+        try {
+          dbEdits.deleteAllEdits(txnId);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to revert edits.');
+          return;
+        }
+        const original = dbTxns.getOriginalTransaction(txnId);
+        if (!original) return;
+        set((state) => ({
+          manualTransactions: state.manualTransactions.map((t) =>
+            t.id === txnId ? { ...original, isEdited: false } : t,
+          ),
+          statements: Object.fromEntries(
+            Object.entries(state.statements).map(([cardId, stmts]) => [
+              cardId,
+              stmts.map((stmt) => ({
+                ...stmt,
+                transactions: stmt.transactions.map((t) =>
+                  t.id === txnId ? { ...original, isEdited: false } : t,
+                ),
+              })),
+            ]),
+          ),
+        }));
+      },
 
       addTransaction: (txn) => {
         try {
@@ -533,7 +615,7 @@ export const useStore = create<AppState>()(
             if (stmt.id !== statementId) return stmt;
 
             const updatedTransactions = stmt.transactions.map((t) =>
-              t.id === txnId ? { ...t, ...updates } : t,
+              t.id === txnId ? { ...t, ...updates, isEdited: true } : t,
             );
             const newSummary = recomputeSummary(updatedTransactions, stmt.summary.statement_period);
             const newCsv = generateCSV(updatedTransactions);
@@ -821,6 +903,7 @@ export const useStore = create<AppState>()(
         defaultCurrency: state.defaultCurrency,
         globalReminderDay: state.globalReminderDay,
         biometricLockEnabled: state.biometricLockEnabled,
+        hasSeenOnboarding: state.hasSeenOnboarding,
         isAuthenticated: state.isAuthenticated,
         appleUserId: state.appleUserId,
       }),
