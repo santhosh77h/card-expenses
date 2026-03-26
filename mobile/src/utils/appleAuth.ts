@@ -4,10 +4,12 @@
  * Orchestrates: Apple auth → backend JWT verification → RevenueCat logIn → session persistence.
  */
 
-import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Purchases from 'react-native-purchases';
 import { Platform } from 'react-native';
+
+// Lazy-load to prevent crash/hang when native module isn't linked (simulator, Expo Go)
+const getAppleAuth = () => require('expo-apple-authentication') as typeof import('expo-apple-authentication');
 
 import { API_URL } from './constants';
 
@@ -48,9 +50,10 @@ export async function signInWithApple(): Promise<{
 	identityToken: string;
 	user: string;
 }> {
-	const credential = await AppleAuthentication.signInAsync({
+	const AppleAuth = getAppleAuth();
+	const credential = await AppleAuth.signInAsync({
 		requestedScopes: [
-			AppleAuthentication.AppleAuthenticationScope.EMAIL,
+			AppleAuth.AppleAuthenticationScope.EMAIL,
 		],
 	});
 
@@ -242,7 +245,11 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function isAppleAuthAvailable(): Promise<boolean> {
 	if (Platform.OS !== 'ios') return false;
-	return AppleAuthentication.isAvailableAsync();
+	try {
+		return await getAppleAuth().isAvailableAsync();
+	} catch {
+		return false;
+	}
 }
 
 /**
