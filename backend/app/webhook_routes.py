@@ -53,9 +53,10 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
     BILLING_ISSUE, PRODUCT_CHANGE, REFUND.
     """
     # Verify webhook secret
+    # RevenueCat sends the raw value in the Authorization header (no "Bearer" prefix)
     if settings.REVENUECAT_WEBHOOK_SECRET:
-        expected = f"Bearer {settings.REVENUECAT_WEBHOOK_SECRET}"
-        if authorization != expected:
+        token = authorization.removeprefix("Bearer ").strip()
+        if token != settings.REVENUECAT_WEBHOOK_SECRET:
             raise HTTPException(status_code=401, detail="Invalid webhook authorization")
 
     body = await request.json()

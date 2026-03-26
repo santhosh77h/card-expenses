@@ -22,7 +22,7 @@ ARCHIVE_PATH := $(DIST_DIR)/Vector.xcarchive
 .PHONY: help dev dev-mobile dev-backend dev-landing dev-all prebuild prebuild-clean \
         apk aab apk-debug ios ios-sim ios-device ios-archive ipa \
         install-deps typecheck clean clean-android clean-ios \
-        eas-apk eas-aab eas-ios clean-all \
+        eas-apk eas-aab eas-ios eas-publish clean-all \
         nlu-setup nlu-train-intent nlu-train-entity nlu-train nlu-test nlu-all
 
 # ── Help ────────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "  \033[33mEAS Cloud Builds (free tier: 30 builds/mo, has queue)\033[0m"
-	@grep -E '^(eas-apk|eas-aab|eas-ios):.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^(eas-apk|eas-aab|eas-ios|eas-publish):.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "  \033[33mNLU / ML\033[0m"
@@ -167,6 +167,12 @@ eas-aab: ## Build AAB on EAS servers for Play Store
 
 eas-ios: ## Build iOS on EAS servers (handles signing)
 	cd $(MOBILE_DIR) && npx eas-cli build --platform ios --profile production
+
+eas-publish: ## Build iOS locally & submit to App Store
+	@echo "Building iOS IPA locally..."
+	cd $(MOBILE_DIR) && eas build --platform ios --profile production --local
+	@echo "Submitting to App Store..."
+	cd $(MOBILE_DIR) && eas submit --platform ios --path $$(ls -t *.ipa | head -1)
 
 # ── NLU / ML ───────────────────────────────────────────────────────────────
 
