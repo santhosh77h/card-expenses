@@ -50,13 +50,28 @@ class Settings(BaseSettings):
 
     # --- Dashboard ---
     DASHBOARD_ENABLED: bool = True
-    DASHBOARD_DB_PATH: str = "data/dashboard.db"
+    DASHBOARD_DB_PATH: str = "data/dashboard.db"  # legacy; used only for PDF storage path
+
+    # --- MongoDB ---
+    MONGO_URL: str = ""
+    MONGO_DB_NAME: str = "vector"
 
     # --- Blog Admin ---
     BLOG_API_KEY: str = ""
 
     # --- Global API Key ---
     VECTOR_API_KEY: str = ""
+
+    # --- Apple Sign In ---
+    APPLE_BUNDLE_ID: str = "com.cardlytics.app"
+
+    # --- JWT Sessions ---
+    JWT_SECRET_KEY: str = ""
+    JWT_ACCESS_EXPIRY_MINUTES: int = 15
+    JWT_REFRESH_EXPIRY_DAYS: int = 30
+
+    # --- RevenueCat Webhook ---
+    REVENUECAT_WEBHOOK_SECRET: str = ""
 
     # --- LangSmith ---
     LANGCHAIN_TRACING_V2: bool = False

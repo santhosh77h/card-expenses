@@ -19,12 +19,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.cardlytics.app",
       "appleTeamId": "6BCFGQHZBT",
+      "usesAppleSignIn": true,
       "backgroundColor": "#0A0E1A",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "Vector uses Face ID to protect your financial data."
       },
-      "buildNumber": "20"
+      "buildNumber": "21"
     },
     "android": {
       "adaptiveIcon": {
@@ -39,6 +40,7 @@
       "backgroundColor": "#0A0E1A"
     },
     "plugins": [
+      "expo-apple-authentication",
       "expo-font",
       "expo-document-picker",
       "expo-image-picker",

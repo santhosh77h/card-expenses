@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { Transaction, StatementSummary } from '../store';
 import { categoryColors } from '../theme';
-
-const API_URL = 'https://vectorexpense.mooo.com';
-const VECTOR_API_KEY = 'nPmWYZpppvV3JBUjky9LSkUtXoH1my';
+import { getAccessToken } from './appleAuth';
+import { API_URL, VECTOR_API_KEY } from './constants';
 
 export interface CardInfo {
 	card_last4: string | null;
@@ -36,8 +35,19 @@ export async function parseStatement(fileUri: string, fileName: string, password
 		formData.append('password', password);
 	}
 
+	const headers: Record<string, string> = {
+		'Content-Type': 'multipart/form-data',
+		'X-Vector-API-Key': VECTOR_API_KEY,
+	};
+
+	// Include auth header for server-side usage tracking
+	const accessToken = await getAccessToken();
+	if (accessToken) {
+		headers['Authorization'] = `Bearer ${accessToken}`;
+	}
+
 	const response = await axios.post<ParseResult>(`${API_URL}/parse-statement/json`, formData, {
-		headers: { 'Content-Type': 'multipart/form-data', 'X-Vector-API-Key': VECTOR_API_KEY },
+		headers,
 		timeout: 60000,
 	});
 

@@ -1,83 +1,44 @@
 """
-Blog SQLite storage — persists blog posts for the Vector landing page.
+Blog MongoDB storage — persists blog posts for the Vector landing page.
 
-Uses Python's built-in sqlite3. Follows the same patterns as dashboard_db.py.
+Uses pymongo with the shared MongoClient from ``app.mongo``.
+All function signatures are identical to the previous SQLite implementation
+so callers (blog_routes.py) require zero changes.
 """
 
 import json
 import logging
-import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
-from uuid import uuid4
 
 from app.config import settings
+from app.mongo import doc_to_dict, get_db, nanoid
 
 logger = logging.getLogger(__name__)
 
-_DB_PATH: Path | None = None
+_COLLECTION = "blog_posts"
 
 
-def _get_db_path() -> Path:
-    global _DB_PATH
-    if _DB_PATH is None:
-        _DB_PATH = Path(settings.DASHBOARD_DB_PATH).parent / "blog.db"
-    return _DB_PATH
+def _col():
+    """Shorthand for the blog_posts collection."""
+    return get_db()[_COLLECTION]
 
 
-def _connect() -> sqlite3.Connection:
-    db_path = _get_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
-
+# ---------------------------------------------------------------------------
+# Initialisation
+# ---------------------------------------------------------------------------
 
 def init_blog_db() -> None:
-    """Create tables if they don't exist. Called at app startup."""
-    conn = _connect()
-    try:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS blog_posts (
-                id           TEXT PRIMARY KEY,
-                slug         TEXT UNIQUE NOT NULL,
-                title        TEXT NOT NULL,
-                excerpt      TEXT NOT NULL DEFAULT '',
-                content      TEXT NOT NULL DEFAULT '',
-                cover_image  TEXT DEFAULT '',
-                category     TEXT DEFAULT 'General',
-                tags         TEXT DEFAULT '[]',
-                author       TEXT DEFAULT 'Vector Team',
-                status       TEXT DEFAULT 'draft',
-                read_time    INTEGER DEFAULT 5,
-                published_at TEXT,
-                created_at   TEXT NOT NULL,
-                updated_at   TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON blog_posts(slug);
-            CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON blog_posts(status);
-            CREATE INDEX IF NOT EXISTS idx_blog_posts_published_at ON blog_posts(published_at);
-        """)
-        conn.commit()
+    """Create indexes and seed initial data if the collection is empty."""
+    col = _col()
+    col.create_index("slug", unique=True)
+    col.create_index("status")
+    col.create_index("published_at")
 
-        # Add faq column if missing (idempotent migration)
-        try:
-            conn.execute("ALTER TABLE blog_posts ADD COLUMN faq TEXT DEFAULT '[]'")
-            conn.commit()
-        except sqlite3.OperationalError:
-            pass  # Column already exists
+    if col.count_documents({}) == 0:
+        _seed_posts()
 
-        # Seed initial posts if table is empty
-        count = conn.execute("SELECT COUNT(*) as cnt FROM blog_posts").fetchone()["cnt"]
-        if count == 0:
-            _seed_posts(conn)
-
-        logger.info("[blog_db] Initialized at %s", _get_db_path())
-    finally:
-        conn.close()
+    logger.info("[blog_db] Initialized (MongoDB collection: %s)", _COLLECTION)
 
 
 # ---------------------------------------------------------------------------
@@ -91,90 +52,72 @@ def get_posts(
     status: str = "published",
 ) -> dict:
     """List posts with optional category filter."""
-    conn = _connect()
-    try:
-        conditions = []
-        params: list = []
+    col = _col()
+    query: dict = {}
 
-        if status:
-            conditions.append("status = ?")
-            params.append(status)
-        if category:
-            conditions.append("category = ?")
-            params.append(category)
+    if status:
+        query["status"] = status
+    if category:
+        query["category"] = category
 
-        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    total = col.count_documents(query)
 
-        total = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM blog_posts {where}", params
-        ).fetchone()["cnt"]
+    cursor = (
+        col.find(query)
+        .sort([("published_at", -1), ("created_at", -1)])
+        .skip(offset)
+        .limit(limit)
+    )
 
-        rows = conn.execute(
-            f"""SELECT id, slug, title, excerpt, cover_image, category, tags,
-                       author, status, read_time, published_at, created_at, updated_at, faq
-                FROM blog_posts {where}
-                ORDER BY published_at DESC, created_at DESC
-                LIMIT ? OFFSET ?""",
-            params + [limit, offset],
-        ).fetchall()
+    posts = []
+    for doc in cursor:
+        post = doc_to_dict(doc)
+        # Ensure tags/faq are lists (handles legacy JSON-string values)
+        for field in ("tags", "faq"):
+            val = post.get(field)
+            if isinstance(val, str):
+                try:
+                    post[field] = json.loads(val)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        posts.append(post)
 
-        posts = []
-        for r in rows:
-            post = dict(r)
-            for field in ("tags", "faq"):
-                if post.get(field):
-                    try:
-                        post[field] = json.loads(post[field])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-            posts.append(post)
-
-        return {
-            "posts": posts,
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-        }
-    finally:
-        conn.close()
+    return {
+        "posts": posts,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 def get_post_by_slug(slug: str) -> Optional[dict]:
     """Get a single post by slug."""
-    conn = _connect()
-    try:
-        row = conn.execute(
-            "SELECT * FROM blog_posts WHERE slug = ?", (slug,)
-        ).fetchone()
-        if not row:
-            return None
+    doc = _col().find_one({"slug": slug})
+    if not doc:
+        return None
 
-        post = dict(row)
-        for field in ("tags", "faq"):
-            if post.get(field):
-                try:
-                    post[field] = json.loads(post[field])
-                except (json.JSONDecodeError, TypeError):
-                    pass
-        return post
-    finally:
-        conn.close()
+    post = doc_to_dict(doc)
+    for field in ("tags", "faq"):
+        val = post.get(field)
+        if isinstance(val, str):
+            try:
+                post[field] = json.loads(val)
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return post
 
 
 def get_categories() -> list[dict]:
-    """Get distinct categories with counts."""
-    conn = _connect()
-    try:
-        rows = conn.execute(
-            """SELECT category, COUNT(*) as count
-               FROM blog_posts
-               WHERE status = 'published'
-               GROUP BY category
-               ORDER BY count DESC"""
-        ).fetchall()
-        return [{"category": r["category"], "count": r["count"]} for r in rows]
-    finally:
-        conn.close()
+    """Get distinct categories with counts (published posts only)."""
+    pipeline = [
+        {"$match": {"status": "published"}},
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    return [
+        {"category": r["_id"], "count": r["count"]}
+        for r in _col().aggregate(pipeline)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -184,124 +127,104 @@ def get_categories() -> list[dict]:
 def create_post(data: dict) -> dict:
     """Insert a new blog post."""
     now = datetime.now(timezone.utc).isoformat()
-    post_id = uuid4().hex
-    tags = json.dumps(data.get("tags", []))
-    faq = json.dumps(data.get("faq", []))
+    post_id = nanoid()
 
-    conn = _connect()
-    try:
-        conn.execute(
-            """INSERT INTO blog_posts (
-                id, slug, title, excerpt, content, cover_image,
-                category, tags, author, status, read_time,
-                published_at, created_at, updated_at, faq
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                post_id,
-                data.get("slug", ""),
-                data.get("title", ""),
-                data.get("excerpt", ""),
-                data.get("content", ""),
-                data.get("cover_image", ""),
-                data.get("category", "General"),
-                tags,
-                data.get("author", "Vector Team"),
-                data.get("status", "draft"),
-                data.get("read_time", 5),
-                now if data.get("status") == "published" else data.get("published_at"),
-                now,
-                now,
-                faq,
-            ),
-        )
-        conn.commit()
-        logger.info("[blog_db] Created post %s (%s)", post_id, data.get("slug"))
-        return get_post_by_slug(data.get("slug", "")) or {"id": post_id}
-    finally:
-        conn.close()
+    doc = {
+        "_id": post_id,
+        "slug": data.get("slug", ""),
+        "title": data.get("title", ""),
+        "excerpt": data.get("excerpt", ""),
+        "content": data.get("content", ""),
+        "cover_image": data.get("cover_image", ""),
+        "category": data.get("category", "General"),
+        "tags": data.get("tags", []),
+        "author": data.get("author", "Vector Team"),
+        "status": data.get("status", "draft"),
+        "read_time": data.get("read_time", 5),
+        "published_at": now if data.get("status") == "published" else data.get("published_at"),
+        "created_at": now,
+        "updated_at": now,
+        "faq": data.get("faq", []),
+    }
+
+    _col().insert_one(doc)
+    logger.info("[blog_db] Created post %s (%s)", post_id, data.get("slug"))
+    return get_post_by_slug(data.get("slug", "")) or {"id": post_id}
 
 
 def update_post(post_id: str, data: dict) -> Optional[dict]:
     """Update an existing blog post."""
     now = datetime.now(timezone.utc).isoformat()
+    col = _col()
 
-    conn = _connect()
-    try:
-        existing = conn.execute(
-            "SELECT * FROM blog_posts WHERE id = ?", (post_id,)
-        ).fetchone()
-        if not existing:
-            return None
+    existing = col.find_one({"_id": post_id})
+    if not existing:
+        return None
 
-        existing = dict(existing)
+    slug = data.get("slug", existing["slug"])
+    title = data.get("title", existing["title"])
+    excerpt = data.get("excerpt", existing["excerpt"])
+    content = data.get("content", existing["content"])
+    cover_image = data.get("cover_image", existing["cover_image"])
+    category = data.get("category", existing["category"])
+    tags = data.get("tags", existing.get("tags", []))
+    faq = data.get("faq", existing.get("faq", []))
+    author = data.get("author", existing["author"])
+    status = data.get("status", existing["status"])
+    read_time = data.get("read_time", existing["read_time"])
+    published_at = existing.get("published_at")
 
-        slug = data.get("slug", existing["slug"])
-        title = data.get("title", existing["title"])
-        excerpt = data.get("excerpt", existing["excerpt"])
-        content = data.get("content", existing["content"])
-        cover_image = data.get("cover_image", existing["cover_image"])
-        category = data.get("category", existing["category"])
-        tags = json.dumps(data["tags"]) if "tags" in data else existing["tags"]
-        faq = json.dumps(data["faq"]) if "faq" in data else existing.get("faq", "[]")
-        author = data.get("author", existing["author"])
-        status = data.get("status", existing["status"])
-        read_time = data.get("read_time", existing["read_time"])
-        published_at = existing["published_at"]
+    # Set published_at when transitioning to published
+    if status == "published" and existing.get("status") != "published":
+        published_at = now
+    if "published_at" in data:
+        published_at = data["published_at"]
 
-        # Set published_at when transitioning to published
-        if status == "published" and existing["status"] != "published":
-            published_at = now
-        if "published_at" in data:
-            published_at = data["published_at"]
-
-        conn.execute(
-            """UPDATE blog_posts
-               SET slug = ?, title = ?, excerpt = ?, content = ?,
-                   cover_image = ?, category = ?, tags = ?, author = ?,
-                   status = ?, read_time = ?, published_at = ?, updated_at = ?,
-                   faq = ?
-               WHERE id = ?""",
-            (
-                slug, title, excerpt, content,
-                cover_image, category, tags, author,
-                status, read_time, published_at, now,
-                faq, post_id,
-            ),
-        )
-        conn.commit()
-        logger.info("[blog_db] Updated post %s", post_id)
-
-        return get_post_by_slug(slug)
-    finally:
-        conn.close()
+    col.update_one(
+        {"_id": post_id},
+        {"$set": {
+            "slug": slug,
+            "title": title,
+            "excerpt": excerpt,
+            "content": content,
+            "cover_image": cover_image,
+            "category": category,
+            "tags": tags,
+            "faq": faq,
+            "author": author,
+            "status": status,
+            "read_time": read_time,
+            "published_at": published_at,
+            "updated_at": now,
+        }},
+    )
+    logger.info("[blog_db] Updated post %s", post_id)
+    return get_post_by_slug(slug)
 
 
 def delete_post(post_id: str) -> bool:
     """Delete a blog post."""
-    conn = _connect()
-    try:
-        cursor = conn.execute("DELETE FROM blog_posts WHERE id = ?", (post_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    result = _col().delete_one({"_id": post_id})
+    return result.deleted_count > 0
 
 
 # ---------------------------------------------------------------------------
 # Seed data
 # ---------------------------------------------------------------------------
 
-def _seed_posts(conn: sqlite3.Connection) -> None:
+def _seed_posts() -> None:
     """Seed 3 initial blog posts."""
     now = datetime.now(timezone.utc).isoformat()
 
     posts = [
         {
+            "_id": nanoid(),
             "slug": "why-we-built-vector-privacy-first-finance",
             "title": "Why We Built Vector: Privacy-First Finance",
             "excerpt": "In a world where every fintech app wants your data, we chose a different path. Here's why Vector processes everything locally.",
             "category": "Privacy",
-            "tags": json.dumps(["privacy", "security", "philosophy"]),
+            "tags": ["privacy", "security", "philosophy"],
+            "faq": [],
             "read_time": 6,
             "content": """# Why We Built Vector: Privacy-First Finance
 
@@ -339,11 +262,13 @@ We built Vector because we believe powerful financial tools and genuine privacy 
 **Your money. Directed. Your data. Protected.**""",
         },
         {
+            "_id": nanoid(),
             "slug": "how-our-3-model-ai-consensus-engine-works",
             "title": "How Our 3-Model AI Consensus Engine Works",
             "excerpt": "Most AI apps use a single model. Vector uses three — and makes them vote. Here's the engineering behind our consensus system.",
             "category": "Engineering",
-            "tags": json.dumps(["ai", "engineering", "consensus", "llm"]),
+            "tags": ["ai", "engineering", "consensus", "llm"],
+            "faq": [],
             "read_time": 8,
             "content": """# How Our 3-Model AI Consensus Engine Works
 
@@ -393,11 +318,13 @@ The tradeoff is cost and latency — three models cost three times as much, and 
 **Three models. One truth. Zero guesswork.**""",
         },
         {
+            "_id": nanoid(),
             "slug": "getting-started-with-vector-a-quick-guide",
             "title": "Getting Started with Vector: A Quick Guide",
             "excerpt": "From download to your first spending insight in under 2 minutes. Here's how to get started with Vector.",
             "category": "Guide",
-            "tags": json.dumps(["guide", "getting-started", "tutorial"]),
+            "tags": ["guide", "getting-started", "tutorial"],
+            "faq": [],
             "read_time": 4,
             "content": """# Getting Started with Vector: A Quick Guide
 
@@ -444,30 +371,14 @@ That is it. No tutorials, no onboarding sequences, no premium upsells. Just uplo
     ]
 
     for post in posts:
-        post_id = uuid4().hex
-        conn.execute(
-            """INSERT INTO blog_posts (
-                id, slug, title, excerpt, content, cover_image,
-                category, tags, author, status, read_time,
-                published_at, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                post_id,
-                post["slug"],
-                post["title"],
-                post["excerpt"],
-                post["content"],
-                "",
-                post["category"],
-                post["tags"],
-                "Vector Team",
-                "published",
-                post.get("read_time", 5),
-                now,
-                now,
-                now,
-            ),
-        )
+        post.update({
+            "cover_image": "",
+            "author": "Vector Team",
+            "status": "published",
+            "published_at": now,
+            "created_at": now,
+            "updated_at": now,
+        })
 
-    conn.commit()
+    _col().insert_many(posts)
     logger.info("[blog_db] Seeded %d initial blog posts", len(posts))

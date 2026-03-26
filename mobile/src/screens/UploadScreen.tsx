@@ -30,8 +30,9 @@ import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 import { capture, AnalyticsEvents } from '../utils/analytics';
-import { checkUploadAllowed as licenseCheckUpload, consumeOneStatement, getLicenseInfo } from '../utils/licensing';
+import { checkUploadAllowed as licenseCheckUpload, consumeOneStatement, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
 import { presentPaywall } from '../utils/revenueCat';
+import { signInAndAuthenticate, isAppleAuthAvailable } from '../utils/appleAuth';
 import { biometricGuard } from '../utils/biometricGuard';
 const NEW_CARD_ID = '__new__';
 const MAX_PASSWORD_POOL_SIZE = 5;
@@ -121,13 +122,35 @@ export default function UploadScreen() {
 		return { isDuplicate: true, cardName, existingStatementId: existing.statementId, existingCardId: existing.cardId };
 	};
 
-	const checkUploadAllowed = (): boolean => {
+	const checkUploadAllowed = async (): Promise<boolean> => {
 		const result = licenseCheckUpload();
 		if (result.allowed) return true;
 
 		if (result.showPaywall) {
 			capture(AnalyticsEvents.PAYWALL_SHOWN, { source: 'upload' });
-			presentPaywall().catch(() => {});
+
+			// Try Apple auth first, but don't block paywall if it fails
+			const { isAuthenticated: authed } = useStore.getState();
+			if (!authed) {
+				try {
+					const available = await isAppleAuthAvailable();
+					if (available) {
+						const session = await signInAndAuthenticate();
+						useStore.getState()._setAuthenticated(true, session.appleUserId);
+					}
+				} catch (e: any) {
+					// User cancelled or auth unavailable — still show paywall
+					console.log('[UploadScreen] Apple auth skipped:', e?.message);
+				}
+			}
+
+			// Show RevenueCat paywall
+			const purchased = await presentPaywall();
+			if (purchased) {
+				await refreshSubscriptionStatus();
+				useStore.getState()._refreshLicenseInfo();
+				return true;
+			}
 		} else if (result.showTopUp) {
 			capture(AnalyticsEvents.TOPUP_NUDGE_SHOWN, { source: 'upload' });
 			Alert.alert(
@@ -599,7 +622,7 @@ export default function UploadScreen() {
 
 	const handlePick = async () => {
 		try {
-			const allowed = checkUploadAllowed();
+			const allowed = await checkUploadAllowed();
 			if (!allowed) return;
 
 			biometricGuard.suppress();

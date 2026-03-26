@@ -7,6 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 
 EXEMPT_PATHS = {"/health", "/docs", "/openapi.json"}
+EXEMPT_PREFIXES = ("/auth/", "/webhooks/")
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -14,7 +15,12 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         if not settings.VECTOR_API_KEY:
             return await call_next(request)
 
-        if request.url.path in EXEMPT_PATHS:
+        path = request.url.path
+
+        if path in EXEMPT_PATHS:
+            return await call_next(request)
+
+        if any(path.startswith(prefix) for prefix in EXEMPT_PREFIXES):
             return await call_next(request)
 
         api_key = request.headers.get("X-Vector-API-Key")

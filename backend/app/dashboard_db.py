@@ -1,126 +1,62 @@
 """
-Dashboard SQLite storage — persists parsed statement history,
+Dashboard MongoDB storage — persists parsed statement history,
 LLM call traces, and full API responses for the web dashboard.
 
-Uses Python's built-in sqlite3. Dashboard writes are non-critical
-and never block the parse pipeline.
+Uses pymongo with the shared MongoClient from ``app.mongo``.
+All function signatures are identical to the previous SQLite implementation
+so callers (dashboard_routes.py, graph.py) require zero changes.
+
+Dashboard writes are non-critical and never block the parse pipeline.
 """
 
 import json
 import logging
-import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-from uuid import uuid4
 
 from app.config import settings
+from app.mongo import doc_to_dict, get_db, nanoid
 
 PDF_STORAGE_DIR = Path(settings.DASHBOARD_DB_PATH).parent / "pdfs"
 
 logger = logging.getLogger(__name__)
 
-_DB_PATH: Path | None = None
+
+# ---------------------------------------------------------------------------
+# Collection helpers
+# ---------------------------------------------------------------------------
+
+def _statements():
+    return get_db()["statements"]
 
 
-def _get_db_path() -> Path:
-    global _DB_PATH
-    if _DB_PATH is None:
-        _DB_PATH = Path(settings.DASHBOARD_DB_PATH)
-    return _DB_PATH
+def _llm_calls():
+    return get_db()["llm_calls"]
 
 
-def _connect() -> sqlite3.Connection:
-    db_path = _get_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+def _responses():
+    return get_db()["responses"]
 
+
+# ---------------------------------------------------------------------------
+# Initialisation
+# ---------------------------------------------------------------------------
 
 def init_dashboard_db() -> None:
-    """Create tables if they don't exist. Called at app startup."""
+    """Create indexes. Called at app startup."""
     if not settings.DASHBOARD_ENABLED:
         return
 
-    conn = _connect()
-    try:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS statements (
-                id                    TEXT PRIMARY KEY,
-                filename              TEXT NOT NULL,
-                file_size_bytes       INTEGER,
-                bank_detected         TEXT,
-                currency_detected     TEXT,
-                country_detected      TEXT,
-                region_detected       TEXT,
-                date_format_detected  TEXT,
-                statement_type_detected TEXT,
-                language_detected     TEXT,
-                transaction_count     INTEGER,
-                total_debits          REAL,
-                total_credits         REAL,
-                net                   REAL,
-                confidence            REAL,
-                consensus_method      TEXT,
-                llm_count             INTEGER,
-                llm_sources           TEXT,
-                transactions_flagged  INTEGER,
-                parsing_method        TEXT,
-                label                 TEXT DEFAULT '',
-                notes                 TEXT DEFAULT '',
-                statement_period_from TEXT,
-                statement_period_to   TEXT,
-                card_last4            TEXT,
-                card_network          TEXT,
-                pdf_password          TEXT,
-                created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-
-            CREATE TABLE IF NOT EXISTS llm_calls (
-                id              TEXT PRIMARY KEY,
-                statement_id    TEXT NOT NULL REFERENCES statements(id) ON DELETE CASCADE,
-                stage           TEXT NOT NULL,
-                provider        TEXT NOT NULL,
-                provider_model  TEXT NOT NULL,
-                system_prompt   TEXT,
-                user_message    TEXT,
-                raw_response    TEXT,
-                parsed_response TEXT,
-                success         INTEGER NOT NULL DEFAULT 1,
-                error           TEXT,
-                latency_ms      INTEGER,
-                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-
-            CREATE TABLE IF NOT EXISTS responses (
-                id              TEXT PRIMARY KEY,
-                statement_id    TEXT NOT NULL UNIQUE REFERENCES statements(id) ON DELETE CASCADE,
-                response_json   TEXT NOT NULL,
-                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_statements_created_at ON statements(created_at);
-            CREATE INDEX IF NOT EXISTS idx_statements_bank ON statements(bank_detected);
-            CREATE INDEX IF NOT EXISTS idx_statements_label ON statements(label);
-            CREATE INDEX IF NOT EXISTS idx_llm_calls_statement_id ON llm_calls(statement_id);
-        """)
-        conn.commit()
-
-        # Migrations for existing DBs
-        try:
-            conn.execute("ALTER TABLE statements ADD COLUMN pdf_password TEXT")
-            conn.commit()
-        except sqlite3.OperationalError:
-            pass  # Column already exists
-
-        logger.info("[dashboard_db] Initialized at %s", _get_db_path())
-    finally:
-        conn.close()
+    _statements().create_index("created_at")
+    _statements().create_index("bank_detected")
+    _statements().create_index("label")
+    _llm_calls().create_index("statement_id")
+    _responses().create_index("statement_id", unique=True)
 
     PDF_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    logger.info("[dashboard_db] Initialized (MongoDB)")
     logger.info("[dashboard_db] PDF storage at %s", PDF_STORAGE_DIR)
 
 
@@ -144,53 +80,44 @@ def save_statement(
     validation = response.get("validation", {})
     card_info = response.get("card_info") or {}
     period = summary.get("statement_period", {})
+    now = datetime.now(timezone.utc).isoformat()
 
-    conn = _connect()
+    doc = {
+        "_id": statement_id,
+        "filename": filename,
+        "file_size_bytes": file_size_bytes,
+        "bank_detected": response.get("bank_detected"),
+        "currency_detected": response.get("currency_detected"),
+        "country_detected": response.get("country_detected"),
+        "region_detected": response.get("region_detected"),
+        "date_format_detected": response.get("date_format_detected"),
+        "statement_type_detected": response.get("statement_type_detected"),
+        "language_detected": response.get("language_detected"),
+        "transaction_count": summary.get("total_transactions", 0),
+        "total_debits": summary.get("total_debits", 0),
+        "total_credits": summary.get("total_credits", 0),
+        "net": summary.get("net", 0),
+        "confidence": validation.get("confidence"),
+        "consensus_method": validation.get("consensus_method"),
+        "llm_count": validation.get("llm_count"),
+        "llm_sources": validation.get("llm_sources", []),
+        "transactions_flagged": validation.get("transactions_flagged"),
+        "parsing_method": parsing_method,
+        "label": "",
+        "notes": "",
+        "statement_period_from": period.get("from"),
+        "statement_period_to": period.get("to"),
+        "card_last4": card_info.get("card_last4"),
+        "card_network": card_info.get("card_network"),
+        "pdf_password": pdf_password,
+        "created_at": now,
+        "updated_at": now,
+    }
+
     try:
-        conn.execute(
-            """INSERT INTO statements (
-                id, filename, file_size_bytes,
-                bank_detected, currency_detected, country_detected,
-                region_detected, date_format_detected, statement_type_detected,
-                language_detected, transaction_count, total_debits, total_credits,
-                net, confidence, consensus_method, llm_count, llm_sources,
-                transactions_flagged, parsing_method,
-                statement_period_from, statement_period_to,
-                card_last4, card_network, pdf_password
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                statement_id,
-                filename,
-                file_size_bytes,
-                response.get("bank_detected"),
-                response.get("currency_detected"),
-                response.get("country_detected"),
-                response.get("region_detected"),
-                response.get("date_format_detected"),
-                response.get("statement_type_detected"),
-                response.get("language_detected"),
-                summary.get("total_transactions", 0),
-                summary.get("total_debits", 0),
-                summary.get("total_credits", 0),
-                summary.get("net", 0),
-                validation.get("confidence"),
-                validation.get("consensus_method"),
-                validation.get("llm_count"),
-                json.dumps(validation.get("llm_sources", [])),
-                validation.get("transactions_flagged"),
-                parsing_method,
-                period.get("from"),
-                period.get("to"),
-                card_info.get("card_last4"),
-                card_info.get("card_network"),
-                pdf_password,
-            ),
-        )
-        conn.commit()
+        _statements().insert_one(doc)
     except Exception:
         logger.warning("[dashboard_db] Failed to save statement %s", statement_id, exc_info=True)
-    finally:
-        conn.close()
 
 
 def save_llm_call(
@@ -210,52 +137,50 @@ def save_llm_call(
     if not settings.DASHBOARD_ENABLED:
         return
 
-    conn = _connect()
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "_id": nanoid(),
+        "statement_id": statement_id,
+        "stage": stage,
+        "provider": provider,
+        "provider_model": provider_model,
+        "system_prompt": system_prompt,
+        "user_message": user_message,
+        "raw_response": raw_response,
+        "parsed_response": parsed_response,
+        "success": success,
+        "error": error,
+        "latency_ms": latency_ms,
+        "created_at": now,
+    }
+
     try:
-        conn.execute(
-            """INSERT INTO llm_calls (
-                id, statement_id, stage, provider, provider_model,
-                system_prompt, user_message, raw_response, parsed_response,
-                success, error, latency_ms
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                uuid4().hex,
-                statement_id,
-                stage,
-                provider,
-                provider_model,
-                system_prompt,
-                user_message,
-                raw_response,
-                json.dumps(parsed_response) if parsed_response else None,
-                1 if success else 0,
-                error,
-                latency_ms,
-            ),
-        )
-        conn.commit()
+        _llm_calls().insert_one(doc)
     except Exception:
         logger.warning("[dashboard_db] Failed to save llm_call", exc_info=True)
-    finally:
-        conn.close()
 
 
 def save_response(statement_id: str, response: dict) -> None:
-    """Store the full API response JSON."""
+    """Store the full API response."""
     if not settings.DASHBOARD_ENABLED:
         return
 
-    conn = _connect()
+    now = datetime.now(timezone.utc).isoformat()
+    # Round-trip through JSON to ensure all values are BSON-safe (handles
+    # datetime, Decimal, custom objects via default=str).
+    safe_response = json.loads(json.dumps(response, default=str))
+
+    doc = {
+        "_id": nanoid(),
+        "statement_id": statement_id,
+        "response_json": safe_response,
+        "created_at": now,
+    }
+
     try:
-        conn.execute(
-            "INSERT INTO responses (id, statement_id, response_json) VALUES (?, ?, ?)",
-            (uuid4().hex, statement_id, json.dumps(response, default=str)),
-        )
-        conn.commit()
+        _responses().insert_one(doc)
     except Exception:
         logger.warning("[dashboard_db] Failed to save response", exc_info=True)
-    finally:
-        conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -264,44 +189,55 @@ def save_response(statement_id: str, response: dict) -> None:
 
 def get_stats() -> dict:
     """Aggregate dashboard statistics."""
-    conn = _connect()
-    try:
-        row = conn.execute("""
-            SELECT
-                COUNT(*) as total_statements,
-                COALESCE(SUM(transaction_count), 0) as total_transactions,
-                COALESCE(AVG(confidence), 0) as avg_confidence,
-                COALESCE(SUM(total_debits), 0) as total_debits_all,
-                COALESCE(SUM(total_credits), 0) as total_credits_all
-            FROM statements
-        """).fetchone()
+    col = _statements()
 
-        banks = conn.execute("""
-            SELECT bank_detected, COUNT(*) as count
-            FROM statements
-            WHERE bank_detected IS NOT NULL
-            GROUP BY bank_detected
-            ORDER BY count DESC
-        """).fetchall()
+    # Main aggregation
+    pipeline = [
+        {"$group": {
+            "_id": None,
+            "total_statements": {"$sum": 1},
+            "total_transactions": {"$sum": {"$ifNull": ["$transaction_count", 0]}},
+            "avg_confidence": {"$avg": {"$ifNull": ["$confidence", 0]}},
+            "total_debits_all": {"$sum": {"$ifNull": ["$total_debits", 0]}},
+            "total_credits_all": {"$sum": {"$ifNull": ["$total_credits", 0]}},
+        }},
+    ]
+    agg = list(col.aggregate(pipeline))
+    stats = agg[0] if agg else {
+        "total_statements": 0,
+        "total_transactions": 0,
+        "avg_confidence": 0,
+        "total_debits_all": 0,
+        "total_credits_all": 0,
+    }
 
-        recent = conn.execute("""
-            SELECT id, filename, bank_detected, created_at, transaction_count, confidence, label
-            FROM statements
-            ORDER BY created_at DESC
-            LIMIT 10
-        """).fetchall()
+    # Banks breakdown
+    bank_pipeline = [
+        {"$match": {"bank_detected": {"$ne": None}}},
+        {"$group": {"_id": "$bank_detected", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    banks = [{"bank": b["_id"], "count": b["count"]} for b in col.aggregate(bank_pipeline)]
 
-        return {
-            "total_statements": row["total_statements"],
-            "total_transactions": row["total_transactions"],
-            "avg_confidence": round(row["avg_confidence"], 4),
-            "total_debits_all": round(row["total_debits_all"], 2),
-            "total_credits_all": round(row["total_credits_all"], 2),
-            "banks": [{"bank": b["bank_detected"], "count": b["count"]} for b in banks],
-            "recent": [dict(r) for r in recent],
-        }
-    finally:
-        conn.close()
+    # Recent 10 statements
+    projection = {
+        "_id": 1, "filename": 1, "bank_detected": 1,
+        "created_at": 1, "transaction_count": 1, "confidence": 1, "label": 1,
+    }
+    recent = [
+        doc_to_dict(d)
+        for d in col.find({}, projection).sort("created_at", -1).limit(10)
+    ]
+
+    return {
+        "total_statements": stats["total_statements"],
+        "total_transactions": stats["total_transactions"],
+        "avg_confidence": round(stats.get("avg_confidence") or 0, 4),
+        "total_debits_all": round(stats.get("total_debits_all") or 0, 2),
+        "total_credits_all": round(stats.get("total_credits_all") or 0, 2),
+        "banks": banks,
+        "recent": recent,
+    }
 
 
 def get_statements(
@@ -317,128 +253,94 @@ def get_statements(
     allowed_sort = {"created_at", "filename", "bank_detected", "transaction_count", "confidence"}
     if sort_by not in allowed_sort:
         sort_by = "created_at"
-    if sort_order not in ("asc", "desc"):
-        sort_order = "desc"
+    sort_dir = -1 if sort_order == "desc" else 1
 
-    conn = _connect()
-    try:
-        conditions = []
-        params: list = []
+    query: dict = {}
+    if search:
+        query["$or"] = [
+            {"filename": {"$regex": search, "$options": "i"}},
+            {"bank_detected": {"$regex": search, "$options": "i"}},
+        ]
+    if bank:
+        query["bank_detected"] = bank
+    if label:
+        query["label"] = label
 
-        if search:
-            conditions.append("(filename LIKE ? OR bank_detected LIKE ?)")
-            params.extend([f"%{search}%", f"%{search}%"])
-        if bank:
-            conditions.append("bank_detected = ?")
-            params.append(bank)
-        if label:
-            conditions.append("label = ?")
-            params.append(label)
+    col = _statements()
+    total = col.count_documents(query)
 
-        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    projection = {
+        "_id": 1, "filename": 1, "file_size_bytes": 1, "bank_detected": 1,
+        "currency_detected": 1, "transaction_count": 1, "total_debits": 1,
+        "total_credits": 1, "net": 1, "confidence": 1, "consensus_method": 1,
+        "parsing_method": 1, "label": 1, "notes": 1,
+        "statement_period_from": 1, "statement_period_to": 1,
+        "card_last4": 1, "card_network": 1, "created_at": 1,
+    }
 
-        total = conn.execute(
-            f"SELECT COUNT(*) as cnt FROM statements {where}", params
-        ).fetchone()["cnt"]
+    offset = (page - 1) * page_size
+    cursor = col.find(query, projection).sort(sort_by, sort_dir).skip(offset).limit(page_size)
 
-        offset = (page - 1) * page_size
-        rows = conn.execute(
-            f"""SELECT id, filename, file_size_bytes, bank_detected, currency_detected,
-                       transaction_count, total_debits, total_credits, net,
-                       confidence, consensus_method, parsing_method, label, notes,
-                       statement_period_from, statement_period_to,
-                       card_last4, card_network, created_at
-                FROM statements {where}
-                ORDER BY {sort_by} {sort_order}
-                LIMIT ? OFFSET ?""",
-            params + [page_size, offset],
-        ).fetchall()
-
-        return {
-            "statements": [dict(r) for r in rows],
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size,
-        }
-    finally:
-        conn.close()
+    return {
+        "statements": [doc_to_dict(d) for d in cursor],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size,
+    }
 
 
 def get_statement_detail(statement_id: str) -> Optional[dict]:
     """Full detail including LLM calls and API response."""
-    conn = _connect()
-    try:
-        stmt = conn.execute(
-            "SELECT * FROM statements WHERE id = ?", (statement_id,)
-        ).fetchone()
-        if not stmt:
-            return None
+    stmt = _statements().find_one({"_id": statement_id})
+    if not stmt:
+        return None
 
-        llm_calls = conn.execute(
-            """SELECT id, stage, provider, provider_model, system_prompt, user_message,
-                      raw_response, parsed_response, success, error, latency_ms, created_at
-               FROM llm_calls WHERE statement_id = ? ORDER BY created_at""",
-            (statement_id,),
-        ).fetchall()
+    result = doc_to_dict(stmt)
 
-        response_row = conn.execute(
-            "SELECT response_json FROM responses WHERE statement_id = ?",
-            (statement_id,),
-        ).fetchone()
+    # LLM calls for this statement
+    calls = _llm_calls().find(
+        {"statement_id": statement_id},
+        {"_id": 1, "stage": 1, "provider": 1, "provider_model": 1,
+         "system_prompt": 1, "user_message": 1, "raw_response": 1,
+         "parsed_response": 1, "success": 1, "error": 1,
+         "latency_ms": 1, "created_at": 1},
+    ).sort("created_at", 1)
 
-        result = dict(stmt)
-        result["llm_calls"] = []
-        for call in llm_calls:
-            call_dict = dict(call)
-            if call_dict.get("parsed_response"):
-                try:
-                    call_dict["parsed_response"] = json.loads(call_dict["parsed_response"])
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            result["llm_calls"].append(call_dict)
+    result["llm_calls"] = [doc_to_dict(c) for c in calls]
 
-        result["full_response"] = None
-        if response_row:
-            try:
-                result["full_response"] = json.loads(response_row["response_json"])
-            except (json.JSONDecodeError, TypeError):
-                result["full_response"] = response_row["response_json"]
+    # Full response
+    resp_doc = _responses().find_one({"statement_id": statement_id})
+    result["full_response"] = resp_doc["response_json"] if resp_doc else None
 
-        return result
-    finally:
-        conn.close()
+    return result
 
 
 def update_statement_label(statement_id: str, label: str = "", notes: str = "") -> bool:
     """Update the label and notes for a statement."""
-    conn = _connect()
-    try:
-        cursor = conn.execute(
-            """UPDATE statements
-               SET label = ?, notes = ?, updated_at = datetime('now')
-               WHERE id = ?""",
-            (label, notes, statement_id),
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    now = datetime.now(timezone.utc).isoformat()
+    result = _statements().update_one(
+        {"_id": statement_id},
+        {"$set": {"label": label, "notes": notes, "updated_at": now}},
+    )
+    return result.matched_count > 0
 
 
 def delete_statement(statement_id: str) -> bool:
-    """Delete a statement, all related data (cascades), and stored PDF."""
-    conn = _connect()
-    try:
-        cursor = conn.execute("DELETE FROM statements WHERE id = ?", (statement_id,))
-        conn.commit()
-        if cursor.rowcount > 0:
-            delete_pdf(statement_id)
-            return True
-        return False
-    finally:
-        conn.close()
+    """Delete a statement, all related data, and stored PDF."""
+    result = _statements().delete_one({"_id": statement_id})
+    if result.deleted_count > 0:
+        # Manual cascade — MongoDB has no FK cascades
+        _llm_calls().delete_many({"statement_id": statement_id})
+        _responses().delete_one({"statement_id": statement_id})
+        delete_pdf(statement_id)
+        return True
+    return False
 
+
+# ---------------------------------------------------------------------------
+# PDF storage (file-system — unchanged from SQLite version)
+# ---------------------------------------------------------------------------
 
 def save_pdf(statement_id: str, file_bytes: bytes) -> None:
     """Save uploaded PDF to disk for later viewing."""
@@ -467,11 +369,5 @@ def delete_pdf(statement_id: str) -> None:
 
 def get_all_labels() -> list[str]:
     """Get all unique labels."""
-    conn = _connect()
-    try:
-        rows = conn.execute(
-            "SELECT DISTINCT label FROM statements WHERE label != '' ORDER BY label"
-        ).fetchall()
-        return [r["label"] for r in rows]
-    finally:
-        conn.close()
+    labels = _statements().distinct("label", {"label": {"$ne": ""}})
+    return sorted(labels)

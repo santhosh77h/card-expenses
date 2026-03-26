@@ -1,5 +1,6 @@
 import { getMeta, setMeta, getMetaInt, setMetaInt } from '../db/meta';
 import { getSubscriptionInfo, purchaseCredits as rcPurchaseCredits } from './revenueCat';
+import { getAccessToken } from './appleAuth';
 import Purchases from 'react-native-purchases';
 import { capture } from './analytics';
 
@@ -9,7 +10,7 @@ import { capture } from './analytics';
 
 export const TRIAL_DAYS = 15;
 export const TRIAL_STATEMENTS = 15;
-export const SUB_MONTHLY_PARSES = 4;
+export const SUB_MONTHLY_PARSES = 8;
 
 // Meta table keys
 const META_TRIAL_REMAINING = 'trial_remaining';
@@ -203,12 +204,57 @@ export function consumeOneStatement(): void {
 }
 
 // ---------------------------------------------------------------------------
-// refreshSubscriptionStatus — sync subscription state from RevenueCat
+// syncLicenseFromServer — sync from backend when authenticated
+// ---------------------------------------------------------------------------
+
+import { API_URL, VECTOR_API_KEY } from './constants';
+
+export async function syncLicenseFromServer(): Promise<boolean> {
+  const accessToken = await getAccessToken();
+  if (!accessToken) return false;
+
+  try {
+    const response = await fetch(`${API_URL}/api/subscription`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Vector-API-Key': VECTOR_API_KEY,
+      },
+    });
+
+    if (!response.ok) return false;
+
+    const data = await response.json();
+    const { subscription, usage } = data;
+
+    if (subscription?.status === 'active') {
+      setMeta(META_SUB_ACTIVE, '1');
+      setMeta(META_SUB_PLAN_TYPE, subscription.plan ?? 'monthly');
+      const remaining = Math.max(0, (subscription.max_parses ?? 0) - (usage?.parses_used ?? 0));
+      setMetaInt(META_SUB_ALLOWANCE_REMAINING, remaining);
+    } else {
+      setMeta(META_SUB_ACTIVE, '0');
+      setMeta(META_SUB_PLAN_TYPE, '');
+      setMetaInt(META_SUB_ALLOWANCE_REMAINING, 0);
+    }
+
+    return true;
+  } catch {
+    return false; // Fall back to local state
+  }
+}
+
+// ---------------------------------------------------------------------------
+// refreshSubscriptionStatus — sync subscription state
 // ---------------------------------------------------------------------------
 
 export async function refreshSubscriptionStatus(): Promise<void> {
   if (__DEV__) return;
 
+  // Try server sync first if authenticated
+  const serverSynced = await syncLicenseFromServer();
+  if (serverSynced) return;
+
+  // Fall back to RevenueCat-only sync for anonymous users
   const subInfo = await getSubscriptionInfo();
 
   if (!subInfo.isActive) {

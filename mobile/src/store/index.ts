@@ -183,6 +183,8 @@ interface AppState {
   monthlyUsage: MonthlyUsage[];
   enrichments: Record<string, TransactionEnrichment>;
   isPremium: boolean;
+  isAuthenticated: boolean;
+  appleUserId: string | null;
   uploadsThisMonth: number;
   licenseInfo: LicenseInfo;
   themeMode: ThemeMode;
@@ -207,6 +209,7 @@ interface AppState {
   clearManualTransactions: () => void;
   _hydrateSqlite: () => void;
   _setIsPremium: (value: boolean) => void;
+  _setAuthenticated: (value: boolean, appleUserId: string | null) => void;
   _refreshUploadCount: () => void;
   _refreshLicenseInfo: () => void;
   addMonthlyUsage: (usage: MonthlyUsage) => void;
@@ -245,6 +248,8 @@ export const useStore = create<AppState>()(
       monthlyUsage: [],
       enrichments: {},
       isPremium: false,
+      isAuthenticated: false,
+      appleUserId: null,
       uploadsThisMonth: 0,
       licenseInfo: {
         tier: 'none',
@@ -790,6 +795,8 @@ export const useStore = create<AppState>()(
 
       _setIsPremium: (value) => set({ isPremium: value }),
 
+      _setAuthenticated: (value, appleUserId) => set({ isAuthenticated: value, appleUserId }),
+
       _refreshUploadCount: () => {
         const now = new Date();
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -814,6 +821,8 @@ export const useStore = create<AppState>()(
         defaultCurrency: state.defaultCurrency,
         globalReminderDay: state.globalReminderDay,
         biometricLockEnabled: state.biometricLockEnabled,
+        isAuthenticated: state.isAuthenticated,
+        appleUserId: state.appleUserId,
       }),
     }
   )

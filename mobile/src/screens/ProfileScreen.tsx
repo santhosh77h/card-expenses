@@ -10,6 +10,9 @@ import { useColors } from '../hooks/useColors';
 import { useStore, StatementData } from '../store';
 import { Card, Badge, SectionHeader } from '../components/ui';
 import { presentPaywall } from '../utils/revenueCat';
+import { signInAndAuthenticate, signOut as authSignOut, isAppleAuthAvailable } from '../utils/appleAuth';
+import { refreshSubscriptionStatus } from '../utils/licensing';
+import Purchases from 'react-native-purchases';
 let LocalAuthentication: typeof import('expo-local-authentication') | null = null;
 try {
   LocalAuthentication = require('expo-local-authentication');
@@ -26,7 +29,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, statements, manualTransactions, isPremium, licenseInfo, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency, biometricLockEnabled, setBiometricLockEnabled } = useStore();
+  const { cards, statements, manualTransactions, isPremium, isAuthenticated, appleUserId, licenseInfo, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency, biometricLockEnabled, setBiometricLockEnabled } = useStore();
   const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
 
   // Check biometric availability on mount
@@ -102,7 +105,7 @@ export default function ProfileScreen() {
             <View style={{ alignItems: 'center', gap: spacing.xs }}>
               <Badge text="PRO" color={colors.accent} />
               <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
-                {licenseInfo.subAllowanceRemaining} of 4 parses this month{licenseInfo.creditBalance > 0 ? ` + ${licenseInfo.creditBalance} credits` : ''}
+                {licenseInfo.subAllowanceRemaining} of {licenseInfo.subPlanType === 'yearly' ? '999' : '8'} parses this month{licenseInfo.creditBalance > 0 ? ` + ${licenseInfo.creditBalance} credits` : ''}
               </Text>
             </View>
           ) : licenseInfo.creditBalance > 0 ? (
@@ -115,7 +118,27 @@ export default function ProfileScreen() {
           ) : (
             <TouchableOpacity
               style={styles.upgradeBtn}
-              onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_header' }); presentPaywall().catch(() => {}); }}
+              onPress={async () => {
+                capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_header' });
+                // Try Apple auth first, but don't block paywall if it fails
+                if (!isAuthenticated) {
+                  try {
+                    const available = await isAppleAuthAvailable();
+                    if (available) {
+                      const session = await signInAndAuthenticate();
+                      useStore.getState()._setAuthenticated(true, session.appleUserId);
+                    }
+                  } catch (e: any) {
+                    // User cancelled or auth unavailable — still show paywall
+                    console.log('[ProfileScreen] Apple auth skipped:', e?.message);
+                  }
+                }
+                const purchased = await presentPaywall();
+                if (purchased) {
+                  await refreshSubscriptionStatus();
+                  useStore.getState()._refreshLicenseInfo();
+                }
+              }}
               activeOpacity={0.8}
             >
               <Feather name="zap" size={14} color={colors.warning} style={{ marginRight: spacing.xs }} />
@@ -163,7 +186,25 @@ export default function ProfileScreen() {
             label="Upgrade to Pro"
             subtitle="Unlock all features"
             iconColor={colors.warning}
-            onPress={() => { capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' }); presentPaywall().catch(() => {}); }}
+            onPress={async () => {
+              capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' });
+              if (!isAuthenticated) {
+                try {
+                  const available = await isAppleAuthAvailable();
+                  if (available) {
+                    const session = await signInAndAuthenticate();
+                    useStore.getState()._setAuthenticated(true, session.appleUserId);
+                  }
+                } catch (e: any) {
+                  console.log('[ProfileScreen] Apple auth skipped:', e?.message);
+                }
+              }
+              const purchased = await presentPaywall();
+              if (purchased) {
+                await refreshSubscriptionStatus();
+                useStore.getState()._refreshLicenseInfo();
+              }
+            }}
           />
         )}
       </View>
@@ -244,6 +285,95 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Account */}
+      <View style={styles.appearanceSection}>
+        <Text style={styles.appearanceTitle}>Account</Text>
+        {isAuthenticated ? (
+          <>
+            <View style={styles.biometricRow}>
+              <View style={[styles.biometricIcon, styles.biometricIconActive]}>
+                <Feather name="check-circle" size={16} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.biometricLabel}>Signed In</Text>
+                <Text style={styles.biometricDesc}>Apple ID linked</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.biometricRow}
+              onPress={async () => {
+                try {
+                  await Purchases.restorePurchases();
+                  await refreshSubscriptionStatus();
+                  useStore.getState()._refreshLicenseInfo();
+                  Alert.alert('Restored', 'Purchases have been restored.');
+                } catch {
+                  Alert.alert('Error', 'Could not restore purchases. Please try again.');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.biometricIcon}>
+                <Feather name="refresh-cw" size={16} color={colors.textMuted} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.biometricLabel}>Restore Purchases</Text>
+                <Text style={styles.biometricDesc}>Recover subscriptions from another device</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.biometricRow}
+              onPress={async () => {
+                Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await authSignOut();
+                      useStore.getState()._setAuthenticated(false, null);
+                    },
+                  },
+                ]);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.biometricIcon}>
+                <Feather name="log-out" size={16} color={colors.debit} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.biometricLabel, { color: colors.debit }]}>Sign Out</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            style={styles.biometricRow}
+            onPress={async () => {
+              try {
+                const session = await signInAndAuthenticate();
+                useStore.getState()._setAuthenticated(true, session.appleUserId);
+                await refreshSubscriptionStatus();
+                useStore.getState()._refreshLicenseInfo();
+              } catch (e: any) {
+                if (!e?.message?.includes('canceled') && !e?.message?.includes('cancelled')) {
+                  Alert.alert('Sign In Failed', e?.message || 'Please try again.');
+                }
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.biometricIcon}>
+              <Feather name="user" size={16} color={colors.textMuted} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.biometricLabel}>Sign in with Apple</Text>
+              <Text style={styles.biometricDesc}>Sync subscription across devices</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Recent Statements */}
       {allStatements.length > 0 && (

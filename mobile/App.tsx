@@ -9,8 +9,9 @@ import Navigation from './src/navigation';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
-import { initRevenueCat, addSubscriptionListener, diagnoseRevenueCat } from './src/utils/revenueCat';
+import { initRevenueCat, addSubscriptionListener, diagnoseRevenueCat, logInToRevenueCat } from './src/utils/revenueCat';
 import { initTrialIfNeeded, refreshSubscriptionStatus, restoreCreditsFromRC } from './src/utils/licensing';
+import { restoreSession } from './src/utils/appleAuth';
 import { configureNotifications, rescheduleAll } from './src/utils/notifications';
 import { useIsDark } from './src/hooks/useColors';
 import BiometricLockScreen from './src/components/BiometricLockScreen';
@@ -79,6 +80,17 @@ export default function App() {
         if (__DEV__) diagnoseRevenueCat();
       } catch {
         // RevenueCat failure is non-fatal — defaults to free tier
+      }
+
+      // Restore auth session (Apple Sign In)
+      try {
+        const session = await restoreSession();
+        if (session) {
+          useStore.getState()._setAuthenticated(true, session.appleUserId);
+          await logInToRevenueCat(session.appleUserId);
+        }
+      } catch {
+        // Auth restore failure is non-fatal
       }
 
       // Licensing boot sequence

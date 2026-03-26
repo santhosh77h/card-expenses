@@ -9,11 +9,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
+from app.auth_deps import get_optional_user
 from app.config import settings
 from app.parser import parse_pdf
 from app.rate_limiter import check_rate_limit
+from app.user_db import get_subscription, get_usage, increment_usage
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,7 @@ async def parse_statement(
     request: Request,
     file: UploadFile = File(...),
     password: Optional[str] = Form(None),
+    user: Optional[dict] = Depends(get_optional_user),
 ):
     await check_rate_limit(request)
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -73,7 +76,27 @@ async def parse_statement(
             detail=f"File exceeds {settings.MAX_FILE_SIZE_MB} MB limit.",
         )
 
+    # Server-side usage enforcement for authenticated users
+    if user:
+        apple_user_id = user["apple_user_id"]
+        subscription = get_subscription(apple_user_id)
+        if subscription and subscription.get("status") == "active":
+            usage = get_usage(apple_user_id)
+            max_parses = subscription.get("max_parses", 0)
+            if usage.get("parses_used", 0) >= max_parses:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Monthly parse limit reached",
+                )
+
     result = await parse_pdf(file_bytes, password=password, filename=file.filename or "")
+
+    # Increment usage after successful parse for authenticated users
+    if user:
+        try:
+            increment_usage(user["apple_user_id"])
+        except Exception:
+            logger.warning("[routes] Failed to increment usage", exc_info=True)
 
     if settings.DEBUG_RESPONSES:
         _save_debug(file.filename, result)

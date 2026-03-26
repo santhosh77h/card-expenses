@@ -143,6 +143,22 @@ export async function presentPaywallIfNeeded(offering?: PurchasesOffering): Prom
 }
 
 // ---------------------------------------------------------------------------
+// Identified user management (Sign in with Apple integration)
+// ---------------------------------------------------------------------------
+
+export async function logInToRevenueCat(appleUserId: string): Promise<boolean> {
+	const { customerInfo } = await Purchases.logIn(appleUserId);
+	return checkPremium(customerInfo);
+}
+
+export async function logOutFromRevenueCat(): Promise<void> {
+	const isAnon = await Purchases.isAnonymous();
+	if (!isAnon) {
+		await Purchases.logOut();
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Diagnostics (dev only)
 // ---------------------------------------------------------------------------
 

@@ -13,14 +13,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.auth import APIKeyMiddleware
+from app.auth_routes import router as auth_router
 from app.config import settings
 from app.blog_db import init_blog_db
 from app.blog_routes import router as blog_router
 from app.dashboard_db import init_dashboard_db
 from app.dashboard_routes import router as dashboard_router
 from app.exceptions import register_exception_handlers
+from app.mongo import close_mongo
 from app.rate_limiter import close_redis
 from app.routes import router
+from app.subscription_routes import router as subscription_router
+from app.user_db import init_user_db
+from app.webhook_routes import router as webhook_router
 
 
 def _configure_logging() -> None:
@@ -58,12 +63,13 @@ def _configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage startup/shutdown resources."""
-    # Initialize dashboard storage
+    # Initialize storage
     init_dashboard_db()
-    # Initialize blog storage
     init_blog_db()
+    init_user_db()
     yield
     # Cleanup
+    close_mongo()
     await close_redis()
 
 
@@ -92,6 +98,9 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(router)
+    app.include_router(auth_router)
+    app.include_router(subscription_router)
+    app.include_router(webhook_router)
     app.include_router(dashboard_router)
     app.include_router(blog_router)
 
