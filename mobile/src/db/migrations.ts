@@ -36,7 +36,7 @@ export function runSchemaMigrations(db: DB): void {
  * Post-migration sanity check that critical tables exist.
  */
 export function validateSchema(db: DB): void {
-  const tables = ['statements', 'transactions', 'enrichments', 'monthly_usage', 'file_hashes'];
+  const tables = ['statements', 'transactions', 'enrichments', 'monthly_usage', 'file_hashes', 'labels', 'transaction_labels'];
   for (const table of tables) {
     const result = db.executeSync(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`,

@@ -1,7 +1,6 @@
 "use client";
 
 import { Icons } from "@/components/icons";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import {
   Drawer,
   DrawerContent,
@@ -36,9 +35,6 @@ export function MobileDrawer() {
           </div>
         </DrawerHeader>
         <DrawerFooter>
-          <div className="flex justify-center mb-2">
-            <LanguageSwitcher />
-          </div>
           <Link href="#" className="flex justify-center">
             <img
               src="/badges/download-black.svg"

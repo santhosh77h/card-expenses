@@ -21,6 +21,7 @@ import EditCardScreen from '../screens/EditCardScreen';
 import AddCardScreen from '../screens/AddCardScreen';
 import AskScreen from '../screens/AskScreen';
 import StatementDiffScreen from '../screens/StatementDiffScreen';
+import LabelsScreen from '../screens/LabelsScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import type { ParseResult } from '../utils/api';
 
@@ -34,6 +35,7 @@ export type RootStackParamList = {
   EditCard: { cardId: string };
   Ask: undefined;
   StatementDiff: { statementId: string; cardId: string; newParsed: ParseResult };
+  Labels: undefined;
 };
 
 export type TabParamList = {
@@ -220,6 +222,15 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'Review Changes',
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="Labels"
+        component={LabelsScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Labels',
           ...headerOptions,
         }}
       />

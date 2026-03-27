@@ -29,6 +29,7 @@ import DatePickerField from './DatePickerField';
 import { CATEGORIES } from '../utils/api';
 import { getOriginalTransaction } from '../db/transactions';
 import { getEditedFieldsMap } from '../db/transactionEdits';
+import LabelPicker from './LabelPicker';
 
 interface Props {
   visible: boolean;
@@ -41,7 +42,10 @@ interface Props {
 export default function EditTransactionSheet({ visible, transaction, card, onClose, onSave }: Props) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { enrichments, updateEnrichment, revertTransactionField, revertAllTransactionEdits, defaultCurrency } = useStore();
+  const {
+    enrichments, updateEnrichment, revertTransactionField, revertAllTransactionEdits,
+    defaultCurrency, cards, transactionLabels, addLabelToTransaction, removeLabelFromTransaction,
+  } = useStore();
 
   // Form state
   const [description, setDescription] = useState('');
@@ -52,13 +56,22 @@ export default function EditTransactionSheet({ visible, transaction, card, onClo
   const [categoryIcon, setCategoryIcon] = useState('');
   const [type, setType] = useState<'debit' | 'credit'>('debit');
   const [notes, setNotes] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState<string | undefined>(undefined);
   const [editedFields, setEditedFields] = useState<Record<string, { oldValue: string; newValue: string }>>({});
 
   const amountRef = useRef<TextInput>(null);
   const dateRef = useRef<TextInput>(null);
 
-  const currency: CurrencyCode = transaction?.currency ?? card?.currency ?? defaultCurrency;
+  const selectedCard = cards.find((c) => c.id === selectedCardId);
+  const currency: CurrencyCode = selectedCard?.currency ?? transaction?.currency ?? card?.currency ?? defaultCurrency;
   const currencySymbol = CURRENCY_CONFIG[currency].symbol;
+
+  // Quick amount presets
+  const quickAmounts = useMemo(() => {
+    if (currency === 'INR') return [100, 500, 1000, 5000];
+    return [10, 50, 100, 500];
+  }, [currency]);
+  const incrementStep = currency === 'INR' ? 100 : 10;
 
   // Populate form when transaction changes or sheet opens
   useEffect(() => {
@@ -70,6 +83,7 @@ export default function EditTransactionSheet({ visible, transaction, card, onClo
     setCategoryColor(transaction.category_color);
     setCategoryIcon(transaction.category_icon);
     setType(transaction.type);
+    setSelectedCardId(transaction.cardId);
     setNotes(enrichments[transaction.id]?.notes ?? '');
     try {
       setEditedFields(getEditedFieldsMap(transaction.id));
@@ -93,6 +107,7 @@ export default function EditTransactionSheet({ visible, transaction, card, onClo
       category_color: categoryColor,
       category_icon: categoryIcon,
       type,
+      cardId: selectedCardId,
     });
     // Save notes
     const currentNotes = enrichments[transaction.id]?.notes ?? '';
@@ -245,6 +260,47 @@ export default function EditTransactionSheet({ visible, transaction, card, onClo
               />
             )}
 
+            {/* Quick amount pills */}
+            <View style={styles.quickAmountRow}>
+              {quickAmounts.map((qa) => (
+                <TouchableOpacity
+                  key={qa}
+                  style={[
+                    styles.quickAmountBtn,
+                    parseFloat(amount) === qa && styles.quickAmountBtnActive,
+                  ]}
+                  onPress={() => setAmount(qa.toString())}
+                >
+                  <Text
+                    style={[
+                      styles.quickAmountText,
+                      parseFloat(amount) === qa && styles.quickAmountTextActive,
+                    ]}
+                  >
+                    {currencySymbol}{qa >= 1000 ? `${qa / 1000}K` : qa}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.incrementBtn}
+                onPress={() => {
+                  const current = parseFloat(amount) || 0;
+                  setAmount(Math.max(0, current - incrementStep).toString());
+                }}
+              >
+                <Feather name="minus" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.incrementBtn}
+                onPress={() => {
+                  const current = parseFloat(amount) || 0;
+                  setAmount((current + incrementStep).toString());
+                }}
+              >
+                <Feather name="plus" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
             {/* Type toggle */}
             <Text style={styles.label}>Type</Text>
             <View style={styles.toggleRow}>
@@ -274,6 +330,49 @@ export default function EditTransactionSheet({ visible, transaction, card, onClo
                 colors={colors}
               />
             )}
+
+            {/* Card selector */}
+            <Text style={styles.label}>Card</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: spacing.xs }}
+            >
+              <TouchableOpacity
+                style={[styles.cardChip, !selectedCardId && styles.cardChipActive]}
+                onPress={() => setSelectedCardId(undefined)}
+              >
+                <Text style={[styles.cardChipText, !selectedCardId && styles.cardChipTextActive]}>None</Text>
+              </TouchableOpacity>
+              {cards.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.cardChip, selectedCardId === c.id && styles.cardChipActive]}
+                  onPress={() => setSelectedCardId(c.id)}
+                >
+                  <View style={[styles.cardChipDot, { backgroundColor: c.color }]} />
+                  <Text style={[styles.cardChipText, selectedCardId === c.id && styles.cardChipTextActive]}>
+                    {c.nickname} (*{c.last4})
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Labels */}
+            <Text style={styles.label}>Labels</Text>
+            <LabelPicker
+              selectedIds={transaction ? (transactionLabels[transaction.id] ?? []) : []}
+              onChange={(ids) => {
+                if (!transaction) return;
+                const current = transactionLabels[transaction.id] ?? [];
+                for (const id of ids) {
+                  if (!current.includes(id)) addLabelToTransaction(transaction.id, id);
+                }
+                for (const id of current) {
+                  if (!ids.includes(id)) removeLabelFromTransaction(transaction.id, id);
+                }
+              }}
+            />
 
             {/* Notes */}
             <Text style={styles.label}>Notes</Text>
@@ -429,6 +528,73 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   categoryChipTextActive: {
     color: colors.accent,
+  },
+  quickAmountRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    alignItems: 'center',
+  },
+  quickAmountBtn: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  quickAmountBtnActive: {
+    backgroundColor: colors.accent + '20',
+    borderColor: colors.accent,
+  },
+  quickAmountText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+    fontWeight: '500',
+  },
+  quickAmountTextActive: {
+    color: colors.accent,
+  },
+  incrementBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+    gap: 6,
+  },
+  cardChipActive: {
+    backgroundColor: colors.accent + '20',
+    borderColor: colors.accent,
+  },
+  cardChipText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  cardChipTextActive: {
+    color: colors.accent,
+  },
+  cardChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   toggleRow: {
     flexDirection: 'row',

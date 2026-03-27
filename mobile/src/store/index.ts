@@ -9,6 +9,7 @@ import * as dbStmts from '../db/statements';
 import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
 import * as dbFileHashes from '../db/fileHashes';
+import * as dbLabels from '../db/labels';
 import { generateCSV } from '../utils/api';
 import { syncWidgetData } from '../utils/widgetBridge';
 import { getDb } from '../db';
@@ -136,6 +137,12 @@ export interface TransactionEnrichment {
 }
 
 // ---------------------------------------------------------------------------
+// Labels
+// ---------------------------------------------------------------------------
+
+export type { Label } from '../db/labels';
+
+// ---------------------------------------------------------------------------
 // Recompute summary from transactions
 // ---------------------------------------------------------------------------
 
@@ -184,6 +191,8 @@ interface AppState {
   manualTransactions: Transaction[];
   monthlyUsage: MonthlyUsage[];
   enrichments: Record<string, TransactionEnrichment>;
+  labels: dbLabels.Label[];
+  transactionLabels: Record<string, string[]>; // txnId → labelId[]
   isPremium: boolean;
   isAuthenticated: boolean;
   appleUserId: string | null;
@@ -223,6 +232,11 @@ interface AppState {
   updateEnrichment: (txnId: string, patch: Partial<TransactionEnrichment>) => void;
   toggleFlag: (txnId: string) => void;
   removeEnrichment: (txnId: string) => void;
+  addLabel: (label: dbLabels.Label) => void;
+  updateLabel: (id: string, updates: Partial<Pick<dbLabels.Label, 'name' | 'color' | 'icon'>>) => void;
+  deleteLabel: (id: string) => void;
+  addLabelToTransaction: (txnId: string, labelId: string) => void;
+  removeLabelFromTransaction: (txnId: string, labelId: string) => void;
   updateStatementTransaction: (
     cardId: string,
     statementId: string,
@@ -254,6 +268,8 @@ export const useStore = create<AppState>()(
       manualTransactions: [],
       monthlyUsage: [],
       enrichments: {},
+      labels: [],
+      transactionLabels: {},
       isPremium: false,
       isAuthenticated: false,
       appleUserId: null,
@@ -602,6 +618,82 @@ export const useStore = create<AppState>()(
         });
       },
 
+      // -----------------------------------------------------------------------
+      // Labels
+      // -----------------------------------------------------------------------
+
+      addLabel: (label) => {
+        try {
+          dbLabels.upsertLabel(label);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to create label.');
+          return;
+        }
+        set((state) => ({ labels: [label, ...state.labels] }));
+      },
+
+      updateLabel: (id, updates) => {
+        set((state) => {
+          const existing = state.labels.find((l) => l.id === id);
+          if (!existing) return {};
+          const updated = { ...existing, ...updates };
+          try {
+            dbLabels.upsertLabel(updated);
+          } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Failed to update label.');
+            return {};
+          }
+          return { labels: state.labels.map((l) => (l.id === id ? updated : l)) };
+        });
+      },
+
+      deleteLabel: (id) => {
+        try {
+          dbLabels.deleteLabel(id);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to delete label.');
+          return;
+        }
+        set((state) => ({
+          labels: state.labels.filter((l) => l.id !== id),
+          transactionLabels: Object.fromEntries(
+            Object.entries(state.transactionLabels)
+              .map(([txnId, ids]) => [txnId, ids.filter((lid) => lid !== id)])
+              .filter(([, ids]) => (ids as string[]).length > 0),
+          ),
+        }));
+      },
+
+      addLabelToTransaction: (txnId, labelId) => {
+        try {
+          dbLabels.addLabelToTransaction(txnId, labelId);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to add label.');
+          return;
+        }
+        set((state) => ({
+          transactionLabels: {
+            ...state.transactionLabels,
+            [txnId]: [...(state.transactionLabels[txnId] ?? []), labelId],
+          },
+        }));
+      },
+
+      removeLabelFromTransaction: (txnId, labelId) => {
+        try {
+          dbLabels.removeLabelFromTransaction(txnId, labelId);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to remove label.');
+          return;
+        }
+        set((state) => ({
+          transactionLabels: {
+            ...state.transactionLabels,
+            [txnId]: (state.transactionLabels[txnId] ?? []).filter((lid) => lid !== labelId),
+          },
+        }));
+      },
+
       updateStatementTransaction: (cardId, statementId, txnId, updates) => {
         try {
           dbTxns.updateTransaction(txnId, updates);
@@ -825,6 +917,8 @@ export const useStore = create<AppState>()(
         const db = getDb();
         db.executeSync('BEGIN');
         try {
+          db.executeSync('DELETE FROM transaction_labels');
+          db.executeSync('DELETE FROM labels');
           db.executeSync('DELETE FROM file_hashes');
           db.executeSync('DELETE FROM enrichments');
           db.executeSync('DELETE FROM monthly_usage');
@@ -844,6 +938,8 @@ export const useStore = create<AppState>()(
           manualTransactions: [],
           monthlyUsage: [],
           enrichments: {},
+          labels: [],
+          transactionLabels: {},
           uploadsThisMonth: 0,
         });
         _syncWidgets();
@@ -868,10 +964,16 @@ export const useStore = create<AppState>()(
         let uploadsThisMonth = 0;
         try { uploadsThisMonth = dbStmts.getStatementCountSince(firstOfMonth); } catch (e) { console.error('Hydrate uploadCount failed:', e); }
 
+        let labels: dbLabels.Label[] = [];
+        try { labels = dbLabels.getAllLabels(); } catch (e) { console.error('Hydrate labels failed:', e); }
+
+        let transactionLabels: Record<string, string[]> = {};
+        try { transactionLabels = dbLabels.getAllTransactionLabels(); } catch (e) { console.error('Hydrate transactionLabels failed:', e); }
+
         let licenseInfo: LicenseInfo | undefined;
         try { licenseInfo = getLicenseInfo(); } catch (e) { console.error('Hydrate licenseInfo failed:', e); }
 
-        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth, ...(licenseInfo ? { licenseInfo } : {}) });
+        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth, labels, transactionLabels, ...(licenseInfo ? { licenseInfo } : {}) });
         _syncWidgets();
       },
 

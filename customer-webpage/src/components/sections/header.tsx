@@ -1,7 +1,6 @@
 "use client";
 
 import { Icons } from "@/components/icons";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { MobileDrawer } from "@/components/mobile-drawer";
 import { easeInOutCubic } from "@/lib/animation";
 import { siteConfig } from "@/lib/config";
@@ -71,8 +70,7 @@ export function Header() {
               <Icons.logo className="w-auto" />
               <span className="font-bold text-xl">{siteConfig.name}</span>
             </Link>
-            <div className="hidden lg:flex items-center gap-3">
-              <LanguageSwitcher />
+            <div className="hidden lg:block">
               <Link href="#" className="flex-shrink-0">
                 <img
                   src="/badges/download-black.svg"

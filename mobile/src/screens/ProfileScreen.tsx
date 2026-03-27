@@ -169,6 +169,12 @@ export default function ProfileScreen() {
           onPress={() => navigation.navigate('CardList')}
         />
         <MenuItem
+          icon="tag"
+          label="Labels"
+          subtitle="Group transactions by trip, project, etc."
+          onPress={() => (navigation as any).navigate('Labels')}
+        />
+        <MenuItem
           icon="database"
           label="Data & Backup"
           subtitle="Export or restore your data"

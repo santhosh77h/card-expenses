@@ -21,6 +21,7 @@ import { Badge } from './ui';
 import { pickReceiptImage, captureReceiptPhoto, saveReceipt, deleteReceipt } from '../utils/receipts';
 import { CATEGORIES } from '../utils/api';
 import EditTransactionSheet from './EditTransactionSheet';
+import LabelPicker from './LabelPicker';
 
 interface Props {
   visible: boolean;
@@ -48,7 +49,7 @@ export default function TransactionDetailModal({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const { enrichments, updateEnrichment, toggleFlag, removeTransaction, removeEnrichment, defaultCurrency } = useStore();
+  const { enrichments, updateEnrichment, toggleFlag, removeTransaction, removeEnrichment, defaultCurrency, transactionLabels, addLabelToTransaction, removeLabelFromTransaction } = useStore();
 
   const enrichment = transaction ? enrichments[transaction.id] : undefined;
   const [notes, setNotes] = useState(enrichment?.notes ?? '');
@@ -250,6 +251,24 @@ export default function TransactionDetailModal({
                 </View>
               )}
             </View>
+
+            {/* Labels */}
+            <Text style={styles.sectionLabel}>Labels</Text>
+            <LabelPicker
+              selectedIds={transaction ? (transactionLabels[transaction.id] ?? []) : []}
+              onChange={(ids) => {
+                if (!transaction) return;
+                const current = transactionLabels[transaction.id] ?? [];
+                // Add new
+                for (const id of ids) {
+                  if (!current.includes(id)) addLabelToTransaction(transaction.id, id);
+                }
+                // Remove old
+                for (const id of current) {
+                  if (!ids.includes(id)) removeLabelFromTransaction(transaction.id, id);
+                }
+              }}
+            />
 
             {/* Notes */}
             <Text style={styles.sectionLabel}>Notes</Text>

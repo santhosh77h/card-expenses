@@ -1,6 +1,6 @@
 import type { DB } from '@op-engineering/op-sqlite';
 
-export const LATEST_VERSION = 5;
+export const LATEST_VERSION = 6;
 
 export type MigrationFn = (db: DB) => void;
 
@@ -142,6 +142,32 @@ export const migrations: Record<number, MigrationFn> = {
     );
     db.executeSync(
       `CREATE INDEX IF NOT EXISTS idx_txn_edit_txn_id ON transaction_edits(transaction_id)`,
+    );
+  },
+
+  // v5 → v6: Labels (multi-tag per transaction)
+  6: (db) => {
+    db.executeSync(
+      `CREATE TABLE IF NOT EXISTS labels (
+        id        TEXT PRIMARY KEY,
+        name      TEXT NOT NULL UNIQUE,
+        color     TEXT NOT NULL,
+        icon      TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )`,
+    );
+    db.executeSync(
+      `CREATE TABLE IF NOT EXISTS transaction_labels (
+        transactionId TEXT NOT NULL,
+        labelId       TEXT NOT NULL,
+        addedAt       TEXT NOT NULL,
+        PRIMARY KEY (transactionId, labelId),
+        FOREIGN KEY (transactionId) REFERENCES transactions(id) ON DELETE CASCADE,
+        FOREIGN KEY (labelId) REFERENCES labels(id) ON DELETE CASCADE
+      )`,
+    );
+    db.executeSync(
+      `CREATE INDEX IF NOT EXISTS idx_txn_labels_label_id ON transaction_labels(labelId)`,
     );
   },
 };
