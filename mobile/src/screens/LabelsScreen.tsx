@@ -11,28 +11,19 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { spacing, borderRadius, fontSize, formatCurrency } from '../theme';
 import type { ThemeColors, CurrencyCode } from '../theme';
 import { useColors } from '../hooks/useColors';
 import { useStore, Label, Transaction } from '../store';
 import { EmptyState } from '../components/ui';
 import TransactionDetailModal from '../components/TransactionDetailModal';
-
-const LABEL_COLORS = [
-  '#FF6B6B', '#F472B6', '#A78BFA', '#818CF8',
-  '#22D3EE', '#34D399', '#4ADE80', '#FBBF24',
-  '#FFB547', '#60A5FA', '#94A3B8', '#E879F9',
-];
-
-const LABEL_ICONS: (keyof typeof Feather.glyphMap)[] = [
-  'tag', 'briefcase', 'map-pin', 'globe', 'gift',
-  'heart', 'home', 'coffee', 'sun', 'zap',
-  'users', 'flag', 'folder', 'bookmark', 'star',
-  'truck',
-];
+import { LABEL_COLORS, LABEL_ICONS, LABEL_ICON_SECTIONS } from '../constants/labels';
 
 export default function LabelsScreen() {
   const navigation = useNavigation();
@@ -43,17 +34,18 @@ export default function LabelsScreen() {
     transactionLabels,
     manualTransactions,
     statements,
-    enrichments,
     cards,
     defaultCurrency,
     deleteLabel,
     updateLabel,
+    addLabel,
     updateManualTransaction,
   } = useStore();
 
   const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
   const [detailTxn, setDetailTxn] = useState<Transaction | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const selectedLabel = labels.find((l) => l.id === selectedLabelId);
 
@@ -68,24 +60,27 @@ export default function LabelsScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             style={{ marginLeft: Platform.OS === 'ios' ? 0 : spacing.sm }}
           >
-            <Feather name="arrow-left" size={22} color={colors.textPrimary} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Feather name="chevron-left" size={24} color={colors.accent} />
+              <Text style={{ color: colors.accent, fontSize: fontSize.lg, fontWeight: '500' }}>Labels</Text>
+            </View>
           </TouchableOpacity>
         ),
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => setShowEditModal(true)}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ marginRight: spacing.lg }}
-          >
-            <Text style={{ color: colors.accent, fontSize: fontSize.md, fontWeight: '600' }}>Edit</Text>
-          </TouchableOpacity>
-        ),
+        headerRight: undefined,
       });
     } else {
       navigation.setOptions({
         headerTitle: 'Labels',
         headerLeft: undefined,
-        headerRight: undefined,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => setShowCreateModal(true)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ marginRight: spacing.lg }}
+          >
+            <Feather name="plus" size={22} color={colors.accent} />
+          </TouchableOpacity>
+        ),
       });
     }
   }, [navigation, selectedLabelId, selectedLabel, colors]);
@@ -119,26 +114,62 @@ export default function LabelsScreen() {
     return map;
   }, [transactionLabels, allTransactions]);
 
-  // Label stats
+  // Label stats — grouped by currency
   const labelStats = useMemo(() => {
-    const stats: Record<string, { total: number; count: number; currency: CurrencyCode }> = {};
+    const stats: Record<string, { totals: Record<string, number>; count: number }> = {};
     for (const label of labels) {
       const txns = labelTransactions[label.id] ?? [];
-      let total = 0;
+      const totals: Record<string, number> = {};
       for (const t of txns) {
-        total += t.type === 'debit' ? t.amount : -t.amount;
+        const cur = t.currency ?? defaultCurrency;
+        if (!totals[cur]) totals[cur] = 0;
+        totals[cur] += t.type === 'debit' ? t.amount : -t.amount;
       }
-      stats[label.id] = {
-        total,
-        count: txns.length,
-        currency: txns[0]?.currency ?? defaultCurrency,
-      };
+      stats[label.id] = { totals, count: txns.length };
     }
     return stats;
   }, [labels, labelTransactions, defaultCurrency]);
 
+  // Global stats for list header
+  const globalStats = useMemo(() => {
+    let txnCount = 0;
+    const totals: Record<string, number> = {};
+    for (const label of labels) {
+      const s = labelStats[label.id];
+      if (!s) continue;
+      txnCount += s.count;
+      for (const [cur, amt] of Object.entries(s.totals)) {
+        if (!totals[cur]) totals[cur] = 0;
+        totals[cur] += amt;
+      }
+    }
+    return { labelCount: labels.length, txnCount, totals };
+  }, [labels, labelStats]);
+
   const selectedTxns = selectedLabelId ? (labelTransactions[selectedLabelId] ?? []) : [];
   const selectedStats = selectedLabelId ? labelStats[selectedLabelId] : null;
+
+  // Group selected transactions by date
+  const daySections = useMemo(() => {
+    if (!selectedTxns.length) return [];
+    const grouped: Record<string, Transaction[]> = {};
+    for (const txn of selectedTxns) {
+      const day = txn.date.substring(0, 10);
+      if (!grouped[day]) grouped[day] = [];
+      grouped[day].push(txn);
+    }
+    return Object.entries(grouped)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, data]) => {
+        const totals: Record<string, number> = {};
+        for (const t of data) {
+          const cur = t.currency ?? defaultCurrency;
+          if (!totals[cur]) totals[cur] = 0;
+          totals[cur] += t.type === 'debit' ? t.amount : -t.amount;
+        }
+        return { date, totals, data };
+      });
+  }, [selectedTxns, defaultCurrency]);
 
   const handleDeleteLabel = useCallback(
     (label: Label) => {
@@ -161,27 +192,97 @@ export default function LabelsScreen() {
     [selectedLabelId, deleteLabel],
   );
 
+  const handleExport = useCallback(async () => {
+    if (!selectedLabel || !selectedTxns.length) return;
+    try {
+      const header = 'Date,Description,Category,Amount,Type,Currency\n';
+      const rows = selectedTxns
+        .map(
+          (t) =>
+            `${t.date},"${t.description.replace(/"/g, '""')}",${t.category},${t.amount},${t.type},${t.currency ?? defaultCurrency}`,
+        )
+        .join('\n');
+      const path = `${FileSystem.cacheDirectory}vector-${selectedLabel.name.replace(/\s+/g, '-')}.csv`;
+      await FileSystem.writeAsStringAsync(path, header + rows);
+      await Sharing.shareAsync(path, {
+        mimeType: 'text/csv',
+        dialogTitle: `Export ${selectedLabel.name}`,
+      });
+    } catch {
+      // Sharing cancelled
+    }
+  }, [selectedLabel, selectedTxns, defaultCurrency]);
+
+  const handleCopy = useCallback(() => {
+    if (!selectedLabel || !selectedStats) return;
+    const lines = [`${selectedLabel.name}`];
+    for (const [cur, total] of Object.entries(selectedStats.totals)) {
+      lines.push(`Total: ${formatCurrency(total, cur as CurrencyCode)}`);
+    }
+    lines.push(`Transactions: ${selectedStats.count}`);
+    if (selectedStats.count > 0) {
+      const firstCur = Object.keys(selectedStats.totals)[0] as CurrencyCode | undefined;
+      if (firstCur) {
+        const avg = selectedStats.totals[firstCur] / selectedStats.count;
+        lines.push(`Avg/Txn: ${formatCurrency(avg, firstCur)}`);
+      }
+    }
+    Share.share({ message: lines.join('\n') });
+  }, [selectedLabel, selectedStats]);
+
   const detailCard = detailTxn?.cardId
     ? cards.find((c) => c.id === detailTxn.cardId)
     : undefined;
+
+  // Primary currency total for subtitle
+  const primaryCur = (Object.keys(globalStats.totals)[0] ?? defaultCurrency) as CurrencyCode;
+  const primaryTotal = globalStats.totals[primaryCur] ?? 0;
 
   // -------------------------------------------------------------------------
   // List view — all labels
   // -------------------------------------------------------------------------
   if (!selectedLabelId) {
+    const listHeader = labels.length > 0 ? (
+      <>
+        {/* Subtitle */}
+        <Text style={styles.subtitle}>
+          {globalStats.labelCount} label{globalStats.labelCount !== 1 ? 's' : ''} · {formatCurrency(primaryTotal, primaryCur)} tracked
+        </Text>
+
+        {/* Three stat tiles */}
+        <View style={styles.statRow}>
+          <View style={styles.statTile}>
+            <Text style={styles.statLabel}>Labels</Text>
+            <Text style={styles.statValue}>{globalStats.labelCount}</Text>
+          </View>
+          <View style={styles.statTile}>
+            <Text style={styles.statLabel}>Transactions</Text>
+            <Text style={styles.statValue}>{globalStats.txnCount}</Text>
+          </View>
+          <View style={styles.statTile}>
+            <Text style={styles.statLabel}>Total</Text>
+            <Text style={[styles.statValue, { color: colors.debit }]} numberOfLines={1}>
+              {formatCurrency(primaryTotal, primaryCur)}
+            </Text>
+          </View>
+        </View>
+      </>
+    ) : null;
+
     return (
       <View style={styles.container}>
         {labels.length === 0 ? (
           <EmptyState
             icon="tag"
             title="No labels yet"
-            subtitle="Create labels in the Add Transaction screen to group related spending"
+            subtitle="Tap + to create a label and group related spending"
           />
         ) : (
           <FlatList
             data={labels}
             keyExtractor={(l) => l.id}
             contentContainerStyle={styles.list}
+            ListHeaderComponent={listHeader}
             renderItem={({ item: label }) => {
               const stats = labelStats[label.id];
               return (
@@ -189,8 +290,9 @@ export default function LabelsScreen() {
                   style={styles.labelRow}
                   onPress={() => setSelectedLabelId(label.id)}
                   onLongPress={() => handleDeleteLabel(label)}
+                  activeOpacity={0.7}
                 >
-                  <View style={[styles.labelIcon, { backgroundColor: label.color + '20' }]}>
+                  <View style={[styles.labelIcon, { backgroundColor: label.color + '18' }]}>
                     <Feather
                       name={label.icon as keyof typeof Feather.glyphMap}
                       size={18}
@@ -204,16 +306,35 @@ export default function LabelsScreen() {
                     </Text>
                   </View>
                   <View style={styles.labelRight}>
-                    <Text style={[styles.labelTotal, { color: colors.debit }]}>
-                      {formatCurrency(stats?.total ?? 0, stats?.currency ?? defaultCurrency)}
-                    </Text>
-                    <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                    {Object.entries(stats?.totals ?? {}).map(([cur, total]) => (
+                      <Text key={cur} style={[styles.labelTotal, { color: label.color }]}>
+                        {formatCurrency(total, cur as CurrencyCode)}
+                      </Text>
+                    ))}
+                    <Feather name="chevron-right" size={16} color={colors.textMuted + '40'} />
                   </View>
                 </TouchableOpacity>
               );
             }}
           />
         )}
+
+        <LabelFormModal
+          visible={showCreateModal}
+          mode="create"
+          onClose={() => setShowCreateModal(false)}
+          onSave={(data) => {
+            addLabel({
+              id: Date.now().toString(),
+              name: data.name,
+              color: data.color,
+              icon: data.icon,
+              createdAt: new Date().toISOString(),
+            });
+            setShowCreateModal(false);
+          }}
+          colors={colors}
+        />
       </View>
     );
   }
@@ -221,83 +342,170 @@ export default function LabelsScreen() {
   // -------------------------------------------------------------------------
   // Detail view — transactions under a label
   // -------------------------------------------------------------------------
-  return (
-    <View style={styles.container}>
-      {/* Label info badge */}
-      <View style={styles.labelBadgeRow}>
-        <View style={[styles.labelBadge, { backgroundColor: selectedLabel!.color + '20', borderColor: selectedLabel!.color }]}>
+  const detailCur = (Object.keys(selectedStats?.totals ?? {})[0] ?? defaultCurrency) as CurrencyCode;
+  const detailTotal = selectedStats?.totals[detailCur] ?? 0;
+  const detailAvg = selectedStats?.count ? detailTotal / selectedStats.count : 0;
+
+  const detailHeader = (
+    <>
+      {/* Hero — large icon + pill + three-stat strip */}
+      <View style={styles.heroSection}>
+        <View style={[styles.heroIconWrap, { backgroundColor: selectedLabel!.color + '15' }]}>
           <Feather
             name={selectedLabel!.icon as keyof typeof Feather.glyphMap}
-            size={14}
+            size={52}
             color={selectedLabel!.color}
           />
-          <Text style={[styles.labelBadgeText, { color: selectedLabel!.color }]}>
-            {selectedLabel!.name}
-          </Text>
+        </View>
+
+        <View style={[styles.heroPill, { backgroundColor: selectedLabel!.color + '18', borderColor: selectedLabel!.color }]}>
+          <Feather name={selectedLabel!.icon as keyof typeof Feather.glyphMap} size={12} color={selectedLabel!.color} />
+          <Text style={[styles.heroPillText, { color: selectedLabel!.color }]}>{selectedLabel!.name}</Text>
+        </View>
+
+        {/* Three-stat strip */}
+        <View style={styles.heroStatStrip}>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatLabel}>Total</Text>
+            <Text style={[styles.heroStatValue, { color: colors.debit }]} numberOfLines={1}>
+              {formatCurrency(detailTotal, detailCur)}
+            </Text>
+          </View>
+          <View style={[styles.heroStatDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatLabel}>Transactions</Text>
+            <Text style={styles.heroStatValue}>{selectedStats?.count ?? 0}</Text>
+          </View>
+          <View style={[styles.heroStatDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatLabel}>Avg/Txn</Text>
+            <Text style={styles.heroStatValue} numberOfLines={1}>
+              {formatCurrency(detailAvg, detailCur)}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Summary card */}
-      {selectedStats && (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={[styles.summaryValue, { color: colors.debit }]}>
-              {formatCurrency(selectedStats.total, selectedStats.currency)}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Transactions</Text>
-            <Text style={styles.summaryValue}>{selectedStats.count}</Text>
-          </View>
-        </View>
-      )}
+      {/* Four action tiles */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.actionTile} onPress={() => setShowEditModal(true)}>
+          <Feather name="edit-2" size={18} color={colors.accent} />
+          <Text style={styles.actionTileLabel}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionTile} onPress={handleExport}>
+          <Feather name="upload" size={18} color={colors.accent} />
+          <Text style={styles.actionTileLabel}>Export</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionTile} onPress={handleCopy}>
+          <Feather name="copy" size={18} color={colors.accent} />
+          <Text style={styles.actionTileLabel}>Copy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionTile, styles.actionTileDestructive]}
+          onPress={() => handleDeleteLabel(selectedLabel!)}
+        >
+          <Feather name="trash-2" size={18} color={colors.debit} />
+          <Text style={[styles.actionTileLabel, { color: colors.debit }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
 
-      {/* Transaction list */}
-      <FlatList
-        data={selectedTxns}
-        keyExtractor={(t) => t.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <EmptyState
-            icon="inbox"
-            title="No transactions"
-            subtitle="Add this label to transactions to see them here"
-          />
-        }
-        renderItem={({ item: txn }) => {
-          const card = txn.cardId ? cards.find((c) => c.id === txn.cardId) : undefined;
-          return (
-            <TouchableOpacity style={styles.txnRow} onPress={() => setDetailTxn(txn)}>
-              <View style={[styles.txnDot, { backgroundColor: txn.category_color }]} />
-              <View style={styles.txnInfo}>
-                <Text style={styles.txnDesc} numberOfLines={1}>{txn.description}</Text>
-                <Text style={styles.txnSub}>
-                  {txn.date}{card ? ` \u00b7 ${card.nickname}` : ''}
-                </Text>
+  return (
+    <View style={styles.container}>
+      {daySections.length === 0 ? (
+        <ScrollView>
+          {detailHeader}
+          <View style={styles.list}>
+            <EmptyState
+              icon="inbox"
+              title="No transactions"
+              subtitle="Add this label to transactions to see them here"
+            />
+          </View>
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={daySections}
+          keyExtractor={(s) => s.date}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={detailHeader}
+          renderItem={({ item: section }) => {
+            const d = new Date(section.date + 'T00:00:00');
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+            const fullDate = d.toLocaleDateString('en-US', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            });
+            return (
+              <View style={styles.dayCard}>
+                <View style={styles.dayHeader}>
+                  <View>
+                    <Text style={styles.dayHeaderDate}>{fullDate}</Text>
+                    <Text style={styles.dayHeaderDay}>{dayName}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {Object.entries(section.totals).map(([cur, total]) => (
+                      <Text key={cur} style={[styles.dayHeaderTotal, { color: colors.debit }]}>
+                        {formatCurrency(total as number, cur as CurrencyCode)}
+                      </Text>
+                    ))}
+                    <Text style={styles.dayHeaderSub}>
+                      {section.data.length} transaction{section.data.length !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                </View>
+
+                {section.data.map((txn, idx) => (
+                  <TouchableOpacity
+                    key={txn.id}
+                    style={[
+                      styles.txnRow,
+                      idx === section.data.length - 1 && { borderBottomWidth: 0 },
+                    ]}
+                    onPress={() => setDetailTxn(txn)}
+                  >
+                    <View style={[styles.txnIcon, { backgroundColor: txn.category_color + '20' }]}>
+                      <Feather
+                        name={txn.category_icon as keyof typeof Feather.glyphMap}
+                        size={16}
+                        color={txn.category_color}
+                      />
+                    </View>
+                    <View style={styles.txnInfo}>
+                      <Text style={styles.txnDesc} numberOfLines={1}>
+                        {txn.description}
+                      </Text>
+                      <Text style={styles.txnSub}>{txn.category}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.txnAmount,
+                        { color: txn.type === 'debit' ? colors.debit : colors.credit },
+                      ]}
+                    >
+                      {txn.type === 'debit' ? '\u2013' : '+'}
+                      {formatCurrency(txn.amount, txn.currency ?? defaultCurrency)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <Text
-                style={[
-                  styles.txnAmount,
-                  { color: txn.type === 'debit' ? colors.debit : colors.credit },
-                ]}
-              >
-                {txn.type === 'debit' ? '-' : '+'}
-                {formatCurrency(txn.amount, txn.currency ?? defaultCurrency)}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
-      />
+            );
+          }}
+        />
+      )}
 
       {/* Edit label modal */}
       {selectedLabel && (
-        <EditLabelModal
+        <LabelFormModal
           visible={showEditModal}
-          label={selectedLabel}
+          mode="edit"
+          initialValues={{ name: selectedLabel.name, color: selectedLabel.color, icon: selectedLabel.icon }}
           onClose={() => setShowEditModal(false)}
-          onSave={(updates) => {
-            updateLabel(selectedLabel.id, updates);
+          onSave={(data) => {
+            updateLabel(selectedLabel.id, data);
             setShowEditModal(false);
           }}
           colors={colors}
@@ -318,37 +526,51 @@ export default function LabelsScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Edit Label Modal
+// Label Form Modal — shared for Create / Edit
 // ---------------------------------------------------------------------------
 
-function EditLabelModal({
+function LabelFormModal({
   visible,
-  label,
+  mode,
+  initialValues,
   onClose,
   onSave,
   colors,
 }: {
   visible: boolean;
-  label: Label;
+  mode: 'create' | 'edit';
+  initialValues?: { name: string; color: string; icon: string };
   onClose: () => void;
-  onSave: (updates: Partial<Pick<Label, 'name' | 'color' | 'icon'>>) => void;
+  onSave: (data: { name: string; color: string; icon: string }) => void;
   colors: ThemeColors;
 }) {
   const styles = useMemo(() => createModalStyles(colors), [colors]);
-  const [name, setName] = useState(label.name);
-  const [color, setColor] = useState(label.color);
-  const [icon, setIcon] = useState(label.icon);
+  const [name, setName] = useState(initialValues?.name ?? '');
+  const [color, setColor] = useState(initialValues?.color ?? LABEL_COLORS[0]);
+  const [icon, setIcon] = useState(initialValues?.icon ?? LABEL_ICONS[0]);
+  const [inputFocused, setInputFocused] = useState(false);
 
-  // Reset form when label changes
+  // Reset form when initialValues change (edit mode)
   React.useEffect(() => {
     if (visible) {
-      setName(label.name);
-      setColor(label.color);
-      setIcon(label.icon);
+      setName(initialValues?.name ?? '');
+      setColor(initialValues?.color ?? LABEL_COLORS[0]);
+      setIcon(initialValues?.icon ?? LABEL_ICONS[0]);
     }
-  }, [label.id, visible]);
+  }, [visible, initialValues?.name, initialValues?.color, initialValues?.icon]);
 
   const canSave = name.trim().length > 0;
+  const title = mode === 'create' ? 'New Label' : 'Edit Label';
+
+  function handleDone() {
+    if (!canSave) return;
+    onSave({ name: name.trim(), color, icon });
+    if (mode === 'create') {
+      setName('');
+      setColor(LABEL_COLORS[0]);
+      setIcon(LABEL_ICONS[0]);
+    }
+  }
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -360,84 +582,103 @@ function EditLabelModal({
         <View style={styles.sheet}>
           <View style={styles.handleBar} />
 
-          <Text style={styles.title}>Edit Label</Text>
-
-          {/* Name */}
-          <TextInput
-            style={styles.input}
-            placeholder="Label name"
-            placeholderTextColor={colors.textMuted}
-            value={name}
-            onChangeText={setName}
-            autoFocus
-          />
-
-          {/* Color */}
-          <Text style={styles.label}>Color</Text>
-          <View style={styles.colorGrid}>
-            {LABEL_COLORS.map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[
-                  styles.colorSwatch,
-                  { backgroundColor: c },
-                  color === c && styles.colorSwatchActive,
-                ]}
-                onPress={() => setColor(c)}
-              >
-                {color === c && <Feather name="check" size={14} color="#fff" />}
-              </TouchableOpacity>
-            ))}
+          {/* Sheet nav bar: Cancel | Title | Done */}
+          <View style={styles.sheetNav}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.sheetNavCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.sheetNavTitle}>{title}</Text>
+            <TouchableOpacity
+              onPress={handleDone}
+              disabled={!canSave}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[styles.sheetNavDone, !canSave && { opacity: 0.35 }]}>Done</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Icon */}
-          <Text style={styles.label}>Icon</Text>
-          <View style={styles.iconGrid}>
-            {LABEL_ICONS.map((ic) => (
-              <TouchableOpacity
-                key={ic}
-                style={[
-                  styles.iconBtn,
-                  icon === ic && { backgroundColor: color + '20', borderColor: color },
-                ]}
-                onPress={() => setIcon(ic)}
-              >
-                <Feather
-                  name={ic}
-                  size={18}
-                  color={icon === ic ? color : colors.textMuted}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Preview */}
+          {/* Live preview — pinned below nav bar, always visible */}
           <View style={styles.previewRow}>
-            <View style={[styles.previewChip, { backgroundColor: color + '20', borderColor: color }]}>
-              <Feather name={icon as keyof typeof Feather.glyphMap} size={12} color={color} />
-              <Text style={[styles.previewChipText, { color }]}>
-                {name.trim() || 'Label'}
-              </Text>
+            <View style={[styles.previewChip, { backgroundColor: color + '18', borderColor: color }]}>
+              <Feather name={icon as keyof typeof Feather.glyphMap} size={14} color={color} />
+              <Text style={[styles.previewChipText, { color }]}>{name.trim() || 'Label'}</Text>
             </View>
           </View>
 
-          {/* Actions */}
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveBtn, !canSave && { opacity: 0.4 }]}
-              onPress={() => {
-                if (!canSave) return;
-                onSave({ name: name.trim(), color, icon });
-              }}
-              disabled={!canSave}
-            >
-              <Feather name="check" size={16} color="#fff" />
-              <Text style={styles.saveBtnText}>Save</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Scrollable form */}
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Name input with icon + clear + focus state */}
+            <View style={[styles.inputWrapper, inputFocused && styles.inputWrapperFocused]}>
+              <Feather name="tag" size={16} color={inputFocused ? colors.accent : colors.textMuted} />
+              <TextInput
+                style={styles.input}
+                placeholder={mode === 'create' ? 'e.g. USA Trip' : 'Label name'}
+                placeholderTextColor={colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleDone}
+              />
+              {name.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setName('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x-circle" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Color — 6-column grid, double-ring selection */}
+            <Text style={styles.sectionLabel}>COLOR</Text>
+            <View style={styles.colorGrid}>
+              {LABEL_COLORS.map((c) => {
+                const isSelected = color === c;
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.colorSwatchOuter, isSelected && { borderColor: c }]}
+                    onPress={() => setColor(c)}
+                  >
+                    <View style={[styles.colorSwatchInner, { backgroundColor: c }]}>
+                      {isSelected && <Feather name="check" size={13} color="#fff" />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Icons — grouped semantically */}
+            <Text style={styles.sectionLabel}>ICON</Text>
+            {LABEL_ICON_SECTIONS.map((section) => (
+              <View key={section.title}>
+                <Text style={styles.iconSectionTitle}>{section.title.toUpperCase()}</Text>
+                <View style={styles.iconGrid}>
+                  {section.icons.map((ic) => (
+                    <TouchableOpacity
+                      key={ic}
+                      style={[
+                        styles.iconBtn,
+                        icon === ic && { backgroundColor: color + '20', borderColor: color },
+                      ]}
+                      onPress={() => setIcon(ic)}
+                    >
+                      <Feather
+                        name={ic}
+                        size={18}
+                        color={icon === ic ? color : colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
+
+            <View style={{ height: spacing.xxl }} />
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -455,10 +696,44 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     list: {
-      padding: spacing.lg,
+      paddingHorizontal: spacing.lg,
       paddingBottom: 40,
     },
-    // Label list
+
+    // Subtitle below header
+    subtitle: {
+      color: colors.textMuted,
+      fontSize: fontSize.sm,
+      lineHeight: 18,
+      paddingBottom: spacing.md,
+    },
+
+    // Three stat tiles
+    statRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    statTile: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+    },
+    statLabel: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+      marginBottom: spacing.xs,
+    },
+    statValue: {
+      color: colors.textPrimary,
+      fontSize: fontSize.xl,
+      fontWeight: '700',
+      lineHeight: 24,
+    },
+
+    // Label rows
     labelRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -499,64 +774,141 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '600',
       lineHeight: 20,
     },
-    // Detail view
-    labelBadgeRow: {
+
+    // Hero section
+    heroSection: {
+      alignItems: 'center',
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
+      paddingVertical: spacing.lg,
     },
-    labelBadge: {
+    heroIconWrap: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
+    heroPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      alignSelf: 'flex-start',
       gap: 6,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
       borderRadius: borderRadius.full,
       borderWidth: 1,
+      marginBottom: spacing.lg,
     },
-    labelBadgeText: {
+    heroPillText: {
       fontSize: fontSize.sm,
       fontWeight: '600',
     },
-    // Summary card
-    summaryCard: {
+    heroStatStrip: {
+      flexDirection: 'row',
       backgroundColor: colors.surface,
       borderRadius: borderRadius.lg,
       padding: spacing.lg,
-      marginHorizontal: spacing.lg,
-      marginTop: spacing.md,
-      marginBottom: spacing.sm,
-      gap: spacing.sm,
+      width: '100%',
     },
-    summaryRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+    heroStat: {
+      flex: 1,
       alignItems: 'center',
     },
-    summaryLabel: {
-      color: colors.textSecondary,
-      fontSize: fontSize.sm,
-      lineHeight: 18,
+    heroStatLabel: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+      marginBottom: spacing.xs,
     },
-    summaryValue: {
+    heroStatValue: {
       color: colors.textPrimary,
       fontSize: fontSize.md,
-      fontWeight: '600',
+      fontWeight: '700',
       lineHeight: 20,
     },
+    heroStatDivider: {
+      width: StyleSheet.hairlineWidth,
+      alignSelf: 'stretch',
+      marginHorizontal: spacing.sm,
+    },
+
+    // Action tiles
+    actionRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    actionTile: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    actionTileDestructive: {
+      backgroundColor: colors.debit + '10',
+    },
+    actionTileLabel: {
+      color: colors.textSecondary,
+      fontSize: fontSize.xs,
+      fontWeight: '500',
+    },
+
+    // Day card
+    dayCard: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      marginBottom: spacing.md,
+      overflow: 'hidden',
+    },
+    dayHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      padding: spacing.lg,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    dayHeaderDate: {
+      color: colors.textSecondary,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+    },
+    dayHeaderDay: {
+      color: colors.textPrimary,
+      fontSize: fontSize.xl,
+      fontWeight: '700',
+      lineHeight: 28,
+    },
+    dayHeaderTotal: {
+      fontSize: fontSize.md,
+      fontWeight: '700',
+      lineHeight: 20,
+    },
+    dayHeaderSub: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+    },
+
     // Transaction rows
     txnRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
       gap: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
-    txnDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+    txnIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     txnInfo: {
       flex: 1,
@@ -580,88 +932,58 @@ const createStyles = (colors: ThemeColors) =>
   });
 
 // ---------------------------------------------------------------------------
-// Styles — edit modal
+// Styles — form modal
 // ---------------------------------------------------------------------------
 
 const createModalStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end' },
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
     sheet: {
       backgroundColor: colors.surface,
       borderTopLeftRadius: borderRadius.xl,
       borderTopRightRadius: borderRadius.xl,
-      padding: spacing.lg,
+      paddingHorizontal: spacing.lg,
       paddingBottom: 40,
+      maxHeight: '85%',
     },
     handleBar: {
-      width: 40,
+      width: 36,
       height: 4,
       borderRadius: 2,
-      backgroundColor: colors.textMuted,
+      backgroundColor: colors.textMuted + '60',
       alignSelf: 'center',
-      marginBottom: spacing.lg,
-    },
-    title: {
-      color: colors.textPrimary,
-      fontSize: fontSize.xxl,
-      fontWeight: '700',
-      marginBottom: spacing.lg,
-    },
-    label: {
-      color: colors.textSecondary,
-      fontSize: fontSize.sm,
-      fontWeight: '600',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginTop: spacing.lg,
+      marginTop: spacing.sm,
       marginBottom: spacing.sm,
     },
-    input: {
-      backgroundColor: colors.surfaceElevated,
+    // Sheet nav bar — Cancel | Title | Done
+    sheetNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+    },
+    sheetNavCancel: {
+      color: colors.textSecondary,
+      fontSize: fontSize.md,
+      fontWeight: '500',
+    },
+    sheetNavTitle: {
+      fontSize: fontSize.xl,
+      fontWeight: '700',
       color: colors.textPrimary,
-      fontSize: fontSize.lg,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.lg,
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
-    colorGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
+    sheetNavDone: {
+      color: colors.accent,
+      fontSize: fontSize.md,
+      fontWeight: '600',
     },
-    colorSwatch: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    colorSwatchActive: {
-      borderWidth: 3,
-      borderColor: '#fff',
-    },
-    iconGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-      marginBottom: spacing.md,
-    },
-    iconBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: borderRadius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surfaceElevated,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
+    // Live preview — pinned
     previewRow: {
       alignItems: 'center',
-      marginTop: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
       marginBottom: spacing.md,
     },
     previewChip: {
@@ -674,41 +996,85 @@ const createModalStyles = (colors: ThemeColors) =>
       borderWidth: 1,
     },
     previewChipText: {
-      fontSize: fontSize.sm,
+      fontSize: fontSize.md,
       fontWeight: '600',
     },
-    actions: {
+    // Input
+    inputWrapper: {
       flexDirection: 'row',
-      gap: spacing.md,
-      marginTop: spacing.md,
-    },
-    cancelBtn: {
-      flex: 1,
       alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.md,
+      gap: spacing.sm,
+      backgroundColor: colors.surfaceElevated,
+      paddingHorizontal: spacing.md,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: colors.border,
     },
-    cancelBtnText: {
-      color: colors.textSecondary,
-      fontSize: fontSize.md,
-      fontWeight: '500',
+    inputWrapperFocused: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accent + '08',
     },
-    saveBtn: {
+    input: {
       flex: 1,
+      color: colors.textPrimary,
+      fontSize: fontSize.lg,
+      paddingVertical: spacing.md,
+    },
+    // Section labels
+    sectionLabel: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      fontWeight: '600',
+      letterSpacing: 0.8,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    // Color grid — 6-column, double-ring at 5.5px
+    colorGrid: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    colorSwatchOuter: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      borderWidth: 3,
+      borderColor: 'transparent',
+      padding: 2.5,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.accent,
     },
-    saveBtnText: {
-      color: '#fff',
-      fontSize: fontSize.md,
+    colorSwatchInner: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Icon sections
+    iconSectionTitle: {
+      color: colors.textMuted,
+      fontSize: 10,
       fontWeight: '600',
+      letterSpacing: 0.8,
+      marginTop: spacing.md,
+      marginBottom: spacing.xs,
+    },
+    iconGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
   });

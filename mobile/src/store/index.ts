@@ -624,7 +624,7 @@ export const useStore = create<AppState>()(
 
       addLabel: (label) => {
         try {
-          dbLabels.upsertLabel(label);
+          dbLabels.insertLabel(label);
         } catch (e: any) {
           Alert.alert('Error', e?.message || 'Failed to create label.');
           return;
@@ -638,7 +638,7 @@ export const useStore = create<AppState>()(
           if (!existing) return {};
           const updated = { ...existing, ...updates };
           try {
-            dbLabels.upsertLabel(updated);
+            dbLabels.updateLabelFields(id, updates);
           } catch (e: any) {
             Alert.alert('Error', e?.message || 'Failed to update label.');
             return {};

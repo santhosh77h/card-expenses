@@ -70,7 +70,7 @@ export function parseDemoStatement(): ParseResult {
 			amount: 456.0,
 			category: 'Food & Dining',
 			category_color: categoryColors['Food & Dining'],
-			category_icon: 'fork-knife',
+			category_icon: 'coffee',
 			type: 'debit',
 		},
 		{
@@ -80,7 +80,7 @@ export function parseDemoStatement(): ParseResult {
 			amount: 1850.0,
 			category: 'Food & Dining',
 			category_color: categoryColors['Food & Dining'],
-			category_icon: 'fork-knife',
+			category_icon: 'coffee',
 			type: 'debit',
 		},
 		{
@@ -90,7 +90,7 @@ export function parseDemoStatement(): ParseResult {
 			amount: 680.0,
 			category: 'Food & Dining',
 			category_color: categoryColors['Food & Dining'],
-			category_icon: 'fork-knife',
+			category_icon: 'coffee',
 			type: 'debit',
 		},
 		{
@@ -180,7 +180,7 @@ export function parseDemoStatement(): ParseResult {
 			amount: 1450.0,
 			category: 'Health & Medical',
 			category_color: categoryColors['Health & Medical'],
-			category_icon: 'heart-pulse',
+			category_icon: 'heart',
 			type: 'debit',
 		},
 		{
@@ -190,7 +190,7 @@ export function parseDemoStatement(): ParseResult {
 			amount: 1500.0,
 			category: 'Health & Medical',
 			category_color: categoryColors['Health & Medical'],
-			category_icon: 'heart-pulse',
+			category_icon: 'heart',
 			type: 'debit',
 		},
 		{
@@ -353,7 +353,7 @@ export function parseDemoStatement(): ParseResult {
 const categoryKeywords: { category: string; icon: string; keywords: string[] }[] = [
 	{
 		category: 'Food & Dining',
-		icon: 'fork-knife',
+		icon: 'coffee',
 		keywords: [
 			'swiggy',
 			'zomato',
@@ -445,7 +445,7 @@ const categoryKeywords: { category: string; icon: string; keywords: string[] }[]
 	},
 	{
 		category: 'Health & Medical',
-		icon: 'heart-pulse',
+		icon: 'heart',
 		keywords: [
 			'apollo',
 			'pharmacy',

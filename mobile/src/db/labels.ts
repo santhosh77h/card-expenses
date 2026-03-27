@@ -12,11 +12,25 @@ export interface Label {
 // Label CRUD
 // ---------------------------------------------------------------------------
 
-export function upsertLabel(label: Label): void {
+export function insertLabel(label: Label): void {
   getDb().executeSync(
-    `INSERT OR REPLACE INTO labels (id, name, color, icon, createdAt)
+    `INSERT INTO labels (id, name, color, icon, createdAt)
      VALUES (?, ?, ?, ?, ?)`,
     [label.id, label.name, label.color, label.icon, label.createdAt],
+  );
+}
+
+export function updateLabelFields(id: string, updates: Partial<Pick<Label, 'name' | 'color' | 'icon'>>): void {
+  const fields: string[] = [];
+  const values: (string)[] = [];
+  if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+  if (updates.color !== undefined) { fields.push('color = ?'); values.push(updates.color); }
+  if (updates.icon !== undefined) { fields.push('icon = ?'); values.push(updates.icon); }
+  if (fields.length === 0) return;
+  values.push(id);
+  getDb().executeSync(
+    `UPDATE labels SET ${fields.join(', ')} WHERE id = ?`,
+    values,
   );
 }
 
