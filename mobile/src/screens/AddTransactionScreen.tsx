@@ -119,6 +119,15 @@ export default function AddTransactionScreen() {
   // Star/flag in header
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ marginLeft: spacing.xs }}
+        >
+          <Feather name="x" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+      ),
       headerRight: () => (
         <TouchableOpacity
           onPress={() => setFlagged((f) => !f)}

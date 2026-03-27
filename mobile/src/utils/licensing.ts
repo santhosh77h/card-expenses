@@ -8,24 +8,14 @@ import { capture } from './analytics';
 // Constants
 // ---------------------------------------------------------------------------
 
-export const TRIAL_DAYS = 15;
-export const TRIAL_STATEMENTS = 15;
 export const SUB_MONTHLY_PARSES = 4;
 
 // Meta table keys
-const META_TRIAL_REMAINING = 'trial_remaining';
-const META_TRIAL_EXPIRY = 'trial_expiry';
 const META_SUB_ACTIVE = 'sub_active';
 const META_SUB_PLAN_TYPE = 'sub_plan_type';
 const META_SUB_ALLOWANCE_REMAINING = 'sub_allowance_remaining';
 const META_SUB_ALLOWANCE_RESET_DATE = 'sub_allowance_reset_date';
 const META_CREDIT_BALANCE = 'credit_balance';
-
-// Lazy-load SecureStore to avoid crash when native module isn't linked (dev client)
-const getSecureStore = () => require('expo-secure-store') as typeof import('expo-secure-store');
-
-// SecureStore key (survives reinstall on iOS, persists across app data clear)
-const SECURE_TRIAL_GRANTED = 'vector_trial_granted';
 
 // RevenueCat subscriber attribute key for credit balance
 const RC_ATTR_CREDIT_BALANCE = 'credit_balance';
@@ -43,7 +33,7 @@ export interface LicenseInfo {
   trialExpiryDate: string | null;
   subscriptionActive: boolean;
   subAllowanceRemaining: number;
-  subPlanType: 'monthly' | 'yearly' | null;
+  subPlanType: 'monthly' | 'yearly' | 'trial' | null;
   creditBalance: number;
   totalAvailable: number;
 }
@@ -57,71 +47,40 @@ export interface CheckResult {
 }
 
 // ---------------------------------------------------------------------------
-// initTrialIfNeeded — called once on boot
-// ---------------------------------------------------------------------------
-
-export async function initTrialIfNeeded(): Promise<void> {
-  // Dev bypass — trial always available
-  if (__DEV__) return;
-
-  // Check SecureStore first (survives reinstall on iOS)
-  const secureFlag = await getSecureStore().getItemAsync(SECURE_TRIAL_GRANTED);
-  if (secureFlag === 'true') return; // Already granted in past install
-
-  // Check meta table (current install)
-  const existingTrial = getMeta(META_TRIAL_REMAINING);
-  if (existingTrial !== null) return; // Already active
-
-  // Grant new trial
-  const expiry = new Date();
-  expiry.setDate(expiry.getDate() + TRIAL_DAYS);
-
-  setMetaInt(META_TRIAL_REMAINING, TRIAL_STATEMENTS);
-  setMeta(META_TRIAL_EXPIRY, expiry.toISOString());
-
-  await getSecureStore().setItemAsync(SECURE_TRIAL_GRANTED, 'true');
-  capture('trial_started', { statements: TRIAL_STATEMENTS, days: TRIAL_DAYS });
-}
-
-// ---------------------------------------------------------------------------
-// getLicenseInfo — synchronous read from meta table
+// getLicenseInfo — synchronous read from meta table (populated by server sync)
 // ---------------------------------------------------------------------------
 
 export function getLicenseInfo(): LicenseInfo {
-  const trialRemaining = getMetaInt(META_TRIAL_REMAINING);
-  const trialExpiryStr = getMeta(META_TRIAL_EXPIRY);
-  const trialExpired = trialExpiryStr ? new Date(trialExpiryStr) < new Date() : true;
-
   const subscriptionActive = getMeta(META_SUB_ACTIVE) === '1';
   const subAllowanceRemaining = subscriptionActive ? getMetaInt(META_SUB_ALLOWANCE_REMAINING) : 0;
   const subPlanTypeRaw = getMeta(META_SUB_PLAN_TYPE);
-  const subPlanType = (subPlanTypeRaw === 'monthly' || subPlanTypeRaw === 'yearly')
-    ? subPlanTypeRaw
+  const subPlanType = (subPlanTypeRaw === 'monthly' || subPlanTypeRaw === 'yearly' || subPlanTypeRaw === 'trial')
+    ? subPlanTypeRaw as 'monthly' | 'yearly' | 'trial'
     : null;
 
   const creditBalance = getMetaInt(META_CREDIT_BALANCE);
 
+  const isTrial = subPlanType === 'trial';
+  const trialRemaining = isTrial ? subAllowanceRemaining : 0;
+  const trialExpired = isTrial ? subAllowanceRemaining <= 0 : true;
+
   // Determine active tier
   let tier: Tier = 'none';
-  const trialActive = trialRemaining > 0 && !trialExpired;
-  if (trialActive) {
+  if (isTrial && subAllowanceRemaining > 0) {
     tier = 'trial';
-  } else if (subscriptionActive && subAllowanceRemaining > 0) {
+  } else if (subscriptionActive && !isTrial && subAllowanceRemaining > 0) {
     tier = 'subscription';
   } else if (creditBalance > 0) {
     tier = 'credits';
   }
 
-  const totalAvailable =
-    (trialActive ? trialRemaining : 0) +
-    subAllowanceRemaining +
-    creditBalance;
+  const totalAvailable = subAllowanceRemaining + creditBalance;
 
   return {
     tier,
     trialRemaining,
     trialExpired,
-    trialExpiryDate: trialExpiryStr,
+    trialExpiryDate: null,
     subscriptionActive,
     subAllowanceRemaining,
     subPlanType,
@@ -139,13 +98,13 @@ export function checkUploadAllowed(): CheckResult {
 
   const info = getLicenseInfo();
 
-  // Trial available
-  if (info.trialRemaining > 0 && !info.trialExpired) {
+  // Trial with remaining parses
+  if (info.subPlanType === 'trial' && info.subAllowanceRemaining > 0) {
     return { allowed: true, tier: 'trial' };
   }
 
   // Active subscription with remaining allowance
-  if (info.subscriptionActive && info.subAllowanceRemaining > 0) {
+  if (info.subscriptionActive && info.subPlanType !== 'trial' && info.subAllowanceRemaining > 0) {
     return { allowed: true, tier: 'subscription' };
   }
 
@@ -155,7 +114,7 @@ export function checkUploadAllowed(): CheckResult {
   }
 
   // Subscriber but exhausted monthly parses — nudge top-up
-  if (info.subscriptionActive) {
+  if (info.subscriptionActive && info.subPlanType !== 'trial') {
     return {
       allowed: false,
       reason: 'You\u2019ve used all 4 parses this month. Purchase credits to continue.',
@@ -167,25 +126,10 @@ export function checkUploadAllowed(): CheckResult {
   // No subscription at all — show paywall
   return {
     allowed: false,
-    reason: 'Your trial has ended. Subscribe to continue parsing statements.',
+    reason: 'Subscribe or buy credits to continue parsing statements.',
     showPaywall: true,
     showTopUp: false,
   };
-}
-
-// ---------------------------------------------------------------------------
-// consumeTrialStatement — decrement trial balance (local-only)
-// Subscription and credit deductions are handled server-side.
-// ---------------------------------------------------------------------------
-
-export function consumeTrialStatement(): void {
-  if (__DEV__) return;
-
-  const info = getLicenseInfo();
-  if (info.trialRemaining > 0 && !info.trialExpired) {
-    setMetaInt(META_TRIAL_REMAINING, info.trialRemaining - 1);
-    capture('trial_used', { remaining: info.trialRemaining - 1 });
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -285,4 +229,3 @@ export async function refreshSubscriptionStatus(): Promise<void> {
     }
   }
 }
-

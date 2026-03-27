@@ -110,6 +110,10 @@ const DEFAULT_CREDITS = 10;
 /**
  * Present the RevenueCat paywall for the `vector_credits` offering.
  * Returns the number of credits purchased (0 if cancelled/failed).
+ *
+ * Since PAYWALL_RESULT doesn't indicate which product was bought,
+ * we compare the list of non-subscription transactions before/after
+ * to identify the purchased product.
  */
 export async function presentCreditPaywall(): Promise<number> {
 	try {
@@ -123,6 +127,10 @@ export async function presentCreditPaywall(): Promise<number> {
 			return 0;
 		}
 
+		// Snapshot transaction count before paywall
+		const infoBefore = await Purchases.getCustomerInfo();
+		const txnCountBefore = infoBefore.nonSubscriptionTransactions?.length ?? 0;
+
 		const paywallResult: PAYWALL_RESULT = await RevenueCatUI.presentPaywall({
 			offering: creditsOffering,
 		});
@@ -130,10 +138,21 @@ export async function presentCreditPaywall(): Promise<number> {
 		console.log('[RevenueCat] credit paywall result:', paywallResult);
 
 		if (paywallResult === PAYWALL_RESULT.PURCHASED || paywallResult === PAYWALL_RESULT.RESTORED) {
-			// Determine credits from the first package in the offering
-			const pkg = creditsOffering.availablePackages[0];
-			const productId = pkg?.product.identifier ?? '';
-			return CREDIT_PRODUCT_MAP[productId] ?? DEFAULT_CREDITS;
+			// Check which product was purchased by comparing transactions
+			const infoAfter = await Purchases.getCustomerInfo();
+			const txnsAfter = infoAfter.nonSubscriptionTransactions ?? [];
+
+			if (txnsAfter.length > txnCountBefore) {
+				// The newest transaction is the one just purchased
+				const lastTxn = txnsAfter[txnsAfter.length - 1];
+				const productId = lastTxn.productIdentifier;
+				console.log('[RevenueCat] credit purchase detected product:', productId);
+				return CREDIT_PRODUCT_MAP[productId] ?? DEFAULT_CREDITS;
+			}
+
+			// Fallback: couldn't determine product, sum all packages as hint
+			console.warn('[RevenueCat] Could not determine purchased product, using default');
+			return DEFAULT_CREDITS;
 		}
 
 		return 0;

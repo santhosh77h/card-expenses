@@ -544,6 +544,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   badgeRow: {
     marginTop: spacing.lg,
+    alignItems: 'center',
   },
   upgradeBtn: {
     flexDirection: 'row',

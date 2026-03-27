@@ -158,7 +158,7 @@ export default function TransactionDetailModal({
           {/* Drag handle */}
           <View style={styles.handleBar} />
 
-          {/* Prev / Next navigation */}
+          {/* Prev / Next navigation + Close */}
           <View style={styles.navRow}>
             <TouchableOpacity
               style={[styles.navBtn, !onPrev && styles.navBtnDisabled]}
@@ -168,6 +168,12 @@ export default function TransactionDetailModal({
             >
               <Feather name="chevron-left" size={18} color={onPrev ? colors.textPrimary : colors.textMuted} />
               <Text style={[styles.navBtnText, !onPrev && styles.navBtnTextDisabled]}>Prev</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Feather name="x" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.navBtn, !onNext && styles.navBtnDisabled]}

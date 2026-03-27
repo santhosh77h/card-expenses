@@ -10,7 +10,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { initDatabase } from './src/db';
 import { useStore } from './src/store';
 import { initRevenueCat, addSubscriptionListener, diagnoseRevenueCat, logInToRevenueCat } from './src/utils/revenueCat';
-import { initTrialIfNeeded, refreshSubscriptionStatus } from './src/utils/licensing';
+import { refreshSubscriptionStatus } from './src/utils/licensing';
 import { restoreSession } from './src/utils/appleAuth';
 import { configureNotifications, rescheduleAll } from './src/utils/notifications';
 import { useIsDark } from './src/hooks/useColors';
@@ -95,7 +95,6 @@ export default function App() {
 
       // Licensing boot sequence
       try {
-        await initTrialIfNeeded();
         await refreshSubscriptionStatus();
         useStore.getState()._refreshLicenseInfo();
       } catch {

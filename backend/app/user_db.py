@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 MONTHLY_MAX_PARSES = 4
 YEARLY_MAX_PARSES = 4
+TRIAL_MAX_PARSES = 15
+TRIAL_DAYS = 15
 
 
 def _plan_max_parses(plan: str | None) -> int:
@@ -26,6 +28,8 @@ def _plan_max_parses(plan: str | None) -> int:
         return YEARLY_MAX_PARSES
     if plan == "monthly":
         return MONTHLY_MAX_PARSES
+    if plan == "trial":
+        return TRIAL_MAX_PARSES
     return 0
 
 
@@ -144,6 +148,29 @@ def upsert_subscription(apple_user_id: str, **fields) -> dict:
         return_document=True,
     )
     return doc_to_dict(result)
+
+
+def grant_trial_if_needed(apple_user_id: str) -> Optional[dict]:
+    """
+    Grant a free trial (15 parses / 15 days) if the user has no subscription.
+    Returns the subscription doc if trial was granted, or None if user already has one.
+    """
+    existing = get_subscription(apple_user_id)
+    if existing:
+        return None  # Already has a subscription (trial, active, expired, etc.)
+
+    now = datetime.now(timezone.utc)
+    trial_end = now + timedelta(days=TRIAL_DAYS)
+
+    return upsert_subscription(
+        apple_user_id,
+        plan="trial",
+        product_id="trial",
+        status="active",
+        max_parses=TRIAL_MAX_PARSES,
+        current_period_start=now.isoformat(),
+        current_period_end=trial_end.isoformat(),
+    )
 
 
 # ---------------------------------------------------------------------------

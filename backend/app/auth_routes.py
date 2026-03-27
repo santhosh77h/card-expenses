@@ -15,6 +15,7 @@ from app.user_db import (
     delete_refresh_token,
     find_or_create_user,
     get_subscription,
+    grant_trial_if_needed,
     store_refresh_token,
     validate_refresh_token,
 )
@@ -70,6 +71,9 @@ async def apple_sign_in(body: AppleAuthRequest):
         email=verified.get("email"),
         email_verified=verified.get("email_verified", False),
     )
+
+    # Grant free trial if this is a new user with no subscription
+    grant_trial_if_needed(verified["apple_user_id"])
 
     # Create session tokens
     tokens = create_token_pair(verified["apple_user_id"])

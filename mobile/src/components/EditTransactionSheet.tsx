@@ -185,12 +185,20 @@ export default function EditTransactionSheet({ visible, transaction, card, onClo
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Edit Transaction</Text>
-              {transaction.isEdited && (
-                <View style={styles.editedPill}>
-                  <Text style={styles.editedPillText}>edited</Text>
-                </View>
-              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+                <Text style={styles.headerTitle}>Edit Transaction</Text>
+                {transaction.isEdited && (
+                  <View style={styles.editedPill}>
+                    <Text style={styles.editedPillText}>edited</Text>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Feather name="x" size={20} color={colors.textMuted} />
+              </TouchableOpacity>
             </View>
 
             {/* Description */}
@@ -458,7 +466,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
   headerTitle: {

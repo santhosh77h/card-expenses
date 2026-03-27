@@ -30,7 +30,7 @@ import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 import { capture, AnalyticsEvents } from '../utils/analytics';
-import { checkUploadAllowed as licenseCheckUpload, consumeTrialStatement, syncAfterParse, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
+import { checkUploadAllowed as licenseCheckUpload, syncAfterParse, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
 import { presentPaywall } from '../utils/revenueCat';
 import { signInAndAuthenticate, isAppleAuthAvailable } from '../utils/appleAuth';
 import { biometricGuard } from '../utils/biometricGuard';
@@ -123,28 +123,33 @@ export default function UploadScreen() {
 	};
 
 	const checkUploadAllowed = async (): Promise<boolean> => {
+		// Require sign-in before any parse
+		const { isAuthenticated: authed } = useStore.getState();
+		if (!authed) {
+			try {
+				const available = await isAppleAuthAvailable();
+				if (!available) {
+					Alert.alert('Sign In Required', 'Please sign in with Apple to parse statements.');
+					return false;
+				}
+				const session = await signInAndAuthenticate();
+				useStore.getState()._setAuthenticated(true, session.appleUserId);
+				// Sync license from server after sign-in (trial gets granted server-side)
+				await refreshSubscriptionStatus();
+				useStore.getState()._refreshLicenseInfo();
+			} catch (e: any) {
+				if (!e?.message?.includes('canceled') && !e?.message?.includes('cancelled')) {
+					Alert.alert('Sign In Failed', e?.message || 'Please try again.');
+				}
+				return false;
+			}
+		}
+
 		const result = licenseCheckUpload();
 		if (result.allowed) return true;
 
 		if (result.showPaywall) {
 			capture(AnalyticsEvents.PAYWALL_SHOWN, { source: 'upload' });
-
-			// Try Apple auth first, but don't block paywall if it fails
-			const { isAuthenticated: authed } = useStore.getState();
-			if (!authed) {
-				try {
-					const available = await isAppleAuthAvailable();
-					if (available) {
-						const session = await signInAndAuthenticate();
-						useStore.getState()._setAuthenticated(true, session.appleUserId);
-					}
-				} catch (e: any) {
-					// User cancelled or auth unavailable — still show paywall
-					console.log('[UploadScreen] Apple auth skipped:', e?.message);
-				}
-			}
-
-			// Show RevenueCat paywall
 			const purchased = await presentPaywall();
 			if (purchased) {
 				await refreshSubscriptionStatus();
@@ -351,18 +356,11 @@ export default function UploadScreen() {
 
 		addStatement(cardId, statement);
 
-		// Sync usage after successful parse (skip for demo)
+		// Sync usage after successful parse (backend handles all deductions)
 		if (cardId !== 'demo') {
-			const info = getLicenseInfo();
-			if (info.tier === 'trial') {
-				consumeTrialStatement();
-				useStore.getState()._refreshLicenseInfo();
-			} else {
-				// Backend already debited subscription/credits during parse — sync in background
-				syncAfterParse()
-					.then(() => useStore.getState()._refreshLicenseInfo())
-					.catch(() => {});
-			}
+			syncAfterParse()
+				.then(() => useStore.getState()._refreshLicenseInfo())
+				.catch(() => {});
 		}
 
 		capture(AnalyticsEvents.STATEMENT_UPLOAD_SUCCESS, {
