@@ -49,6 +49,10 @@ def _refresh_tokens():
     return get_db()["refresh_tokens"]
 
 
+def _credits():
+    return get_db()["credits"]
+
+
 # ---------------------------------------------------------------------------
 # Initialisation (call at app startup)
 # ---------------------------------------------------------------------------
@@ -66,6 +70,8 @@ def init_user_db() -> None:
 
     _refresh_tokens().create_index("apple_user_id")
     _refresh_tokens().create_index("expires_at", expireAfterSeconds=0)  # TTL index
+
+    _credits().create_index("apple_user_id", unique=True)
 
     logger.info("[user_db] Indexes created (MongoDB)")
 
@@ -201,6 +207,111 @@ def reset_usage(apple_user_id: str, month: Optional[str] = None) -> None:
         {"apple_user_id": apple_user_id, "month": month},
         {"$set": {"parses_used": 0, "updated_at": now}},
     )
+
+
+# ---------------------------------------------------------------------------
+# Credits (consumable top-ups)
+# ---------------------------------------------------------------------------
+
+# Product ID → credit count mapping (must match mobile CREDIT_PRODUCT_MAP)
+CREDIT_PRODUCT_MAP: dict[str, int] = {
+    "vector_credits_10": 10,
+    "vector_credits_100": 100,
+}
+
+DEFAULT_CREDITS = 10
+
+
+def _product_credits(product_id: str | None) -> int:
+    """Return the number of credits for a given product ID."""
+    if not product_id:
+        return DEFAULT_CREDITS
+    return CREDIT_PRODUCT_MAP.get(product_id, DEFAULT_CREDITS)
+
+
+def get_credit_balance(apple_user_id: str) -> int:
+    """Get the current credit balance for a user. Returns 0 if none."""
+    doc = _credits().find_one({"apple_user_id": apple_user_id})
+    if not doc:
+        return 0
+    return doc.get("balance", 0)
+
+
+def get_credit_info(apple_user_id: str) -> dict:
+    """Get credit balance and purchase history for a user."""
+    doc = _credits().find_one({"apple_user_id": apple_user_id})
+    if not doc:
+        return {"balance": 0, "history": []}
+    history = doc.get("history", [])
+    # Only return purchase entries (not usage), most recent first
+    purchases = [h for h in history if h.get("type") == "purchase"]
+    purchases.reverse()
+    return {
+        "balance": doc.get("balance", 0),
+        "history": purchases,
+    }
+
+
+def add_credits(apple_user_id: str, amount: int, product_id: str | None = None) -> int:
+    """Add credits to a user's balance. Returns the new balance."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    result = _credits().find_one_and_update(
+        {"apple_user_id": apple_user_id},
+        {
+            "$setOnInsert": {
+                "_id": nanoid(),
+                "apple_user_id": apple_user_id,
+                "created_at": now,
+            },
+            "$inc": {"balance": amount},
+            "$set": {"updated_at": now},
+            "$push": {
+                "history": {
+                    "type": "purchase",
+                    "amount": amount,
+                    "product_id": product_id,
+                    "at": now,
+                }
+            },
+        },
+        upsert=True,
+        return_document=True,
+    )
+    new_balance = result.get("balance", 0)
+    logger.info("[user_db] Credits +%d for %s (product=%s, new_balance=%d)", amount, apple_user_id, product_id, new_balance)
+    return new_balance
+
+
+def use_credit(apple_user_id: str) -> int:
+    """Decrement one credit. Returns the new balance. Raises ValueError if balance is 0."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    doc = _credits().find_one({"apple_user_id": apple_user_id})
+    if not doc or doc.get("balance", 0) <= 0:
+        raise ValueError("No credits available")
+
+    result = _credits().find_one_and_update(
+        {"apple_user_id": apple_user_id, "balance": {"$gt": 0}},
+        {
+            "$inc": {"balance": -1},
+            "$set": {"updated_at": now},
+            "$push": {
+                "history": {
+                    "type": "used",
+                    "amount": -1,
+                    "at": now,
+                }
+            },
+        },
+        return_document=True,
+    )
+    if not result:
+        raise ValueError("No credits available")
+
+    new_balance = result.get("balance", 0)
+    logger.info("[user_db] Credit used for %s (new_balance=%d)", apple_user_id, new_balance)
+    return new_balance
 
 
 # ---------------------------------------------------------------------------

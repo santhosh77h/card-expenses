@@ -15,7 +15,7 @@ from app.auth_deps import get_optional_user
 from app.config import settings
 from app.parser import parse_pdf
 from app.rate_limiter import check_rate_limit
-from app.user_db import get_subscription, get_usage, increment_usage
+from app.user_db import get_subscription, get_usage, increment_usage, get_credit_balance, use_credit
 
 logger = logging.getLogger(__name__)
 
@@ -77,29 +77,60 @@ async def parse_statement(
         )
 
     # Server-side usage enforcement for authenticated users
+    # Priority: subscription allowance first, then purchased credits
+    debit_type: Optional[str] = None  # "subscription" | "credit" | None
     if user:
         apple_user_id = user["apple_user_id"]
         subscription = get_subscription(apple_user_id)
-        if subscription and subscription.get("status") == "active":
-            usage = get_usage(apple_user_id)
-            max_parses = subscription.get("max_parses", 0)
-            if usage.get("parses_used", 0) >= max_parses:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Monthly parse limit reached",
-                )
+        usage = get_usage(apple_user_id)
+        credit_balance = get_credit_balance(apple_user_id)
+
+        sub_active = subscription and subscription.get("status") == "active"
+        max_parses = subscription.get("max_parses", 0) if sub_active else 0
+        parses_used = usage.get("parses_used", 0)
+        sub_remaining = max(0, max_parses - parses_used)
+
+        if sub_active and sub_remaining > 0:
+            debit_type = "subscription"
+        elif credit_balance > 0:
+            debit_type = "credit"
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="No subscription allowance or credits available",
+            )
 
     result = await parse_pdf(file_bytes, password=password, filename=file.filename or "")
 
-    # Increment usage after successful parse for authenticated users
+    # Debit after successful parse
+    remaining_info = {}
     if user:
         try:
-            increment_usage(user["apple_user_id"])
+            apple_uid = user["apple_user_id"]
+            if debit_type == "subscription":
+                new_count = increment_usage(apple_uid)
+                sub = get_subscription(apple_uid)
+                mp = sub.get("max_parses", 0) if sub else 0
+                remaining_info = {
+                    "debited": "subscription",
+                    "subscription_remaining": max(0, mp - new_count),
+                    "credit_balance": get_credit_balance(apple_uid),
+                }
+            elif debit_type == "credit":
+                new_balance = use_credit(apple_uid)
+                remaining_info = {
+                    "debited": "credit",
+                    "subscription_remaining": 0,
+                    "credit_balance": new_balance,
+                }
         except Exception:
-            logger.warning("[routes] Failed to increment usage", exc_info=True)
+            logger.warning("[routes] Failed to debit usage/credit", exc_info=True)
 
     if settings.DEBUG_RESPONSES:
         _save_debug(file.filename, result)
+
+    if remaining_info:
+        result["usage"] = remaining_info
 
     return result
 

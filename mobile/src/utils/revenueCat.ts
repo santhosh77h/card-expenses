@@ -94,19 +94,56 @@ export async function getSubscriptionInfo(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Credit purchases
+// Credit purchases via paywall
 // ---------------------------------------------------------------------------
 
 const CREDIT_PRODUCT_MAP: Record<string, number> = {
-	'vector_credits_30': 30,
-	'vector_credits_70': 70,
+	'vector_credits_10': 10,
+	'vector_credits_100': 100,
 };
 
-export async function purchaseCredits(productId: string): Promise<number> {
-	await Purchases.purchaseStoreProduct({
-		identifier: productId,
-	} as any);
-	return CREDIT_PRODUCT_MAP[productId] ?? 30;
+const CREDITS_OFFERING_ID = 'vector_credits';
+
+/** Default credits when product isn't in the map (fallback). */
+const DEFAULT_CREDITS = 10;
+
+/**
+ * Present the RevenueCat paywall for the `vector_credits` offering.
+ * Returns the number of credits purchased (0 if cancelled/failed).
+ */
+export async function presentCreditPaywall(): Promise<number> {
+	try {
+		const offerings = await Purchases.getOfferings();
+		const creditsOffering = offerings.all[CREDITS_OFFERING_ID];
+
+		console.log('[RevenueCat] credit offerings:', Object.keys(offerings.all), 'target:', CREDITS_OFFERING_ID, 'found:', !!creditsOffering);
+
+		if (!creditsOffering) {
+			console.warn('[RevenueCat] Offering not found:', CREDITS_OFFERING_ID);
+			return 0;
+		}
+
+		const paywallResult: PAYWALL_RESULT = await RevenueCatUI.presentPaywall({
+			offering: creditsOffering,
+		});
+
+		console.log('[RevenueCat] credit paywall result:', paywallResult);
+
+		if (paywallResult === PAYWALL_RESULT.PURCHASED || paywallResult === PAYWALL_RESULT.RESTORED) {
+			// Determine credits from the first package in the offering
+			const pkg = creditsOffering.availablePackages[0];
+			const productId = pkg?.product.identifier ?? '';
+			return CREDIT_PRODUCT_MAP[productId] ?? DEFAULT_CREDITS;
+		}
+
+		return 0;
+	} catch (error: any) {
+		console.error('[RevenueCat] presentCreditPaywall crashed:', error?.message ?? error, error);
+		if (__DEV__) {
+			Alert.alert('Credit Paywall Error (DEV)', String(error?.message ?? error));
+		}
+		return 0;
+	}
 }
 
 export async function presentPaywallIfNeeded(offering?: PurchasesOffering): Promise<PAYWALL_RESULT> {

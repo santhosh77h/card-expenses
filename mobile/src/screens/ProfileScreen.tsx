@@ -99,8 +99,13 @@ export default function ProfileScreen() {
             <View style={{ alignItems: 'center', gap: spacing.xs }}>
               <Badge text="PRO" color={colors.accent} />
               <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
-                {licenseInfo.subAllowanceRemaining} of 4 parses this month{licenseInfo.creditBalance > 0 ? ` + ${licenseInfo.creditBalance} credits` : ''}
+                {licenseInfo.subAllowanceRemaining} of 4 parses this month
               </Text>
+              {licenseInfo.creditBalance > 0 && (
+                <Text style={{ color: colors.accent, fontSize: fontSize.xs, fontWeight: '600', lineHeight: 16 }}>
+                  + {licenseInfo.creditBalance} purchased credit{licenseInfo.creditBalance !== 1 ? 's' : ''}
+                </Text>
+              )}
             </View>
           ) : licenseInfo.creditBalance > 0 ? (
             <View style={{ alignItems: 'center', gap: spacing.xs }}>
@@ -180,6 +185,15 @@ export default function ProfileScreen() {
           subtitle="Export or restore your data"
           onPress={() => navigation.navigate('Backup')}
         />
+        {(isPremium || licenseInfo.creditBalance > 0 || (licenseInfo.tier === 'none' && licenseInfo.trialExpired)) && (
+          <MenuItem
+            icon="plus-circle"
+            label="Buy Credits"
+            subtitle={licenseInfo.creditBalance > 0 ? `${licenseInfo.creditBalance} credit${licenseInfo.creditBalance !== 1 ? 's' : ''} remaining` : 'Top up your balance'}
+            iconColor={colors.accent}
+            onPress={() => navigation.navigate('CreditTopUp')}
+          />
+        )}
         {!isPremium && licenseInfo.tier !== 'trial' && licenseInfo.creditBalance === 0 && (
           <MenuItem
             icon="zap"

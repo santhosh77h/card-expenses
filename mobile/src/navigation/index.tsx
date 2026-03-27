@@ -22,6 +22,7 @@ import AddCardScreen from '../screens/AddCardScreen';
 import AskScreen from '../screens/AskScreen';
 import StatementDiffScreen from '../screens/StatementDiffScreen';
 import LabelsScreen from '../screens/LabelsScreen';
+import CreditTopUpScreen from '../screens/CreditTopUpScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import type { ParseResult } from '../utils/api';
 
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   Ask: undefined;
   StatementDiff: { statementId: string; cardId: string; newParsed: ParseResult };
   Labels: undefined;
+  CreditTopUp: undefined;
 };
 
 export type TabParamList = {
@@ -232,6 +234,14 @@ export default function Navigation() {
           headerShown: true,
           headerTitle: 'Labels',
           ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="CreditTopUp"
+        component={CreditTopUpScreen}
+        options={{
+          headerShown: false,
+          presentation: 'modal',
         }}
       />
     </Stack.Navigator>

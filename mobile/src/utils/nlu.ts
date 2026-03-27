@@ -66,6 +66,11 @@ export interface CardInfo {
   last4: string;
 }
 
+export interface LabelInfo {
+  id: string;
+  name: string;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -164,6 +169,49 @@ const CARD_CANONICAL: Record<string, string> = {
   revolut: 'Revolut',
   starling: 'Starling',
 };
+
+// ---------------------------------------------------------------------------
+// Label detection (pre-inference)
+// ---------------------------------------------------------------------------
+
+/**
+ * Pre-extract a label name from the query BEFORE spell correction runs.
+ * This prevents the spell corrector from mangling unknown label words
+ * (e.g. "Trip" → "total").
+ *
+ * Returns the matched label and a masked version of the text with the
+ * label words removed so the ML model sees a cleaner query.
+ */
+function preExtractLabel(
+  text: string,
+  labels: LabelInfo[],
+): { labelMatch: LabelInfo | null; maskedText: string } {
+  if (!labels || labels.length === 0) return { labelMatch: null, maskedText: text };
+
+  const lower = text.toLowerCase();
+
+  // Sort by name length descending — match "Wedding Expenses" before "Wedding"
+  const sorted = [...labels].sort((a, b) => b.name.length - a.name.length);
+
+  for (const label of sorted) {
+    const labelLower = label.name.toLowerCase();
+
+    // Skip very short single-word labels to avoid false positives ("us", "my", etc.)
+    const labelWords = labelLower.split(/\s+/);
+    if (labelWords.length === 1 && labelLower.length <= 2) continue;
+
+    // Word-boundary match to avoid partial substring matches
+    const escaped = labelLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (re.test(lower)) {
+      // Remove label words from text and collapse extra spaces
+      const maskedText = text.replace(re, ' ').replace(/\s{2,}/g, ' ').trim();
+      return { labelMatch: label, maskedText };
+    }
+  }
+
+  return { labelMatch: null, maskedText: text };
+}
 
 // ---------------------------------------------------------------------------
 // Spell correction
@@ -642,6 +690,104 @@ function resolveCard(
 }
 
 // ---------------------------------------------------------------------------
+// Label resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve extracted label text to an actual user label.
+ * Resolution order: exact match → partial match → fuzzy match.
+ */
+function resolveLabel(
+  labelText: string,
+  labels: LabelInfo[],
+): { labelId: string; labelName: string } | null {
+  if (!labels || labels.length === 0) return null;
+
+  const cleaned = labelText.toLowerCase().trim();
+
+  // 1. Exact name match (case-insensitive)
+  for (const l of labels) {
+    if (l.name.toLowerCase() === cleaned) {
+      return { labelId: l.id, labelName: l.name };
+    }
+  }
+
+  // 2. Partial match (label name contains text or vice versa)
+  for (const l of labels) {
+    const nameLower = l.name.toLowerCase();
+    if (nameLower.includes(cleaned) || cleaned.includes(nameLower)) {
+      return { labelId: l.id, labelName: l.name };
+    }
+  }
+
+  // 3. Fuzzy match (Levenshtein ≤ 2, only for label names 5+ chars)
+  for (const l of labels) {
+    if (l.name.length < 5) continue;
+    const dist_ = distance(cleaned, l.name.toLowerCase());
+    if (dist_ <= 2) {
+      return { labelId: l.id, labelName: l.name };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Post-inference fallback: try to match orphan words (tagged "O" by ML)
+ * against user label names. Uses the original (uncorrected) text to avoid
+ * spell-correction damage.
+ */
+function postInferLabelMatch(
+  originalText: string,
+  entities: Record<string, string>,
+  labels: LabelInfo[],
+): LabelInfo | null {
+  if (!labels || labels.length === 0) return null;
+
+  const lower = originalText.toLowerCase().trim();
+
+  // Remove words already consumed by ML entities from the text
+  let remaining = lower;
+  for (const val of Object.values(entities)) {
+    remaining = remaining.replace(new RegExp(`\\b${val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), ' ');
+  }
+
+  // Remove common query structure words
+  const structureWords = /\b(show|list|display|get|find|my|me|all|the|a|an|how|many|much|did|i|what|is|are|was|were|for|in|on|from|to|of|and|or|with|spending|spent|transactions?|expenses?|payments?|purchases?|total|count|average|label|labeled|labelled|tagged)\b/gi;
+  remaining = remaining.replace(structureWords, ' ').replace(/\s{2,}/g, ' ').trim();
+
+  if (!remaining) return null;
+
+  // Guard: skip if remaining text is too short (≤2 chars) — likely a spurious orphan
+  if (remaining.length <= 2) return null;
+
+  // Try to match remaining text against labels
+  // Sort labels by name length descending for best match
+  const sorted = [...labels].sort((a, b) => b.name.length - a.name.length);
+  for (const label of sorted) {
+    const labelLower = label.name.toLowerCase();
+
+    // Skip short single-word labels to avoid false positives from orphan fragments
+    const labelWords = labelLower.split(/\s+/);
+    if (labelWords.length === 1 && labelLower.length <= 3) continue;
+
+    const dist_ = distance(remaining, labelLower);
+
+    // Exact or near-exact match on remaining text
+    if (dist_ <= 2 && labelLower.length >= 3) {
+      return label;
+    }
+
+    // Check if label name is contained in remaining text
+    if (remaining.includes(labelLower) && labelLower.length >= 3) {
+      return label;
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Rule-based intent correction
 // ---------------------------------------------------------------------------
 
@@ -750,6 +896,27 @@ function correctIntent(
     return { intent: 'lowest_transaction', confidence: Math.max(confidence, 0.85) };
   }
 
+  // ── Label-based queries ──────────────────────────────────────────────
+  // When a label entity is detected and the intent doesn't already make
+  // sense, default to a sensible action (list / count / total).
+  if (
+    entities.label &&
+    intent !== 'list_transactions' &&
+    intent !== 'count_transactions' &&
+    intent !== 'total_spent' &&
+    intent !== 'highest_transaction' &&
+    intent !== 'lowest_transaction' &&
+    intent !== 'average_spend' &&
+    intent !== 'category_spend'
+  ) {
+    const isCount = /\b(how\s+many|count|number\s+of)\b/.test(lower);
+    const isTotal = /\b(total|sum|how\s+much)\b/.test(lower);
+    return {
+      intent: isCount ? 'count_transactions' : isTotal ? 'total_spent' : 'list_transactions',
+      confidence: Math.max(confidence, 0.85),
+    };
+  }
+
   return { intent, confidence };
 }
 
@@ -761,21 +928,39 @@ function buildQuery(
   intent: IntentName,
   entities: Record<string, string>,
   cards?: CardInfo[],
+  labels?: LabelInfo[],
   originalText?: string,
 ): { sql: string; params: (string | number)[]; description: string } {
   const conditions: string[] = [];
   const params: (string | number)[] = [];
 
+  // Label filter → resolve to labelId and JOIN through transaction_labels
+  let resolvedLabel: { labelId: string; labelName: string } | null = null;
+  if (entities.label && labels) {
+    resolvedLabel = resolveLabel(entities.label, labels);
+  }
+
+  // When a label is active, we JOIN transaction_labels so all column refs need a "t." prefix
+  const p = resolvedLabel ? 't.' : '';
+  const tbl = resolvedLabel
+    ? 'transactions t INNER JOIN transaction_labels tl ON t.id = tl.transactionId'
+    : 'transactions';
+
+  if (resolvedLabel) {
+    conditions.push('tl.labelId = ?');
+    params.push(resolvedLabel.labelId);
+  }
+
   // Merchant filter → search in description
   if (entities.merchant) {
-    conditions.push('description LIKE ?');
+    conditions.push(`${p}description LIKE ?`);
     params.push(`%${entities.merchant}%`);
   }
 
   // Category filter
   if (entities.category) {
     const canonical = CATEGORY_CANONICAL[entities.category] ?? entities.category;
-    conditions.push('category = ?');
+    conditions.push(`${p}category = ?`);
     params.push(canonical);
   }
 
@@ -798,10 +983,10 @@ function buildQuery(
       const num = parseInt(numbers[0].replace(/,/g, ''), 10);
       const str = amountStr;
       if (/above|over|more|greater|grater/i.test(str)) {
-        conditions.push('amount > ?');
+        conditions.push(`${p}amount > ?`);
         params.push(num);
       } else if (/below|under|less/i.test(str)) {
-        conditions.push('amount < ?');
+        conditions.push(`${p}amount < ?`);
         params.push(num);
       }
     }
@@ -812,7 +997,7 @@ function buildQuery(
   if (entities.card && cards) {
     resolvedCard = resolveCard(entities.card, cards);
     if (resolvedCard) {
-      conditions.push('cardId = ?');
+      conditions.push(`${p}cardId = ?`);
       params.push(resolvedCard.cardId);
     }
   }
@@ -821,7 +1006,7 @@ function buildQuery(
   if (entities.date) {
     const resolved = resolveDate(entities.date);
     if (resolved) {
-      conditions.push('date BETWEEN ? AND ?');
+      conditions.push(`${p}date BETWEEN ? AND ?`);
       params.push(resolved.from, resolved.to);
     }
   }
@@ -833,76 +1018,77 @@ function buildQuery(
 
   switch (intent) {
     case 'count_transactions':
-      sql = `SELECT COUNT(*) as result FROM transactions WHERE ${where}`;
+      sql = `SELECT COUNT(*) as result FROM ${tbl} WHERE ${where}`;
       description = 'Counting transactions';
       break;
     case 'total_spent':
-      sql = `SELECT COALESCE(SUM(amount), 0) as result FROM transactions WHERE type='debit' AND ${where}`;
+      sql = `SELECT COALESCE(SUM(${p}amount), 0) as result FROM ${tbl} WHERE ${p}type='debit' AND ${where}`;
       description = 'Calculating total spending';
       break;
     case 'list_transactions':
-      sql = `SELECT * FROM transactions WHERE ${where} ORDER BY date DESC LIMIT 20`;
+      sql = `SELECT ${resolvedLabel ? 't.*' : '*'} FROM ${tbl} WHERE ${where} ORDER BY ${p}date DESC LIMIT 20`;
       description = 'Listing transactions';
       break;
     case 'highest_transaction':
-      sql = `SELECT * FROM transactions WHERE type='debit' AND ${where} ORDER BY amount DESC LIMIT 1`;
+      sql = `SELECT ${resolvedLabel ? 't.*' : '*'} FROM ${tbl} WHERE ${p}type='debit' AND ${where} ORDER BY ${p}amount DESC LIMIT 1`;
       description = 'Finding highest transaction';
       break;
     case 'lowest_transaction':
-      sql = `SELECT * FROM transactions WHERE type='debit' AND ${where} ORDER BY amount ASC LIMIT 1`;
+      sql = `SELECT ${resolvedLabel ? 't.*' : '*'} FROM ${tbl} WHERE ${p}type='debit' AND ${where} ORDER BY ${p}amount ASC LIMIT 1`;
       description = 'Finding lowest transaction';
       break;
     case 'average_spend':
-      sql = `SELECT COALESCE(AVG(amount), 0) as result FROM transactions WHERE type='debit' AND ${where}`;
+      sql = `SELECT COALESCE(AVG(${p}amount), 0) as result FROM ${tbl} WHERE ${p}type='debit' AND ${where}`;
       description = 'Calculating average spending';
       break;
     case 'category_spend':
-      sql = `SELECT category, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY category ORDER BY total DESC`;
+      sql = `SELECT ${p}category, SUM(${p}amount) as total, COUNT(*) as count FROM ${tbl} WHERE ${p}type='debit' AND ${where} GROUP BY ${p}category ORDER BY total DESC`;
       description = 'Breaking down spending by category';
       break;
     case 'transactions_on_date':
-      sql = `SELECT * FROM transactions WHERE ${where} ORDER BY date DESC`;
+      sql = `SELECT ${resolvedLabel ? 't.*' : '*'} FROM ${tbl} WHERE ${where} ORDER BY ${p}date DESC`;
       description = 'Showing transactions for the date';
       break;
     case 'monthly_summary':
-      sql = `SELECT strftime('%Y-%m', date) as month, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY month ORDER BY month DESC`;
+      sql = `SELECT strftime('%Y-%m', ${p}date) as month, SUM(${p}amount) as total, COUNT(*) as count FROM ${tbl} WHERE ${p}type='debit' AND ${where} GROUP BY month ORDER BY month DESC`;
       description = 'Generating monthly summary';
       break;
     case 'compare_months':
-      sql = `SELECT strftime('%Y-%m', date) as month, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY month ORDER BY month DESC LIMIT 2`;
+      sql = `SELECT strftime('%Y-%m', ${p}date) as month, SUM(${p}amount) as total, COUNT(*) as count FROM ${tbl} WHERE ${p}type='debit' AND ${where} GROUP BY month ORDER BY month DESC LIMIT 2`;
       description = 'Comparing monthly spending';
       break;
     case 'top_category':
-      sql = `SELECT category, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY category ORDER BY total DESC LIMIT 5`;
+      sql = `SELECT ${p}category, SUM(${p}amount) as total, COUNT(*) as count FROM ${tbl} WHERE ${p}type='debit' AND ${where} GROUP BY ${p}category ORDER BY total DESC LIMIT 5`;
       description = 'Finding top spending categories';
       break;
     case 'spending_health':
-      sql = `SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count, COALESCE(ROUND(AVG(amount), 2), 0) as avg_amount, COALESCE(MAX(amount), 0) as max_amount FROM transactions WHERE type='debit' AND ${where}`;
+      sql = `SELECT COALESCE(SUM(${p}amount), 0) as total, COUNT(*) as count, COALESCE(ROUND(AVG(${p}amount), 2), 0) as avg_amount, COALESCE(MAX(${p}amount), 0) as max_amount FROM ${tbl} WHERE ${p}type='debit' AND ${where}`;
       description = 'Analyzing spending health';
       break;
     case 'frequent_merchant':
-      sql = `SELECT description, COUNT(*) as visit_count, SUM(amount) as total FROM transactions WHERE type='debit' AND ${where} GROUP BY description ORDER BY visit_count DESC LIMIT 10`;
+      sql = `SELECT ${p}description, COUNT(*) as visit_count, SUM(${p}amount) as total FROM ${tbl} WHERE ${p}type='debit' AND ${where} GROUP BY ${p}description ORDER BY visit_count DESC LIMIT 10`;
       description = 'Finding most frequent merchants';
       break;
     case 'unusual_spend':
-      sql = `SELECT *, (SELECT ROUND(AVG(amount), 2) FROM transactions WHERE type='debit') as _avg FROM transactions WHERE type='debit' AND amount > (SELECT AVG(amount) * 2 FROM transactions WHERE type='debit') AND ${where} ORDER BY amount DESC LIMIT 10`;
+      sql = `SELECT ${resolvedLabel ? 't.*' : '*'}, (SELECT ROUND(AVG(amount), 2) FROM transactions WHERE type='debit') as _avg FROM ${tbl} WHERE ${p}type='debit' AND ${p}amount > (SELECT AVG(amount) * 2 FROM transactions WHERE type='debit') AND ${where} ORDER BY ${p}amount DESC LIMIT 10`;
       description = 'Finding unusual transactions';
       break;
     case 'weekly_summary':
       if (!entities.date) {
-        sql = `SELECT date, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND date >= date('now', '-7 days') AND ${where} GROUP BY date ORDER BY date`;
+        sql = `SELECT ${p}date, SUM(${p}amount) as total, COUNT(*) as count FROM ${tbl} WHERE ${p}type='debit' AND ${p}date >= date('now', '-7 days') AND ${where} GROUP BY ${p}date ORDER BY ${p}date`;
       } else {
-        sql = `SELECT date, SUM(amount) as total, COUNT(*) as count FROM transactions WHERE type='debit' AND ${where} GROUP BY date ORDER BY date`;
+        sql = `SELECT ${p}date, SUM(${p}amount) as total, COUNT(*) as count FROM ${tbl} WHERE ${p}type='debit' AND ${where} GROUP BY ${p}date ORDER BY ${p}date`;
       }
       description = 'Weekly spending breakdown';
       break;
     default:
-      sql = `SELECT * FROM transactions WHERE ${where} ORDER BY date DESC LIMIT 20`;
+      sql = `SELECT ${resolvedLabel ? 't.*' : '*'} FROM ${tbl} WHERE ${where} ORDER BY ${p}date DESC LIMIT 20`;
       description = 'Listing transactions';
   }
 
   // Build human-readable description
   const parts: string[] = [description];
+  if (resolvedLabel) parts.push(`labeled "${resolvedLabel.labelName}"`);
   if (resolvedCard) parts.push(`on ${resolvedCard.label} card`);
   if (entities.merchant) parts.push(`for "${entities.merchant}"`);
   if (entities.category)
@@ -930,19 +1116,33 @@ function buildQuery(
  * // result.params = ["%swiggy%", "2026-02-01", "2026-02-28"]
  * ```
  */
-export function processQuery(text: string, cards?: CardInfo[]): NLUResult {
-  // Step 1: Spell correction - fix typos before ML inference
-  const corrected = correctSpelling(text);
+export function processQuery(text: string, cards?: CardInfo[], labels?: LabelInfo[]): NLUResult {
+  // Step 0: Pre-extract label before spell correction can mangle it
+  const { labelMatch, maskedText } = preExtractLabel(text, labels ?? []);
+
+  // Step 1: Spell correction on masked text (label words already removed)
+  const corrected = correctSpelling(maskedText);
 
   // Step 2: ML inference on corrected text
   const raw = predictIntent(corrected);
   const entities = predictEntities(corrected);
 
+  // Step 2.5: Inject pre-extracted label or try post-inference fallback
+  if (labelMatch) {
+    entities.label = labelMatch.name;
+  } else {
+    // Post-inference fuzzy match against original (uncorrected) text
+    const fallback = postInferLabelMatch(text, entities, labels ?? []);
+    if (fallback) {
+      entities.label = fallback.name;
+    }
+  }
+
   // Step 3: Rule-based intent correction using corrected text + entities
   const { intent, confidence } = correctIntent(corrected, raw.intent, raw.confidence, entities);
 
   // Step 4: SQL generation (pass original text as fallback for amount extraction)
-  const { sql, params, description } = buildQuery(intent, entities, cards, text);
+  const { sql, params, description } = buildQuery(intent, entities, cards, labels, text);
 
   return { intent, confidence, entities, sql, params, description };
 }

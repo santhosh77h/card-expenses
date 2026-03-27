@@ -18,6 +18,8 @@ from app.user_db import (
     reset_usage,
     upsert_subscription,
     _plan_max_parses,
+    _product_credits,
+    add_credits,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,6 +136,11 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
             product_id=product_id,
             max_parses=_plan_max_parses(plan),
         )
+
+    elif event_type == "NON_RENEWING_PURCHASE":
+        # Consumable credit purchase — add credits to user balance
+        credit_count = _product_credits(product_id)
+        add_credits(app_user_id, credit_count, product_id=product_id)
 
     elif event_type == "BILLING_ISSUE":
         logger.warning("[webhook] Billing issue for user %s", app_user_id)

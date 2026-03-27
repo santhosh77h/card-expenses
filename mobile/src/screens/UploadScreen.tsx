@@ -30,7 +30,7 @@ import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 import { capture, AnalyticsEvents } from '../utils/analytics';
-import { checkUploadAllowed as licenseCheckUpload, consumeOneStatement, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
+import { checkUploadAllowed as licenseCheckUpload, consumeTrialStatement, syncAfterParse, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
 import { presentPaywall } from '../utils/revenueCat';
 import { signInAndAuthenticate, isAppleAuthAvailable } from '../utils/appleAuth';
 import { biometricGuard } from '../utils/biometricGuard';
@@ -153,11 +153,7 @@ export default function UploadScreen() {
 			}
 		} else if (result.showTopUp) {
 			capture(AnalyticsEvents.TOPUP_NUDGE_SHOWN, { source: 'upload' });
-			Alert.alert(
-				'Monthly Limit Reached',
-				result.reason ?? 'Purchase additional credits to continue.',
-				[{ text: 'OK' }],
-			);
+			navigation.navigate('CreditTopUp');
 		}
 		return false;
 	};
@@ -355,10 +351,18 @@ export default function UploadScreen() {
 
 		addStatement(cardId, statement);
 
-		// Consume one statement credit (skip for demo)
+		// Sync usage after successful parse (skip for demo)
 		if (cardId !== 'demo') {
-			consumeOneStatement();
-			useStore.getState()._refreshLicenseInfo();
+			const info = getLicenseInfo();
+			if (info.tier === 'trial') {
+				consumeTrialStatement();
+				useStore.getState()._refreshLicenseInfo();
+			} else {
+				// Backend already debited subscription/credits during parse — sync in background
+				syncAfterParse()
+					.then(() => useStore.getState()._refreshLicenseInfo())
+					.catch(() => {});
+			}
 		}
 
 		capture(AnalyticsEvents.STATEMENT_UPLOAD_SUCCESS, {

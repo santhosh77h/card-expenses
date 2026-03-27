@@ -36,6 +36,11 @@ export const AnalyticsEvents = {
   PAYWALL_SHOWN: 'paywall_shown',
   TOPUP_NUDGE_SHOWN: 'topup_nudge_shown',
   TOPUP_PURCHASED: 'topup_purchased',
+
+  // Credit store
+  CREDIT_STORE_OPENED: 'credit_store_opened',
+  CREDIT_PURCHASE_SUCCESS: 'credit_purchase_success',
+  CREDIT_PURCHASE_CANCELLED: 'credit_purchase_cancelled',
 } as const;
 
 // ---------------------------------------------------------------------------

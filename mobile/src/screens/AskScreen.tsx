@@ -24,7 +24,7 @@ import { useStore } from '../store';
 import { ChartCarousel } from '../components/AskChartCarousel';
 import { getDb } from '../db';
 import { useNLU } from '../utils/useNLU';
-import type { NLUResult, CardInfo } from '../utils/nlu';
+import type { NLUResult, CardInfo, LabelInfo } from '../utils/nlu';
 import { capture, AnalyticsEvents } from '../utils/analytics';
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,8 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
       const count = (rows[0]?.result as number) ?? 0;
       const merchant = result.entities.merchant;
       const category = result.entities.category;
-      const target = merchant ?? category ?? 'matching';
+      const label = result.entities.label;
+      const target = merchant ?? category ?? label ?? 'matching';
       return {
         answer: count === 0
           ? `No ${target} transactions found.`
@@ -64,7 +65,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
     case 'total_spent': {
       const total = (rows[0]?.result as number) ?? 0;
       const currency = (rows[0]?.currency as CurrencyCode) ?? fallbackCurrency;
-      const target = result.entities.merchant ?? result.entities.category ?? '';
+      const target = result.entities.merchant ?? result.entities.category ?? result.entities.label ?? '';
       return {
         answer: total === 0
           ? `No spending found${target ? ` on ${target}` : ''}.`
@@ -76,7 +77,7 @@ function runQuery(result: NLUResult, fallbackCurrency: CurrencyCode = 'INR'): { 
     case 'average_spend': {
       const avg = (rows[0]?.result as number) ?? 0;
       const currency = (rows[0]?.currency as CurrencyCode) ?? fallbackCurrency;
-      const target = result.entities.merchant ?? result.entities.category ?? '';
+      const target = result.entities.merchant ?? result.entities.category ?? result.entities.label ?? '';
       return {
         answer: avg === 0
           ? `No transactions found${target ? ` for ${target}` : ''}.`
@@ -236,7 +237,7 @@ export default function AskScreen() {
   const [history, setHistory] = useState<QA[]>([]);
   const scrollRef = useRef<ScrollView>(null);
   const qaRefs = useRef<Record<number, View | null>>({});
-  const { defaultCurrency, cards } = useStore();
+  const { defaultCurrency, cards, labels } = useStore();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -251,13 +252,21 @@ export default function AskScreen() {
     [cards],
   );
 
+  const labelInfos = useMemo<LabelInfo[]>(
+    () => labels.map((l) => ({ id: l.id, name: l.name })),
+    [labels],
+  );
+
   const suggestions = useMemo(() => {
+    const result = [...BASE_SUGGESTIONS];
     if (cards.length > 0) {
-      const firstIssuer = cards[0].issuer;
-      return [...BASE_SUGGESTIONS, `Show ${firstIssuer} card transactions`];
+      result.push(`Show ${cards[0].issuer} card transactions`);
     }
-    return BASE_SUGGESTIONS;
-  }, [cards]);
+    if (labels.length > 0) {
+      result.push(`Show ${labels[0].name} transactions`);
+    }
+    return result;
+  }, [cards, labels]);
 
   useEffect(() => {
     if (history.length > 0) {
@@ -269,7 +278,7 @@ export default function AskScreen() {
     const q = (text ?? input).trim();
     if (!q || !ready) return;
 
-    const result = query(q, cardInfos);
+    const result = query(q, cardInfos, labelInfos);
     if (!result) return;
 
     try {

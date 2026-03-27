@@ -1,5 +1,5 @@
 import { getMeta, setMeta, getMetaInt, setMetaInt } from '../db/meta';
-import { getSubscriptionInfo, purchaseCredits as rcPurchaseCredits } from './revenueCat';
+import { getSubscriptionInfo } from './revenueCat';
 import { getAccessToken } from './appleAuth';
 import Purchases from 'react-native-purchases';
 import { capture } from './analytics';
@@ -174,33 +174,26 @@ export function checkUploadAllowed(): CheckResult {
 }
 
 // ---------------------------------------------------------------------------
-// consumeOneStatement — decrement the correct balance
+// consumeTrialStatement — decrement trial balance (local-only)
+// Subscription and credit deductions are handled server-side.
 // ---------------------------------------------------------------------------
 
-export function consumeOneStatement(): void {
+export function consumeTrialStatement(): void {
   if (__DEV__) return;
 
   const info = getLicenseInfo();
-
   if (info.trialRemaining > 0 && !info.trialExpired) {
     setMetaInt(META_TRIAL_REMAINING, info.trialRemaining - 1);
     capture('trial_used', { remaining: info.trialRemaining - 1 });
-    return;
   }
+}
 
-  // Active subscription — decrement monthly allowance
-  if (info.subscriptionActive && info.subAllowanceRemaining > 0) {
-    setMetaInt(META_SUB_ALLOWANCE_REMAINING, info.subAllowanceRemaining - 1);
-    capture('sub_used', { remaining: info.subAllowanceRemaining - 1, plan: info.subPlanType ?? 'unknown' });
-    return;
-  }
+// ---------------------------------------------------------------------------
+// syncAfterParse — refresh local state from backend after a successful parse
+// ---------------------------------------------------------------------------
 
-  if (info.creditBalance > 0) {
-    const newBalance = info.creditBalance - 1;
-    setMetaInt(META_CREDIT_BALANCE, newBalance);
-    capture('credit_used', { remaining: newBalance });
-    Purchases.setAttributes({ [RC_ATTR_CREDIT_BALANCE]: String(newBalance) });
-  }
+export async function syncAfterParse(): Promise<void> {
+  await syncLicenseFromServer();
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +219,7 @@ export async function syncLicenseFromServer(): Promise<boolean> {
     if (!response.ok) return false;
 
     const data = await response.json();
-    const { subscription, usage } = data;
+    const { subscription, usage, credits } = data;
 
     if (subscription?.status === 'active') {
       setMeta(META_SUB_ACTIVE, '1');
@@ -237,6 +230,12 @@ export async function syncLicenseFromServer(): Promise<boolean> {
       setMeta(META_SUB_ACTIVE, '0');
       setMeta(META_SUB_PLAN_TYPE, '');
       setMetaInt(META_SUB_ALLOWANCE_REMAINING, 0);
+    }
+
+    // Sync credit balance from server (server is source of truth when authenticated)
+    if (credits && typeof credits.balance === 'number') {
+      setMetaInt(META_CREDIT_BALANCE, credits.balance);
+      Purchases.setAttributes({ [RC_ATTR_CREDIT_BALANCE]: String(credits.balance) });
     }
 
     return true;
@@ -287,46 +286,3 @@ export async function refreshSubscriptionStatus(): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// buyCredits — purchase credits via RevenueCat
-// ---------------------------------------------------------------------------
-
-export async function buyCredits(productId: string): Promise<number> {
-  const creditCount = await rcPurchaseCredits(productId);
-  const current = getMetaInt(META_CREDIT_BALANCE);
-  const newBalance = current + creditCount;
-  setMetaInt(META_CREDIT_BALANCE, newBalance);
-
-  // Sync to RevenueCat subscriber attributes for reinstall recovery
-  Purchases.setAttributes({ [RC_ATTR_CREDIT_BALANCE]: String(newBalance) });
-
-  capture('topup_purchased', { product: productId, credits: creditCount, new_balance: newBalance });
-  return newBalance;
-}
-
-// ---------------------------------------------------------------------------
-// restoreCreditsFromRC — restore credit balance on reinstall
-// ---------------------------------------------------------------------------
-
-export async function restoreCreditsFromRC(): Promise<void> {
-  if (__DEV__) return;
-
-  try {
-    const customerInfo = await Purchases.getCustomerInfo();
-    // subscriberAttributes may exist at runtime even if not in type defs
-    const attrs = (customerInfo as any).subscriberAttributes ?? {};
-    const rcCredits = attrs[RC_ATTR_CREDIT_BALANCE];
-    if (rcCredits?.value) {
-      const remoteBalance = parseInt(rcCredits.value, 10);
-      if (!isNaN(remoteBalance) && remoteBalance > 0) {
-        const localBalance = getMetaInt(META_CREDIT_BALANCE);
-        if (localBalance === 0) {
-          // Only restore if local is empty (fresh install)
-          setMetaInt(META_CREDIT_BALANCE, remoteBalance);
-        }
-      }
-    }
-  } catch {
-    // Non-fatal — credits will be 0 until next purchase syncs
-  }
-}
