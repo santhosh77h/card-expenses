@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -427,6 +427,16 @@ export default function ProfileScreen() {
             Your data stays on your device. Vector never uploads your financial information.
           </Text>
         </View>
+        <View style={styles.aboutDivider} />
+        <View style={styles.legalLinks}>
+          <TouchableOpacity onPress={() => Linking.openURL('https://vectorexpense.com/privacy')} activeOpacity={0.7}>
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalSeparator}>{'\u00B7'}</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('https://vectorexpense.com/terms')} activeOpacity={0.7}>
+            <Text style={styles.legalLink}>Terms of Use</Text>
+          </TouchableOpacity>
+        </View>
       </Card>
 
       <View style={{ height: 60 }} />
@@ -769,5 +779,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '400',
     flex: 1,
     lineHeight: 18,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  legalLink: {
+    color: colors.accent,
+    fontSize: fontSize.xs,
+    fontWeight: '500',
+  },
+  legalSeparator: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
   },
 });

@@ -36,7 +36,7 @@ export default function TermsPage() {
           Terms of Service
         </h1>
         <p className="text-muted-foreground mb-12">
-          Last updated: March 14, 2026
+          Last updated: March 27, 2026
         </p>
 
         <div className="space-y-10 text-muted-foreground leading-relaxed">
@@ -145,6 +145,23 @@ export default function TermsPage() {
                 reserve the right to change subscription pricing. Existing
                 subscribers will be notified in advance and given the option to
                 cancel before new pricing takes effect.
+              </li>
+              <li className="pl-4 border-l-2 border-primary/30">
+                <strong className="text-foreground">Apple EULA:</strong> If you
+                download Vector Expense from the Apple App Store, your use of the
+                App is also subject to Apple&apos;s standard End User License
+                Agreement (EULA). You can review the Apple Standard EULA at:{" "}
+                <a
+                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 transition-colors underline underline-offset-4"
+                >
+                  apple.com/legal/internet-services/itunes/dev/stdeula
+                </a>
+                . In the event of any conflict between these Terms and the Apple
+                Standard EULA, the Apple Standard EULA shall take precedence for
+                App Store purchases and subscriptions.
               </li>
             </ul>
           </section>
