@@ -17,11 +17,19 @@ from app.mongo import doc_to_dict, get_db, nanoid
 logger = logging.getLogger(__name__)
 
 _COLLECTION = "blog_posts"
+_VERSIONS_COLLECTION = "blog_post_versions"
+
+MAX_VERSIONS = 3
 
 
 def _col():
     """Shorthand for the blog_posts collection."""
     return get_db()[_COLLECTION]
+
+
+def _versions_col():
+    """Shorthand for the blog_post_versions collection."""
+    return get_db()[_VERSIONS_COLLECTION]
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +42,11 @@ def init_blog_db() -> None:
     col.create_index("slug", unique=True)
     col.create_index("status")
     col.create_index("published_at")
+    col.create_index([("status", 1), ("scheduled_at", 1)])
+
+    vcol = _versions_col()
+    vcol.create_index("post_id")
+    vcol.create_index([("post_id", 1), ("saved_at", -1)])
 
     if col.count_documents({}) == 0:
         _seed_posts()
@@ -129,6 +142,13 @@ def create_post(data: dict) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     post_id = nanoid()
 
+    status = data.get("status", "draft")
+    scheduled_at = data.get("scheduled_at")
+
+    # If scheduling, ensure status is "scheduled"
+    if scheduled_at and status != "published":
+        status = "scheduled"
+
     doc = {
         "_id": post_id,
         "slug": data.get("slug", ""),
@@ -139,9 +159,10 @@ def create_post(data: dict) -> dict:
         "category": data.get("category", "General"),
         "tags": data.get("tags", []),
         "author": data.get("author", "Vector Team"),
-        "status": data.get("status", "draft"),
+        "status": status,
         "read_time": data.get("read_time", 5),
-        "published_at": now if data.get("status") == "published" else data.get("published_at"),
+        "published_at": now if status == "published" else data.get("published_at"),
+        "scheduled_at": scheduled_at,
         "created_at": now,
         "updated_at": now,
         "faq": data.get("faq", []),
@@ -153,13 +174,16 @@ def create_post(data: dict) -> dict:
 
 
 def update_post(post_id: str, data: dict) -> Optional[dict]:
-    """Update an existing blog post."""
+    """Update an existing blog post. Snapshots the current version first."""
     now = datetime.now(timezone.utc).isoformat()
     col = _col()
 
     existing = col.find_one({"_id": post_id})
     if not existing:
         return None
+
+    # --- Snapshot current version before overwriting ---
+    _save_version(post_id, existing)
 
     slug = data.get("slug", existing["slug"])
     title = data.get("title", existing["title"])
@@ -173,6 +197,17 @@ def update_post(post_id: str, data: dict) -> Optional[dict]:
     status = data.get("status", existing["status"])
     read_time = data.get("read_time", existing["read_time"])
     published_at = existing.get("published_at")
+    scheduled_at = data.get("scheduled_at", existing.get("scheduled_at"))
+
+    # If scheduling, ensure status is "scheduled"
+    if scheduled_at and status not in ("published",):
+        status = "scheduled"
+
+    # Clear scheduled_at if publishing immediately or saving as draft
+    if status == "published":
+        scheduled_at = None
+    if status == "draft":
+        scheduled_at = None
 
     # Set published_at when transitioning to published
     if status == "published" and existing.get("status") != "published":
@@ -195,6 +230,7 @@ def update_post(post_id: str, data: dict) -> Optional[dict]:
             "status": status,
             "read_time": read_time,
             "published_at": published_at,
+            "scheduled_at": scheduled_at,
             "updated_at": now,
         }},
     )
@@ -203,9 +239,160 @@ def update_post(post_id: str, data: dict) -> Optional[dict]:
 
 
 def delete_post(post_id: str) -> bool:
-    """Delete a blog post."""
+    """Delete a blog post and its version history."""
     result = _col().delete_one({"_id": post_id})
+    if result.deleted_count > 0:
+        _versions_col().delete_many({"post_id": post_id})
     return result.deleted_count > 0
+
+
+# ---------------------------------------------------------------------------
+# Version history
+# ---------------------------------------------------------------------------
+
+def _save_version(post_id: str, doc: dict) -> None:
+    """Snapshot the current post state. Keeps only the last MAX_VERSIONS."""
+    now = datetime.now(timezone.utc).isoformat()
+    vcol = _versions_col()
+
+    snapshot = {
+        "_id": nanoid(),
+        "post_id": post_id,
+        "saved_at": now,
+        "title": doc.get("title", ""),
+        "slug": doc.get("slug", ""),
+        "excerpt": doc.get("excerpt", ""),
+        "content": doc.get("content", ""),
+        "cover_image": doc.get("cover_image", ""),
+        "category": doc.get("category", ""),
+        "tags": doc.get("tags", []),
+        "faq": doc.get("faq", []),
+        "author": doc.get("author", ""),
+        "status": doc.get("status", ""),
+        "read_time": doc.get("read_time", 5),
+        "published_at": doc.get("published_at"),
+        "scheduled_at": doc.get("scheduled_at"),
+        "updated_at": doc.get("updated_at"),
+    }
+    vcol.insert_one(snapshot)
+
+    # Prune old versions — keep only the most recent MAX_VERSIONS
+    all_versions = list(
+        vcol.find({"post_id": post_id}).sort("saved_at", -1)
+    )
+    if len(all_versions) > MAX_VERSIONS:
+        to_delete = [v["_id"] for v in all_versions[MAX_VERSIONS:]]
+        vcol.delete_many({"_id": {"$in": to_delete}})
+
+    logger.info("[blog_db] Saved version snapshot for post %s", post_id)
+
+
+def get_versions(post_id: str) -> list[dict]:
+    """Get version history for a post (newest first, max MAX_VERSIONS)."""
+    vcol = _versions_col()
+    cursor = vcol.find({"post_id": post_id}).sort("saved_at", -1).limit(MAX_VERSIONS)
+    versions = []
+    for doc in cursor:
+        v = doc_to_dict(doc)
+        for field in ("tags", "faq"):
+            val = v.get(field)
+            if isinstance(val, str):
+                try:
+                    v[field] = json.loads(val)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        versions.append(v)
+    return versions
+
+
+def get_version(version_id: str) -> Optional[dict]:
+    """Get a single version by ID."""
+    doc = _versions_col().find_one({"_id": version_id})
+    if not doc:
+        return None
+    v = doc_to_dict(doc)
+    for field in ("tags", "faq"):
+        val = v.get(field)
+        if isinstance(val, str):
+            try:
+                v[field] = json.loads(val)
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return v
+
+
+def restore_version(post_id: str, version_id: str) -> Optional[dict]:
+    """Restore a post to a previous version. Snapshots the current state first."""
+    col = _col()
+    existing = col.find_one({"_id": post_id})
+    if not existing:
+        return None
+
+    version = get_version(version_id)
+    if not version or version.get("post_id") != post_id:
+        return None
+
+    # Snapshot current state before restoring
+    _save_version(post_id, existing)
+
+    now = datetime.now(timezone.utc).isoformat()
+    col.update_one(
+        {"_id": post_id},
+        {"$set": {
+            "title": version["title"],
+            "slug": version["slug"],
+            "excerpt": version["excerpt"],
+            "content": version["content"],
+            "cover_image": version["cover_image"],
+            "category": version["category"],
+            "tags": version["tags"],
+            "faq": version["faq"],
+            "author": version["author"],
+            "status": version["status"],
+            "read_time": version["read_time"],
+            "published_at": version.get("published_at"),
+            "updated_at": now,
+        }},
+    )
+    logger.info("[blog_db] Restored post %s to version %s", post_id, version_id)
+    return get_post_by_slug(version["slug"])
+
+
+# ---------------------------------------------------------------------------
+# Scheduled publishing
+# ---------------------------------------------------------------------------
+
+def publish_scheduled_posts() -> int:
+    """Publish all posts whose scheduled_at has passed. Returns count published."""
+    now = datetime.now(timezone.utc).isoformat()
+    col = _col()
+
+    query = {
+        "status": "scheduled",
+        "scheduled_at": {"$lte": now},
+    }
+
+    due_posts = list(col.find(query))
+    if not due_posts:
+        return 0
+
+    for doc in due_posts:
+        col.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {
+                "status": "published",
+                "published_at": now,
+                "scheduled_at": None,
+                "updated_at": now,
+            }},
+        )
+        logger.info(
+            "[blog_db] Auto-published scheduled post: %s (%s)",
+            doc["_id"],
+            doc.get("slug"),
+        )
+
+    return len(due_posts)
 
 
 # ---------------------------------------------------------------------------

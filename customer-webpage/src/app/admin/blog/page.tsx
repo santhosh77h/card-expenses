@@ -50,7 +50,10 @@ export default function AdminBlogPage() {
   async function handleToggleStatus(post: BlogPost) {
     const newStatus = post.status === "published" ? "draft" : "published";
     try {
-      await updateBlogPost(post.id, { status: newStatus });
+      await updateBlogPost(post.id, {
+        status: newStatus,
+        scheduled_at: null,
+      });
       await loadPosts();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update post");
@@ -58,6 +61,7 @@ export default function AdminBlogPage() {
   }
 
   const publishedCount = posts.filter((p) => p.status === "published").length;
+  const scheduledCount = posts.filter((p) => p.status === "scheduled").length;
   const draftCount = posts.filter((p) => p.status === "draft").length;
 
   if (loading) {
@@ -91,10 +95,11 @@ export default function AdminBlogPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         {[
           { label: "Total", value: total },
           { label: "Published", value: publishedCount },
+          { label: "Scheduled", value: scheduledCount },
           { label: "Drafts", value: draftCount },
         ].map((stat) => (
           <div
@@ -150,11 +155,23 @@ export default function AdminBlogPage() {
                           "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
                           post.status === "published"
                             ? "bg-emerald-500/15 text-emerald-500"
-                            : "bg-amber-500/15 text-amber-500"
+                            : post.status === "scheduled"
+                              ? "bg-blue-500/15 text-blue-500"
+                              : "bg-amber-500/15 text-amber-500"
                         )}
                       >
                         {post.status}
                       </span>
+                      {post.status === "scheduled" && post.scheduled_at && (
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {new Date(post.scheduled_at).toLocaleString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      )}
                     </td>
 
                     {/* Category */}
@@ -187,7 +204,9 @@ export default function AdminBlogPage() {
                         >
                           {post.status === "published"
                             ? "Unpublish"
-                            : "Publish"}
+                            : post.status === "scheduled"
+                              ? "Publish Now"
+                              : "Publish"}
                         </Button>
                         {confirmDeleteId === post.id ? (
                           <div className="flex items-center gap-1">

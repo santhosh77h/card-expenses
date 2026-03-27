@@ -9,7 +9,7 @@ export default function AdminBlogLayout({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-[90rem] mx-auto px-6 h-14 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Blog Admin</h1>
           <div className="flex items-center gap-4">
             <Link
@@ -22,7 +22,7 @@ export default function AdminBlogLayout({
           </div>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
+      <main className="max-w-[90rem] mx-auto px-6 py-8">{children}</main>
     </div>
   );
 }

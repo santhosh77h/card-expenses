@@ -42,6 +42,7 @@ class PostCreate(BaseModel):
     author: str = "Vector Team"
     status: str = "draft"
     read_time: int = 5
+    scheduled_at: Optional[str] = None
 
 
 class PostUpdate(BaseModel):
@@ -56,6 +57,7 @@ class PostUpdate(BaseModel):
     author: Optional[str] = None
     status: Optional[str] = None
     read_time: Optional[int] = None
+    scheduled_at: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +125,26 @@ async def delete_post(post_id: str):
     if not ok:
         raise HTTPException(status_code=404, detail="Post not found")
     return {"status": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Version history
+# ---------------------------------------------------------------------------
+
+@router.get("/posts/{post_id}/versions")
+async def list_versions(post_id: str):
+    """Get version history for a blog post (last 3 versions)."""
+    versions = blog_db.get_versions(post_id)
+    return {"versions": versions}
+
+
+@router.post("/posts/{post_id}/versions/{version_id}/restore", dependencies=[Depends(verify_api_key)])
+async def restore_version(post_id: str, version_id: str):
+    """Restore a blog post to a previous version."""
+    post = blog_db.restore_version(post_id, version_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post or version not found")
+    return post
 
 
 # ---------------------------------------------------------------------------

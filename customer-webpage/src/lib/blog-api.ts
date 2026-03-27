@@ -11,6 +11,7 @@ export interface BlogPost {
   status: string;
   read_time: number;
   published_at: string;
+  scheduled_at?: string | null;
   created_at: string;
   updated_at: string;
   faq?: Array<{ question: string; answer: string }>;
@@ -19,6 +20,25 @@ export interface BlogPost {
 export interface BlogCategory {
   category: string;
   count: number;
+}
+
+export interface BlogPostVersion {
+  id: string;
+  post_id: string;
+  saved_at: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  cover_image: string;
+  category: string;
+  tags: string[];
+  faq: Array<{ question: string; answer: string }>;
+  author: string;
+  status: string;
+  read_time: number;
+  published_at: string;
+  updated_at: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -128,6 +148,39 @@ export async function deleteBlogPost(postId: string): Promise<void> {
     headers: { "X-Vector-API-Key": VECTOR_API_KEY, "X-Blog-API-Key": BLOG_API_KEY },
   });
   if (!res.ok) throw new Error(`Failed to delete post: ${res.status}`);
+}
+
+// ---------------------------------------------------------------------------
+// Version history
+// ---------------------------------------------------------------------------
+
+export async function getBlogPostVersions(
+  postId: string
+): Promise<BlogPostVersion[]> {
+  const res = await fetch(`${API_BASE}/api/blog/posts/${postId}/versions`, {
+    headers: { "X-Vector-API-Key": VECTOR_API_KEY },
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.versions || [];
+}
+
+export async function restoreBlogPostVersion(
+  postId: string,
+  versionId: string
+): Promise<BlogPost> {
+  const res = await fetch(
+    `${API_BASE}/api/blog/posts/${postId}/versions/${versionId}/restore`,
+    {
+      method: "POST",
+      headers: {
+        "X-Vector-API-Key": VECTOR_API_KEY,
+        "X-Blog-API-Key": BLOG_API_KEY,
+      },
+    }
+  );
+  if (!res.ok) throw new Error(`Failed to restore version: ${res.status}`);
+  return res.json();
 }
 
 // ---------------------------------------------------------------------------

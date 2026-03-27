@@ -1,30 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const API_BASE = process.env.BACKEND_URL || "http://localhost:8000";
+
 export async function POST(request: NextRequest) {
   const { password } = await request.json();
 
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
+  const res = await fetch(`${API_BASE}/api/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
     return NextResponse.json(
-      { error: "Admin login is not configured" },
-      { status: 500 }
+      { error: data.detail || "Login failed" },
+      { status: res.status }
     );
   }
 
-  if (password !== adminPassword) {
-    return NextResponse.json({ error: "Invalid password" }, { status: 401 });
-  }
-
-  const sessionSecret = process.env.ADMIN_SESSION_SECRET;
-  if (!sessionSecret) {
-    return NextResponse.json(
-      { error: "Session secret is not configured" },
-      { status: 500 }
-    );
-  }
-
+  // Set the JWT token as an httpOnly cookie
   const response = NextResponse.json({ ok: true });
-  response.cookies.set("admin_session", sessionSecret, {
+  response.cookies.set("admin_session", data.token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

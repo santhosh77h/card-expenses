@@ -4,6 +4,7 @@ Vector API — privacy-first credit card statement parser.
 All PDF processing happens in-memory. No financial data is ever stored.
 """
 
+import asyncio
 import logging
 import sys
 
@@ -12,10 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from contextlib import asynccontextmanager
 
+from app.admin_routes import router as admin_router
 from app.auth import APIKeyMiddleware
 from app.auth_routes import router as auth_router
 from app.config import settings
-from app.blog_db import init_blog_db
+from app.blog_db import init_blog_db, publish_scheduled_posts
 from app.blog_routes import router as blog_router
 from app.dashboard_db import init_dashboard_db
 from app.dashboard_routes import router as dashboard_router
@@ -60,6 +62,19 @@ def _configure_logging() -> None:
     logging.getLogger("app.stages.intelligence").setLevel(logging.DEBUG)
 
 
+async def _blog_scheduler():
+    """Background task: check for scheduled blog posts every 60 seconds."""
+    logger = logging.getLogger("app.blog_scheduler")
+    while True:
+        try:
+            count = publish_scheduled_posts()
+            if count:
+                logger.info("Auto-published %d scheduled post(s)", count)
+        except Exception:
+            logger.exception("Blog scheduler error")
+        await asyncio.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage startup/shutdown resources."""
@@ -67,8 +82,18 @@ async def lifespan(app: FastAPI):
     init_dashboard_db()
     init_blog_db()
     init_user_db()
+
+    # Start blog scheduler
+    scheduler_task = asyncio.create_task(_blog_scheduler())
+
     yield
+
     # Cleanup
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
     close_mongo()
     await close_redis()
 
@@ -86,6 +111,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(APIKeyMiddleware)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -94,10 +121,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.add_middleware(APIKeyMiddleware)
-
     register_exception_handlers(app)
     app.include_router(router)
+    app.include_router(admin_router)
     app.include_router(auth_router)
     app.include_router(subscription_router)
     app.include_router(webhook_router)

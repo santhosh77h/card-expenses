@@ -1,24 +1,12 @@
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { siteConfig } from "@/lib/config";
-import { cn } from "@/lib/utils";
 import { locales, localeToOgLocale, type Locale } from "@/i18n/config";
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import Script from "next/script";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -100,7 +88,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <>
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=G-R1K3YW8Q6G"
         strategy="afterInteractive"
@@ -113,23 +101,16 @@ export default async function LocaleLayout({
           gtag('config', 'G-R1K3YW8Q6G');
         `}
       </Script>
-      <body
-        className={cn(
-          `${geistSans.variable} ${geistMono.variable}`,
-          "min-h-screen bg-background antialiased w-full mx-auto scroll-smooth font-sans"
-        )}
-      >
-        <NextIntlClientProvider messages={messages}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem={false}
-          >
-            {children}
-            <ThemeToggle />
-          </ThemeProvider>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+      <NextIntlClientProvider messages={messages}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+        >
+          {children}
+          <ThemeToggle />
+        </ThemeProvider>
+      </NextIntlClientProvider>
+    </>
   );
 }

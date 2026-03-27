@@ -22,6 +22,8 @@ interface LineNode {
     | "blockquote"
     | "hr"
     | "blank"
+    | "table-row"
+    | "table-separator"
     | "p";
   content: string;
   raw: string;
@@ -44,6 +46,13 @@ function parseLine(line: string): LineNode {
     return { type: "hr", content: "", raw: line };
   if (line.trim() === "")
     return { type: "blank", content: "", raw: line };
+  // Table rows: lines starting and ending with |, or starting with |
+  if (/^\|(.+\|)\s*$/.test(line.trim())) {
+    // Check if it's a separator row like |---|---|
+    if (/^\|[\s:]*-{2,}[\s:]*\|/.test(line.trim()))
+      return { type: "table-separator", content: line, raw: line };
+    return { type: "table-row", content: line, raw: line };
+  }
   return { type: "p", content: line, raw: line };
 }
 
@@ -97,6 +106,83 @@ export default function BlogContent({ content }: { content: string }) {
             />
           ))}
         </ol>
+      );
+      continue;
+    }
+
+    // Group consecutive table rows
+    if (node.type === "table-row" || node.type === "table-separator") {
+      const tableLines: LineNode[] = [];
+      while (
+        i < nodes.length &&
+        (nodes[i].type === "table-row" || nodes[i].type === "table-separator")
+      ) {
+        tableLines.push(nodes[i]);
+        i++;
+      }
+
+      // Parse cells from a table row string
+      const parseCells = (line: string) =>
+        line
+          .trim()
+          .replace(/^\|/, "")
+          .replace(/\|$/, "")
+          .split("|")
+          .map((c) => c.trim());
+
+      // First non-separator row is the header
+      const headerLine = tableLines.find((l) => l.type === "table-row");
+      const headerCells = headerLine ? parseCells(headerLine.content) : [];
+
+      // Body rows are all table-row lines after the separator
+      const sepIndex = tableLines.findIndex(
+        (l) => l.type === "table-separator"
+      );
+      const bodyLines = tableLines.filter(
+        (l, idx) => l.type === "table-row" && idx > sepIndex
+      );
+
+      elements.push(
+        <div key={`table-${i}`} className="my-6 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            {headerCells.length > 0 && (
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  {headerCells.map((cell, j) => (
+                    <th
+                      key={j}
+                      className="px-4 py-3 text-left font-semibold text-foreground"
+                      dangerouslySetInnerHTML={{
+                        __html: processInlineFormatting(cell),
+                      }}
+                    />
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {bodyLines.map((row, rowIdx) => {
+                const cells = parseCells(row.content);
+                return (
+                  <tr
+                    key={rowIdx}
+                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                  >
+                    {cells.map((cell, j) => (
+                      <td
+                        key={j}
+                        className="px-4 py-3 text-muted-foreground"
+                        dangerouslySetInnerHTML={{
+                          __html: processInlineFormatting(cell),
+                        }}
+                      />
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       );
       continue;
     }

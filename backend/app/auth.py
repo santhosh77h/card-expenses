@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import settings
 
 EXEMPT_PATHS = {"/health", "/docs", "/openapi.json"}
-EXEMPT_PREFIXES = ("/auth/", "/webhooks/")
+EXEMPT_PREFIXES = ("/auth/", "/webhooks/", "/api/admin/", "/api/blog/")
 
 HMAC_WINDOW_SECONDS = 60
 

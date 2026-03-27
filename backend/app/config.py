@@ -58,6 +58,7 @@ class Settings(BaseSettings):
 
     # --- Blog Admin ---
     BLOG_API_KEY: str = ""
+    ADMIN_PASSWORD: str = ""
 
     # --- Global API Key ---
     VECTOR_API_KEY: str = ""
