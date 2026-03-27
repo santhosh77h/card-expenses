@@ -1,4 +1,7 @@
+"use client";
+
 import { Icons } from "@/components/icons";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import {
   Drawer,
   DrawerContent,
@@ -7,10 +10,13 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { siteConfig } from "@/lib/config";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Menu } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export function MobileDrawer() {
+  const tc = useTranslations("common");
+
   return (
     <Drawer>
       <DrawerTrigger>
@@ -30,15 +36,18 @@ export function MobileDrawer() {
           </div>
         </DrawerHeader>
         <DrawerFooter>
+          <div className="flex justify-center mb-2">
+            <LanguageSwitcher />
+          </div>
           <Link href="#" className="flex justify-center">
             <img
               src="/badges/download-black.svg"
-              alt="Download on the App Store"
+              alt={tc("downloadOnAppStore")}
               className="h-12 dark:hidden block"
             />
             <img
               src="/badges/download-white.svg"
-              alt="Download on the App Store"
+              alt={tc("downloadOnAppStore")}
               className="h-12 hidden dark:block"
             />
           </Link>

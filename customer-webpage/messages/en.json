@@ -1,0 +1,420 @@
+{
+  "metadata": {
+    "title": "{name} | {description}",
+    "description": "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers. Works with any bank that issues a PDF statement.",
+    "ogTitle": "{name} - {description}",
+    "ogDescription": "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights."
+  },
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "blog": "Blog",
+    "downloadApp": "Download App",
+    "downloadAlt": "Download on the App Store"
+  },
+  "hero": {
+    "badge": "Privacy-First Expense Tracking",
+    "title": "Parse Your Credit Card Statements with <highlight>AI Precision</highlight>",
+    "subtitle": "Upload any bank's PDF statement and get instant spending breakdowns, smart categorization, and exportable reports. No account needed.",
+    "tryDemo": "Try Demo",
+    "trustNoAccount": "No account needed",
+    "trustPrivacy": "Privacy-first",
+    "trustAnyBank": "Works with any bank"
+  },
+  "howItWorks": {
+    "sectionTitle": "How It Works",
+    "sectionSubtitle": "Three simple steps",
+    "step1Title": "Upload",
+    "step1Description": "Take a photo or select your credit card statement PDF. Encrypted PDFs are auto-detected.",
+    "step2Title": "Parse",
+    "step2Description": "Our 3-model AI consensus engine extracts every transaction and categorizes spending automatically.",
+    "step3Title": "Insights",
+    "step3Description": "Get instant spending breakdowns, category charts, and exportable CSV reports - all stored locally."
+  },
+  "featureScroll": {
+    "sectionTitle": "Experience",
+    "sectionSubtitle": "An app unlike any other"
+  },
+  "featureHighlight": {
+    "sectionTitle": "Features",
+    "sectionSubtitle": "Powerful features",
+    "aiParsing": {
+      "title": "AI-Powered Parsing",
+      "description": "3-model consensus engine cross-validates every transaction for near-perfect accuracy."
+    },
+    "smartCategories": {
+      "title": "Smart Categories",
+      "description": "12 spending categories auto-assigned via AI and keyword matching across multiple languages."
+    },
+    "detailedAnalytics": {
+      "title": "Detailed Analytics",
+      "description": "Get instant spending breakdowns, category charts, and exportable CSV reports."
+    }
+  },
+  "bento": {
+    "sectionTitle": "Benefits",
+    "sectionSubtitle": "It does a lot of things",
+    "aiParsing": {
+      "title": "AI-Powered Parsing",
+      "content": "Our 3-model consensus engine uses GPT-4o-mini, Claude, and Gemini to parse every statement in parallel. A document intelligence pre-parse probe detects layout, currency, and bank before extraction -fields are resolved by majority voting for near-perfect accuracy."
+    },
+    "smartCategorization": {
+      "title": "Smart Categorization",
+      "content": "12 spending categories are auto-assigned using AI and keyword matching. Each transaction gets a confidence score."
+    },
+    "transactionDetails": {
+      "title": "Transaction Details",
+      "content": "Browse every transaction with merchant names, amounts, dates, and categories. Supports 11 transaction types -purchase, payment, refund, EMI, fee, interest, cashback, reward, reversal, adjustment, and transfer. Flag, annotate, and attach receipts."
+    },
+    "multiCardAnalytics": {
+      "title": "Multi-Card Analytics",
+      "content": "Manage multiple credit cards with per-card analytics, utilization tracking, and trend sparklines across all your banks."
+    }
+  },
+  "benefits": {
+    "sectionTitle": "Benefits",
+    "sectionSubtitle": "What you can do with {name}",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
+    "item1": "Save hours on expense tracking. Upload a PDF and get a full spending breakdown in seconds.",
+    "item2": "Eliminate categorization errors with 3-model AI consensus that cross-validates every transaction.",
+    "item3": "Track spending across all cards with per-card analytics, utilization tracking, and trend sparklines.",
+    "item4": "Export and backup with confidence. CSV export and AES-encrypted backups for total data portability."
+  },
+  "features": {
+    "sectionTitle": "Features",
+    "sectionSubtitle": "Powerful features",
+    "aiParsing": {
+      "name": "AI-Powered Statement Parsing",
+      "description": "Upload any bank's credit card statement PDF and let our 3-model AI consensus engine extract every transaction automatically. GPT-4o-mini, Claude, and Gemini parse in parallel with majority voting for near-perfect accuracy."
+    },
+    "privacy": {
+      "name": "Privacy-First Design",
+      "description": "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device -no accounts, no cloud sync, no tracking."
+    },
+    "categorization": {
+      "name": "Smart Expense Categorization",
+      "description": "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers -all detected across multiple languages."
+    },
+    "multiCurrency": {
+      "name": "Multi-Currency Support",
+      "description": "Track expenses in INR (\u20b9), USD ($), EUR (\u20ac), and GBP (\u00a3) with locale-specific formatting. Works with any bank that issues a PDF statement -if they print it, Vector reads it."
+    },
+    "multiCard": {
+      "name": "Multi-Card Management",
+      "description": "Manage all your credit cards in one place. Auto-detect card details from statements, color-coded profiles, per-card spending analytics, utilization tracking, and trend sparklines."
+    },
+    "offline": {
+      "name": "Offline & Encrypted Storage",
+      "description": "All transaction data stored locally in AES-encrypted SQLite. Browse transactions, view analytics, and export reports without internet after initial parse. Password-protected backups for data portability."
+    },
+    "demo": {
+      "name": "Demo Mode",
+      "description": "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap -full analytics, CSV export, and category breakdowns included."
+    },
+    "manual": {
+      "name": "Manual Transaction Entry",
+      "description": "Add expenses manually with live AI categorization as you type. Attach receipt photos, add notes, flag important transactions, and track spending alongside your parsed statements."
+    }
+  },
+  "pricing": {
+    "sectionTitle": "Pricing",
+    "sectionSubtitle": "Simple pricing",
+    "freeTrial": "Free Trial",
+    "freeTrialDescription": "{statements} free statement parses over {days} days",
+    "noCreditCard": "No credit card required. Full access to all features.",
+    "bestValue": "Best Value",
+    "perMonth": "month",
+    "perYear": "year",
+    "monthlyEquivalent": "($2/month)",
+    "startFreeTrial": "Start Free Trial",
+    "topUpNote": "Need more parses? Top-up credit packs available: $10 for 30 statements or $20 for 70 statements.",
+    "monthly": {
+      "name": "Monthly",
+      "description": "Flexible month-to-month plan"
+    },
+    "yearly": {
+      "name": "Yearly",
+      "description": "Best value -save 33% vs monthly"
+    },
+    "features": {
+      "parses": "4 statement parses per month",
+      "aiEngine": "3-model AI consensus engine",
+      "categories": "12 spending categories",
+      "multiCard": "Multi-card management",
+      "csvExport": "CSV export & encrypted backups",
+      "offline": "Offline access after parse"
+    }
+  },
+  "faq": {
+    "sectionTitle": "FAQ",
+    "sectionSubtitle": "Frequently Asked Questions",
+    "q1": {
+      "question": "How does the AI parsing work?",
+      "answer": "Vector Expense uses a 3-model consensus engine -GPT-4o-mini, Claude 3.5 Haiku, and Gemini 2.0 Flash parse every statement in parallel. Fields are resolved by majority voting, eliminating hallucinations. Each transaction gets a confidence score."
+    },
+    "q2": {
+      "question": "Is my financial data safe?",
+      "answer": "Absolutely. Vector Expense processes PDFs entirely in-memory -no financial data is ever written to disk on our servers. All your data is stored locally on your device in an encrypted SQLite database. No accounts, no cloud sync, no tracking."
+    },
+    "q3": {
+      "question": "Can I integrate Vector Expense with other apps?",
+      "answer": "Vector Expense supports CSV export for any statement, which you can import into spreadsheets, accounting software, or other financial tools. Encrypted backups can be shared via your device's native share sheet."
+    },
+    "q4": {
+      "question": "Which banks and currencies are supported?",
+      "answer": "Vector Expense works with any bank that issues a PDF statement -HDFC, Chase, Barclays, American Express, HSBC, and more. If they print it, Vector reads it. Currencies supported: INR (\u20b9), USD ($), EUR (\u20ac), and GBP (\u00a3) with locale-specific formatting."
+    },
+    "q5": {
+      "question": "Can I use Vector Expense offline?",
+      "answer": "Yes! After the initial statement parse (which requires internet for AI processing), all features work completely offline. Your data is stored locally, so you can browse transactions, view analytics, and export reports without internet."
+    },
+    "q6": {
+      "question": "Does Vector Expense support password-protected PDFs?",
+      "answer": "Yes. Vector Expense auto-detects encrypted PDFs and prompts you for the password before parsing. You can optionally save the password for that card so future uploads from the same bank are unlocked automatically."
+    },
+    "q7": {
+      "question": "Can I add transactions manually?",
+      "answer": "Absolutely. You can add expenses manually with live AI categorization as you type. Attach receipt photos, add notes, flag important transactions, and track manual entries alongside your parsed statements in a unified view."
+    }
+  },
+  "testimonials": {
+    "sectionTitle": "Testimonials",
+    "sectionSubtitle": "What our users say",
+    "t1": {
+      "text": "Vector Expense has completely changed how I track my business expenses. I just upload my HDFC statement and everything is categorized instantly.",
+      "role": "Freelance Designer"
+    },
+    "t2": {
+      "text": "The privacy-first approach is what sold me. No account needed, no data stored on servers. Exactly how finance apps should work.",
+      "role": "Software Engineer"
+    },
+    "t3": {
+      "text": "Managing 4 credit cards used to be a nightmare. Vector Expense auto-detects each card and gives me per-card analytics. Incredible.",
+      "role": "Small Business Owner"
+    },
+    "t4": {
+      "text": "The AI parsing accuracy is impressive. 3 models voting on each transaction means I rarely need to correct anything.",
+      "role": "Product Manager"
+    },
+    "t5": {
+      "text": "I love that it works with my Barclays and Amex statements. The multi-currency support is perfect for my travel expenses.",
+      "role": "Marketing Director"
+    },
+    "t6": {
+      "text": "The CSV export feature saves me hours during tax season. Upload statement, export transactions, done.",
+      "role": "CA / Accountant"
+    },
+    "t7": {
+      "text": "Free tier with 3 uploads per month is more than enough for me. Best budgeting tool I've found that doesn't want all my data.",
+      "role": "Graduate Student"
+    },
+    "t8": {
+      "text": "Finally an app that handles Indian number formatting correctly. The details that matter.",
+      "role": "Startup Founder"
+    },
+    "t9": {
+      "text": "The demo mode let me try everything before uploading a single document. Smart onboarding.",
+      "role": "UX Researcher"
+    },
+    "t10": {
+      "text": "Works with my ICICI, SBI, and Axis statements flawlessly. The category breakdown charts are beautiful.",
+      "role": "Data Analyst"
+    },
+    "t11": {
+      "text": "I travel between US and UK for work. Vector Expense handles both Chase and HSBC statements with correct currency formatting.",
+      "role": "Consultant"
+    },
+    "t12": {
+      "text": "The encrypted backup feature gives me peace of mind. All my financial data is password-protected and stays on my phone.",
+      "role": "Doctor"
+    }
+  },
+  "cta": {
+    "headline": "Stop guessing where your money goes.",
+    "subtitle": "Upload your statement and get instant AI-powered insights.",
+    "button": "Get Started"
+  },
+  "footer": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "blog": "Blog",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "copyright": "\u00a9 {year} Vector Expense. All rights reserved."
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "backToHome": "Back to Home",
+    "lastUpdated": "Last updated: March 14, 2026",
+    "tagline": "Vector Expense - Your Money. Directed.",
+    "metaTitle": "Privacy Policy - Vector Expense",
+    "metaDescription": "Vector Expense privacy policy. Your data stays on your device. No accounts, no tracking, no server storage.",
+    "corePrinciple": {
+      "title": "Our Core Principle",
+      "content": "Vector Expense is built on a simple promise: <bold>your financial data never leaves your device</bold>. We designed Vector Expense from the ground up to be privacy-first. There are no accounts to create, no data to sync, and no servers storing your information."
+    },
+    "dataProcessing": {
+      "title": "How Your Data Is Processed",
+      "pdfProcessing": "<bold>PDF Processing:</bold> When you upload a credit card statement, the PDF is sent to our server solely for text extraction and parsing. The file is processed entirely in memory and is <bold>immediately discarded</bold> after parsing is complete. We do not write your PDF to disk, log its contents, or retain any copy.",
+      "localStorage": "<bold>Local Storage Only:</bold> All parsed transactions, statements, and spending insights are stored locally on your device using SQLite. This data never leaves your phone.",
+      "noCloudSync": "<bold>No Cloud Sync:</bold> Vector Expense does not have user accounts, cloud storage, or any synchronization mechanism. Your data exists only on the device where you use the app."
+    },
+    "notCollected": {
+      "title": "What We Do NOT Collect",
+      "item1": "Personal information or identity details",
+      "item2": "Credit card numbers or account numbers",
+      "item3": "Transaction data or financial history",
+      "item4": "Device identifiers or fingerprints",
+      "item5": "Usage analytics or behavioral tracking",
+      "item6": "Location data",
+      "item7": "Cookies or cross-site tracking pixels"
+    },
+    "thirdParty": {
+      "title": "Third-Party Services",
+      "content": "Vector Expense does not share your data with any third parties. We do not integrate advertising SDKs, analytics platforms, or social media trackers. The only external service used is our own parsing API, which processes your PDF in memory and retains nothing.",
+      "aiNote": "When AI-powered parsing is used, the text content of your statement may be sent to AI providers for processing. This is done without any identifying information, and no data is retained for training purposes under their API terms."
+    },
+    "dataRetention": {
+      "title": "Data Retention",
+      "content": "Since we do not store your data on our servers, there is nothing to retain or delete on our end. All data lives on your device. You can delete all your data at any time by clearing the app's storage or uninstalling Vector Expense."
+    },
+    "security": {
+      "title": "Security",
+      "content": "All communication between the Vector Expense app and our parsing API uses HTTPS/TLS encryption. PDFs are processed in isolated memory buffers and are never persisted. Our API enforces rate limiting to prevent abuse."
+    },
+    "children": {
+      "title": "Children's Privacy",
+      "content": "Vector Expense is not directed at children under the age of 13. We do not knowingly collect any information from children."
+    },
+    "changes": {
+      "title": "Changes to This Policy",
+      "content": "We may update this privacy policy from time to time. Any changes will be reflected on this page with an updated revision date. Our core commitment to privacy-first design will not change."
+    },
+    "contact": {
+      "title": "Contact Us",
+      "content": "If you have questions about this privacy policy or Vector Expense's privacy practices, please reach out:"
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "backToHome": "Back to Home",
+    "lastUpdated": "Last updated: March 27, 2026",
+    "tagline": "Vector Expense - Your Money. Directed.",
+    "metaTitle": "Terms of Service - Vector Expense",
+    "metaDescription": "Vector Expense terms of service. Understand your rights and responsibilities when using Vector Expense.",
+    "acceptance": {
+      "title": "1. Acceptance of Terms",
+      "content": "By downloading, installing, or using Vector Expense (\"the App\"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the App."
+    },
+    "description": {
+      "title": "2. Description of Service",
+      "content": "Vector Expense is a privacy-first credit card statement parser that extracts transaction data from PDF statements and provides spending insights. The App processes your documents, categorizes transactions, and presents analytics - all with a focus on keeping your data private and under your control."
+    },
+    "responsibilities": {
+      "title": "3. User Responsibilities",
+      "ownership": "<bold>Document Ownership:</bold> You represent that you have the legal right to upload and process any documents you submit to Vector Expense. You must only upload your own credit card statements or statements you are authorized to access.",
+      "accurateUse": "<bold>Accurate Use:</bold> You are responsible for verifying the accuracy of parsed transaction data. Vector Expense uses AI and pattern matching to extract data, which may occasionally produce errors. The App is a tool for convenience, not a certified financial record.",
+      "lawfulUse": "<bold>Lawful Use:</bold> You agree to use Vector Expense only for lawful purposes and in accordance with applicable laws and regulations."
+    },
+    "freeTrial": {
+      "title": "4. Free Trial",
+      "intro": "New users receive a free trial with the following allowances:",
+      "parses": "<highlight>15 statement parses</highlight> within a <highlight>15-day window</highlight>",
+      "noCreditCard": "No credit card required to start",
+      "fullAccess": "Full access to all features including AI-powered parsing, 12 spending categories, multi-card management, and analytics",
+      "anyBank": "Works with any bank that issues a PDF statement across INR, USD, EUR, and GBP",
+      "expiry": "The trial expires when either the 15-day window or the 15-parse limit is reached, whichever comes first. Trial state is persisted securely on-device to survive reinstalls. We reserve the right to modify trial limits with reasonable notice."
+    },
+    "freeFeatures": {
+      "title": "5. Free Features",
+      "intro": "The following features are available to all users at no cost, regardless of subscription status:",
+      "manualEntry": "Manual transaction entry with AI categorization",
+      "demoMode": "Demo mode with 24 sample transactions for exploring analytics",
+      "offlineAccess": "Full offline access to previously parsed data",
+      "charts": "Spending charts, category breakdowns, and merchant analysis",
+      "csvExport": "CSV export and AES-encrypted local backups"
+    },
+    "proSubscription": {
+      "title": "6. Pro Subscription",
+      "intro": "Vector Expense offers an auto-renewable Pro subscription with two billing options:",
+      "monthly": "<bold>Monthly:</bold> <highlight>$3/month</highlight> - 4 statement parses per month",
+      "yearly": "<bold>Yearly:</bold> <highlight>$24/year</highlight> ($2/month) - 4 statement parses per month, save 33%",
+      "allowance": "<bold>Subscription Allowance:</bold> Pro subscribers receive 4 statement parses per rolling 30-day billing cycle. The allowance resets automatically based on your subscription start date.",
+      "payment": "<bold>Payment:</bold> Subscriptions are billed through the Apple App Store or Google Play Store. Payment is charged to your app store account at confirmation of purchase. The subscription automatically renews unless cancelled at least 24 hours before the end of the current billing period.",
+      "cancellation": "<bold>Cancellation:</bold> You may cancel your subscription at any time through your app store account settings. Cancellation takes effect at the end of the current billing period. No refunds are provided for partial billing periods.",
+      "priceChanges": "<bold>Price Changes:</bold> We reserve the right to change subscription pricing. Existing subscribers will be notified in advance and given the option to cancel before new pricing takes effect."
+    },
+    "credits": {
+      "title": "7. Pay-As-You-Go Credits",
+      "intro": "As an alternative to a subscription, you may purchase statement parse credits as one-time in-app purchases:",
+      "pack30": "<bold>30 parses</bold> for <highlight>$10</highlight> (~$0.33 per parse)",
+      "pack70": "<bold>70 parses</bold> for <highlight>$20</highlight> (~$0.29 per parse)",
+      "noExpiry": "<bold>No Expiry:</bold> Purchased credits do not expire and remain available until used.",
+      "consumptionOrder": "<bold>Consumption Order:</bold> When you parse a statement, the system consumes from trial allowance first, then subscription allowance, then credit balance.",
+      "nonRefundable": "<bold>Non-Refundable:</bold> Credit purchases are non-refundable once consumed. Unused credits are persisted across reinstalls for authenticated users."
+    },
+    "appStore": {
+      "title": "8. Apple App Store Terms",
+      "content": "If you download Vector Expense from the Apple App Store, your use of the App is also subject to Apple's standard End User License Agreement (EULA). You can review the Apple Standard EULA at: <appleLink>apple.com/legal/internet-services/itunes/dev/stdeula</appleLink>. In the event of any conflict between these Terms and the Apple Standard EULA, the Apple Standard EULA shall take precedence for App Store purchases and subscriptions."
+    },
+    "ip": {
+      "title": "9. Intellectual Property",
+      "content": "Vector Expense, its logo, design, and underlying technology are the intellectual property of the Vector Expense team. You are granted a limited, non-exclusive, non-transferable license to use the App for personal, non-commercial purposes."
+    },
+    "warranties": {
+      "title": "10. Disclaimer of Warranties",
+      "content": "Vector Expense is provided <bold>\"AS IS\"</bold> and <bold>\"AS AVAILABLE\"</bold> without warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, and non-infringement.",
+      "accuracy": "We do not warrant that the App will be uninterrupted, error-free, or that parsing results will be 100% accurate. AI and regex-based parsing are inherently probabilistic and may produce incorrect results."
+    },
+    "liability": {
+      "title": "11. Limitation of Liability",
+      "content": "To the maximum extent permitted by applicable law, Vector Expense and its creators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits, data, or goodwill, arising out of or in connection with your use of the App.",
+      "verification": "You acknowledge that Vector Expense is a parsing and visualization tool and should not be used as the sole basis for financial decisions. Always verify important financial information with your bank or financial institution."
+    },
+    "dataPrivacy": {
+      "title": "12. Data & Privacy",
+      "content": "Your use of Vector Expense is also governed by our <privacyLink>Privacy Policy</privacyLink>, which details how we handle (and do not store) your data. By using Vector Expense, you acknowledge and agree to the practices described in the Privacy Policy."
+    },
+    "termination": {
+      "title": "13. Termination",
+      "content": "We reserve the right to suspend or terminate access to Vector Expense's parsing API for any user who violates these terms or abuses the service, including but not limited to exceeding rate limits, automated scraping, or uploading malicious files."
+    },
+    "changesToTerms": {
+      "title": "14. Changes to Terms",
+      "content": "We may update these Terms of Service from time to time. Changes will be posted on this page with an updated revision date. Continued use of the App after changes are posted constitutes acceptance of the updated terms."
+    },
+    "governingLaw": {
+      "title": "15. Governing Law",
+      "content": "These terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles."
+    },
+    "contact": {
+      "title": "16. Contact",
+      "content": "For questions about these Terms of Service, please contact us:"
+    }
+  },
+  "blog": {
+    "title": "Blog",
+    "pageTitle": "Insights & Guides",
+    "pageSubtitle": "Privacy-first finance, AI-powered parsing, and taking control of your spending.",
+    "all": "All",
+    "noPosts": "No posts found. Check back soon!",
+    "backToHome": "Back to home",
+    "metaTitle": "Blog - Vector Expense",
+    "metaDescription": "Insights on privacy-first finance, AI-powered parsing, and personal expense management.",
+    "relatedPosts": "Related Posts",
+    "breadcrumbHome": "Home",
+    "breadcrumbBlog": "Blog",
+    "minRead": "{time} min read",
+    "by": "By {author}",
+    "questionsAnswered": "Questions answered in this article"
+  },
+  "languageSwitcher": {
+    "label": "Language"
+  },
+  "common": {
+    "downloadOnAppStore": "Download on the App Store"
+  }
+}

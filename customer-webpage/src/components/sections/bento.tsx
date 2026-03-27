@@ -8,8 +8,10 @@ import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 
 export function BentoGrid() {
+  const t = useTranslations("bento");
   const ref = useRef(null);
 
   const { scrollYProgress } = useScroll({
@@ -50,15 +52,15 @@ export function BentoGrid() {
   return (
     <Section
       id="bento"
-      title="Benefits"
-      subtitle="It does a lot of things"
+      title={t("sectionTitle")}
+      subtitle={t("sectionSubtitle")}
       className="mx-auto max-w-screen-md px-10"
       ref={ref}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {siteConfig.bento.map((bentoItem, index) => (
           <motion.div
-            key={index}
+            key={bentoItem.key}
             style={{ opacity: opacities[index], y: yTransforms[index] }}
             className={cn(
               "bg-muted p-4 sm:p-6 !pb-0 rounded-3xl grid grid-rows-1",
@@ -67,10 +69,10 @@ export function BentoGrid() {
           >
             <div className="flex flex-col">
               <h2 className="text-xl sm:text-2xl font-bold mb-2 text-foreground">
-                {bentoItem.title}
+                {t(`${bentoItem.key}.title`)}
               </h2>
               <p className="text-sm sm:text-base text-foreground mb-4">
-                {bentoItem.content}
+                {t(`${bentoItem.key}.content`)}
               </p>
             </div>
             <div

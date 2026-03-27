@@ -6,13 +6,16 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { siteConfig } from "@/lib/config";
+import { getTranslations } from "next-intl/server";
 
-export function FAQ() {
+export async function FAQ() {
+  const t = await getTranslations("faq");
+
   return (
     <Section
       id="faq"
-      title="FAQ"
-      subtitle="Frequently Asked Questions"
+      title={t("sectionTitle")}
+      subtitle={t("sectionSubtitle")}
       className="container px-10 mx-auto max-w-[var(--max-container-width)]"
     >
       <Accordion
@@ -20,12 +23,12 @@ export function FAQ() {
         collapsible
         className="w-full max-w-2xl mx-auto py-10"
       >
-        {siteConfig.faqs.map((faq, index) => (
-          <AccordionItem key={index} value={`item-${index}`}>
+        {siteConfig.faqKeys.map((key) => (
+          <AccordionItem key={key} value={key}>
             <AccordionTrigger className="text-left hover:no-underline">
-              {faq.question}
+              {t(`${key}.question`)}
             </AccordionTrigger>
-            <AccordionContent>{faq.answer}</AccordionContent>
+            <AccordionContent>{t(`${key}.answer`)}</AccordionContent>
           </AccordionItem>
         ))}
       </Accordion>

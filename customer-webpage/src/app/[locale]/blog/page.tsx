@@ -1,32 +1,46 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getBlogPosts, getBlogCategories } from "@/lib/blog-api";
 import { siteConfig } from "@/lib/config";
 import BlogCard from "@/components/blog/BlogCard";
 import FeaturedBlogCard from "@/components/blog/FeaturedBlogCard";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
-export const metadata: Metadata = {
-  title: "Blog - Vector Expense",
-  description:
-    "Insights on privacy-first finance, AI-powered parsing, and personal expense management.",
-  alternates: { canonical: `${siteConfig.url}/blog` },
-  openGraph: {
-    title: "Blog - Vector Expense",
-    description:
-      "Insights on privacy-first finance, AI-powered parsing, and personal expense management.",
-    type: "website",
-    url: `${siteConfig.url}/blog`,
-    siteName: siteConfig.name,
-  },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("blog");
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+    alternates: { canonical: `${siteConfig.url}/blog` },
+    openGraph: {
+      title: t("metaTitle"),
+      description: t("metaDescription"),
+      type: "website",
+      url: `${siteConfig.url}/blog`,
+      siteName: siteConfig.name,
+    },
+  };
+}
 
 export default async function BlogPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ locale: string }>;
   searchParams: Promise<{ category?: string }>;
 }) {
-  const params = await searchParams;
-  const category = params.category || "";
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("blog");
+
+  const resolvedSearchParams = await searchParams;
+  const category = resolvedSearchParams.category || "";
 
   const [{ posts }, categories] = await Promise.all([
     getBlogPosts(20, 0, category),
@@ -42,14 +56,13 @@ export default async function BlogPage({
       <div className="border-b border-border">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-16 pb-12 text-center">
           <span className="inline-block text-xs font-medium uppercase tracking-widest text-primary mb-4">
-            Blog
+            {t("title")}
           </span>
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            Insights &amp; Guides
+            {t("pageTitle")}
           </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Privacy-first finance, AI-powered parsing, and taking control of
-            your spending.
+            {t("pageSubtitle")}
           </p>
         </div>
       </div>
@@ -66,7 +79,7 @@ export default async function BlogPage({
                   : "border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
-              All
+              {t("all")}
             </Link>
             {categories.map((cat) => (
               <Link
@@ -97,13 +110,13 @@ export default async function BlogPage({
         ) : !featuredPost ? (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">
-              No posts found. Check back soon!
+              {t("noPosts")}
             </p>
             <Link
               href="/"
               className="inline-block mt-4 text-primary hover:underline"
             >
-              Back to home
+              {t("backToHome")}
             </Link>
           </div>
         ) : null}

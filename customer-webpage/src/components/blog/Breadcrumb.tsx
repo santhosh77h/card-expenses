@@ -1,13 +1,15 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BreadcrumbProps {
   postTitle: string;
 }
 
 export default function Breadcrumb({ postTitle }: BreadcrumbProps) {
+  const t = useTranslations("blog");
   const truncated =
-    postTitle.length > 40 ? postTitle.slice(0, 40) + "…" : postTitle;
+    postTitle.length > 40 ? postTitle.slice(0, 40) + "\u2026" : postTitle;
 
   return (
     <nav
@@ -18,14 +20,14 @@ export default function Breadcrumb({ postTitle }: BreadcrumbProps) {
         href="/"
         className="hover:text-foreground transition-colors"
       >
-        Home
+        {t("breadcrumbHome")}
       </Link>
       <ChevronRight className="h-3.5 w-3.5" />
       <Link
         href="/blog"
         className="hover:text-foreground transition-colors"
       >
-        Blog
+        {t("breadcrumbBlog")}
       </Link>
       <ChevronRight className="h-3.5 w-3.5" />
       <span className="text-foreground/70 truncate max-w-[200px] sm:max-w-none">

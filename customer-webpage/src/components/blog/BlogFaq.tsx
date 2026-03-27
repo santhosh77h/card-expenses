@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Accordion,
   AccordionContent,
@@ -13,12 +14,14 @@ interface FaqItem {
 }
 
 export default function BlogFaq({ faq }: { faq: FaqItem[] }) {
+  const t = useTranslations("blog");
+
   if (!faq || faq.length === 0) return null;
 
   return (
     <div className="my-10 rounded-lg border border-border bg-card/50 p-6">
       <h2 className="text-lg font-semibold mb-4 text-foreground">
-        Questions answered in this article
+        {t("questionsAnswered")}
       </h2>
       <Accordion type="single" collapsible className="w-full">
         {faq.map((item, i) => (

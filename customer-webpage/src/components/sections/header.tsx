@@ -1,15 +1,18 @@
 "use client";
 
 import { Icons } from "@/components/icons";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { MobileDrawer } from "@/components/mobile-drawer";
 import { easeInOutCubic } from "@/lib/animation";
 import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion, useAnimation } from "framer-motion";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export function Header() {
+  const tc = useTranslations("common");
   const [isVisible, setIsVisible] = useState(true);
   const [addBorder, setAddBorder] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -68,16 +71,17 @@ export function Header() {
               <Icons.logo className="w-auto" />
               <span className="font-bold text-xl">{siteConfig.name}</span>
             </Link>
-            <div className="hidden lg:block">
+            <div className="hidden lg:flex items-center gap-3">
+              <LanguageSwitcher />
               <Link href="#" className="flex-shrink-0">
                 <img
                   src="/badges/download-black.svg"
-                  alt="Download on the App Store"
+                  alt={tc("downloadOnAppStore")}
                   className="h-10 dark:hidden block"
                 />
                 <img
                   src="/badges/download-white.svg"
-                  alt="Download on the App Store"
+                  alt={tc("downloadOnAppStore")}
                   className="h-10 hidden dark:block"
                 />
               </Link>

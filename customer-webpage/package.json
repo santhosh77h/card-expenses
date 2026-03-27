@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "translate": "node --env-file=.env.local --import tsx scripts/translate.ts",
+    "translate:diff": "node --env-file=.env.local --import tsx scripts/translate-diff.ts",
+    "blog-cache:clear": "rm -rf .blog-cache"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -19,6 +22,7 @@
     "lucide-react": "^0.577.0",
     "motion": "^12.36.0",
     "next": "16.1.6",
+    "next-intl": "^4.8.3",
     "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -34,7 +38,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "openai": "^6.33.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

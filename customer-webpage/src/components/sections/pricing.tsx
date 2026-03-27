@@ -6,8 +6,10 @@ import { siteConfig } from "@/lib/config";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { CheckIcon, ChevronRightIcon, Sparkles, Zap } from "lucide-react";
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 
 export function Pricing() {
+  const t = useTranslations("pricing");
   const ref = useRef(null);
 
   const { scrollYProgress } = useScroll({
@@ -31,8 +33,8 @@ export function Pricing() {
   return (
     <Section
       id="pricing"
-      title="Pricing"
-      subtitle="Simple pricing"
+      title={t("sectionTitle")}
+      subtitle={t("sectionSubtitle")}
       className="container px-10 mx-auto max-w-[var(--max-container-width)]"
       ref={ref}
     >
@@ -45,15 +47,17 @@ export function Pricing() {
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <span className="text-sm font-semibold text-primary uppercase tracking-wider">
-              Free Trial
+              {t("freeTrial")}
             </span>
           </div>
           <p className="text-lg font-semibold">
-            {siteConfig.trial.statements} free statement parses over{" "}
-            {siteConfig.trial.days} days
+            {t("freeTrialDescription", {
+              statements: siteConfig.trial.statements,
+              days: siteConfig.trial.days,
+            })}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            No credit card required. Full access to all features.
+            {t("noCreditCard")}
           </p>
         </div>
       </motion.div>
@@ -62,7 +66,7 @@ export function Pricing() {
       <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
         {siteConfig.pricing.map((plan, index) => (
           <motion.div
-            key={plan.name}
+            key={plan.key}
             style={{ opacity: opacities[index], y: yTransforms[index] }}
             className={`relative bg-muted/60 p-6 rounded-3xl grid grid-rows-[auto_auto_1fr_auto] ${
               plan.isPopular ? "ring-2 ring-primary" : ""
@@ -72,31 +76,33 @@ export function Pricing() {
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
                   <Zap className="h-3 w-3" />
-                  Best Value
+                  {t("bestValue")}
                 </span>
               </div>
             )}
-            <h2 className="text-2xl font-semibold mb-4">{plan.name}</h2>
+            <h2 className="text-2xl font-semibold mb-4">
+              {t(`${plan.key}.name`)}
+            </h2>
             <div className="text-4xl font-bold text-primary mb-2">
               {plan.price}
               <span className="text-sm font-normal text-muted-foreground">
-                /{plan.period}
+                /{t(`per${plan.period === "month" ? "Month" : "Year"}`)}
               </span>
-              {plan.name === "Yearly" && (
+              {plan.key === "yearly" && (
                 <span className="ml-2 text-sm font-medium text-primary/80">
-                  ($2/month)
+                  {t("monthlyEquivalent")}
                 </span>
               )}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              {plan.description}
+              {t(`${plan.key}.description`)}
             </p>
 
             <div className="space-y-3 mb-6">
-              {plan.features.map((feature, featureIndex) => (
-                <div key={featureIndex} className="flex items-center">
+              {siteConfig.pricingFeatureKeys.map((featureKey) => (
+                <div key={featureKey} className="flex items-center">
                   <CheckIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
-                  <span>{feature}</span>
+                  <span>{t(`features.${featureKey}`)}</span>
                 </div>
               ))}
             </div>
@@ -105,7 +111,7 @@ export function Pricing() {
               size="sm"
               className="rounded-full text-white"
             >
-              {plan.buttonText}
+              {t("startFreeTrial")}
               <ChevronRightIcon className="w-4 h-4 ml-1" />
             </Button>
           </motion.div>
@@ -117,8 +123,7 @@ export function Pricing() {
         style={{ opacity: opacities[1], y: yTransforms[1] }}
         className="text-center text-sm text-muted-foreground mt-8 max-w-xl mx-auto"
       >
-        Need more parses? Top-up credit packs available: $10 for 30 statements
-        or $20 for 70 statements.
+        {t("topUpNote")}
       </motion.p>
     </Section>
   );

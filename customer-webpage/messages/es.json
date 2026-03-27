@@ -1,0 +1,420 @@
+{
+	"metadata": {
+		"title": "{name} | {description}",
+		"description": "Analizador de estados de tarjeta de crédito con privacidad primero. Sube un PDF, obtén información de gastos al instante - nunca almacenamos datos en nuestros servidores. Funciona con cualquier banco que emita estados en PDF.",
+		"ogTitle": "{name} - {description}",
+		"ogDescription": "Analizador de estados de tarjeta de crédito con privacidad primero. Sube un PDF, obtén información de gastos al instante."
+	},
+	"nav": {
+		"features": "Funciones",
+		"pricing": "Precios",
+		"faq": "Preguntas frecuentes",
+		"blog": "Blog",
+		"downloadApp": "Descargar app",
+		"downloadAlt": "Descargar en el App Store"
+	},
+	"hero": {
+		"badge": "Seguimiento de gastos con privacidad primero",
+		"title": "Analiza tus estados de tarjeta de crédito con <highlight>precisión de IA</highlight>",
+		"subtitle": "Sube el estado en PDF de cualquier banco y obtén desglose de gastos al instante, categorización inteligente e informes exportables. Sin necesidad de cuenta.",
+		"tryDemo": "Probar demo",
+		"trustNoAccount": "Sin necesidad de cuenta",
+		"trustPrivacy": "Privacidad primero",
+		"trustAnyBank": "Funciona con cualquier banco"
+	},
+	"howItWorks": {
+		"sectionTitle": "Cómo funciona",
+		"sectionSubtitle": "Tres pasos simples",
+		"step1Title": "Subir",
+		"step1Description": "Toma una foto o selecciona tu estado de cuenta en PDF. Los PDF cifrados se detectan automáticamente.",
+		"step2Title": "Analizar",
+		"step2Description": "Nuestro motor de consenso de IA con 3 modelos extrae cada transacción y categoriza los gastos automáticamente.",
+		"step3Title": "Información",
+		"step3Description": "Obtén desglose de gastos al instante, gráficos de categorías e informes CSV exportables, todo almacenado localmente."
+	},
+	"featureScroll": {
+		"sectionTitle": "Experiencia",
+		"sectionSubtitle": "Una app como ninguna otra"
+	},
+	"featureHighlight": {
+		"sectionTitle": "Funciones",
+		"sectionSubtitle": "Funciones potentes",
+		"aiParsing": {
+			"title": "Análisis con IA",
+			"description": "El motor de consenso de 3 modelos valida cada transacción para lograr una precisión casi perfecta."
+		},
+		"smartCategories": {
+			"title": "Categorías inteligentes",
+			"description": "12 categorías de gasto asignadas automáticamente mediante IA y coincidencia de palabras clave en múltiples idiomas."
+		},
+		"detailedAnalytics": {
+			"title": "Análisis detallado",
+			"description": "Obtén desglose de gastos al instante, gráficos de categorías e informes CSV exportables."
+		}
+	},
+	"bento": {
+		"sectionTitle": "Beneficios",
+		"sectionSubtitle": "Hace muchas cosas",
+		"aiParsing": {
+			"title": "Análisis con IA",
+			"content": "Nuestro motor de consenso de 3 modelos usa GPT-4o-mini, Claude y Gemini para analizar cada estado en paralelo. Una sonda de pre-análisis de inteligencia documental detecta el diseño, la moneda y el banco antes de la extracción; los campos se resuelven por votación mayoritaria para una precisión casi perfecta."
+		},
+		"smartCategorization": {
+			"title": "Categorización inteligente",
+			"content": "12 categorías de gasto se asignan automáticamente mediante IA y coincidencia de palabras clave. Cada transacción recibe una puntuación de confianza."
+		},
+		"transactionDetails": {
+			"title": "Detalles de transacciones",
+			"content": "Explora cada transacción con nombres de comercios, montos, fechas y categorías. Compatible con 11 tipos de transacciones: compra, pago, reembolso, EMI, comisión, interés, cashback, recompensa, reversión, ajuste y transferencia. Marca, anota y adjunta recibos."
+		},
+		"multiCardAnalytics": {
+			"title": "Análisis multitarjeta",
+			"content": "Administra múltiples tarjetas de crédito con análisis por tarjeta, seguimiento de utilización y minigráficos de tendencias en todos tus bancos."
+		}
+	},
+	"benefits": {
+		"sectionTitle": "Beneficios",
+		"sectionSubtitle": "Qué puedes hacer con {name}",
+		"previousSlide": "Diapositiva anterior",
+		"nextSlide": "Diapositiva siguiente",
+		"item1": "Ahorra horas en el seguimiento de gastos. Sube un PDF y obtén un desglose completo en segundos.",
+		"item2": "Elimina errores de categorización con el consenso de IA de 3 modelos que valida cada transacción.",
+		"item3": "Rastrea gastos en todas tus tarjetas con análisis por tarjeta, seguimiento de utilización y minigráficos de tendencias.",
+		"item4": "Exporta y haz copias de seguridad con confianza. Exportación CSV y copias de seguridad cifradas con AES para total portabilidad de datos."
+	},
+	"features": {
+		"sectionTitle": "Funciones",
+		"sectionSubtitle": "Funciones potentes",
+		"aiParsing": {
+			"name": "Análisis de estados con IA",
+			"description": "Sube el estado en PDF de cualquier banco y deja que nuestro motor de consenso de IA con 3 modelos extraiga cada transacción automáticamente. GPT-4o-mini, Claude y Gemini analizan en paralelo con votación mayoritaria para una precisión casi perfecta."
+		},
+		"privacy": {
+			"name": "Diseño con privacidad primero",
+			"description": "Retención de datos cero. Tus estados de tarjeta de crédito se procesan completamente en memoria y se descartan de inmediato. Todos los datos financieros permanecen cifrados en tu dispositivo: sin cuentas, sin sincronización en la nube, sin rastreo."
+		},
+		"categorization": {
+			"name": "Categorización inteligente de gastos",
+			"description": "12 categorías de gasto asignadas automáticamente mediante IA y coincidencia de palabras clave. Alimentación, supermercado, compras, transporte, entretenimiento, salud, servicios, viajes, educación, finanzas, transferencias: todo detectado en múltiples idiomas."
+		},
+		"multiCurrency": {
+			"name": "Soporte multidivisa",
+			"description": "Rastrea gastos en INR (₹), USD ($), EUR (€) y GBP (£) con formato según región. Funciona con cualquier banco que emita estados en PDF: si lo imprimen, Vector lo lee."
+		},
+		"multiCard": {
+			"name": "Gestión multitarjeta",
+			"description": "Administra todas tus tarjetas de crédito en un solo lugar. Detecta automáticamente los datos de la tarjeta desde los estados, perfiles con código de color, análisis de gastos por tarjeta, seguimiento de utilización y minigráficos de tendencias."
+		},
+		"offline": {
+			"name": "Almacenamiento sin conexión y cifrado",
+			"description": "Todos los datos de transacciones almacenados localmente en SQLite cifrado con AES. Explora transacciones, visualiza análisis y exporta informes sin internet después del análisis inicial. Copias de seguridad protegidas por contraseña para portabilidad de datos."
+		},
+		"demo": {
+			"name": "Modo demo",
+			"description": "Prueba Vector Expense antes de subir un solo documento. Explora 24 transacciones realistas en las 12 categorías de gasto con un toque: análisis completo, exportación CSV y desglose por categorías incluidos."
+		},
+		"manual": {
+			"name": "Entrada manual de transacciones",
+			"description": "Añade gastos manualmente con categorización de IA en tiempo real mientras escribes. Adjunta fotos de recibos, añade notas, marca transacciones importantes y rastrea gastos junto con tus estados analizados."
+		}
+	},
+	"pricing": {
+		"sectionTitle": "Precios",
+		"sectionSubtitle": "Precios simples",
+		"freeTrial": "Prueba gratuita",
+		"freeTrialDescription": "{statements} análisis de estados gratuitos durante {days} días",
+		"noCreditCard": "No se requiere tarjeta de crédito. Acceso completo a todas las funciones.",
+		"bestValue": "Mejor valor",
+		"perMonth": "mes",
+		"perYear": "año",
+		"monthlyEquivalent": "($2/mes)",
+		"startFreeTrial": "Iniciar prueba gratuita",
+		"topUpNote": "¿Necesitas más análisis? Packs de crédito de recarga disponibles: $10 por 30 estados o $20 por 70 estados.",
+		"monthly": {
+			"name": "Mensual",
+			"description": "Plan mensual flexible"
+		},
+		"yearly": {
+			"name": "Anual",
+			"description": "Mejor valor: ahorra un 33% frente al mensual"
+		},
+		"features": {
+			"parses": "4 análisis de estados por mes",
+			"aiEngine": "Motor de consenso de IA con 3 modelos",
+			"categories": "12 categorías de gasto",
+			"multiCard": "Gestión multitarjeta",
+			"csvExport": "Exportación CSV y copias de seguridad cifradas",
+			"offline": "Acceso sin conexión tras el análisis"
+		}
+	},
+	"faq": {
+		"sectionTitle": "Preguntas frecuentes",
+		"sectionSubtitle": "Preguntas frecuentes",
+		"q1": {
+			"question": "¿Cómo funciona el análisis con IA?",
+			"answer": "Vector Expense usa un motor de consenso de 3 modelos: GPT-4o-mini, Claude 3.5 Haiku y Gemini 2.0 Flash analizan cada estado en paralelo. Los campos se resuelven por votación mayoritaria, eliminando alucinaciones. Cada transacción recibe una puntuación de confianza."
+		},
+		"q2": {
+			"question": "¿Están seguros mis datos financieros?",
+			"answer": "Absolutamente. Vector Expense procesa los PDF completamente en memoria: nunca se escriben datos financieros en el disco de nuestros servidores. Todos tus datos se almacenan localmente en tu dispositivo en una base de datos SQLite cifrada. Sin cuentas, sin sincronización en la nube, sin rastreo."
+		},
+		"q3": {
+			"question": "¿Puedo integrar Vector Expense con otras apps?",
+			"answer": "Vector Expense admite exportación CSV para cualquier estado, que puedes importar en hojas de cálculo, software de contabilidad u otras herramientas financieras. Las copias de seguridad cifradas se pueden compartir mediante la hoja de compartir nativa de tu dispositivo."
+		},
+		"q4": {
+			"question": "¿Qué bancos y monedas son compatibles?",
+			"answer": "Vector Expense funciona con cualquier banco que emita estados en PDF: HDFC, Chase, Barclays, American Express, HSBC y más. Si lo imprimen, Vector lo lee. Monedas compatibles: INR (₹), USD ($), EUR (€) y GBP (£) con formato según región."
+		},
+		"q5": {
+			"question": "¿Puedo usar Vector Expense sin conexión?",
+			"answer": "¡Sí! Después del análisis inicial del estado (que requiere internet para el procesamiento con IA), todas las funciones funcionan completamente sin conexión. Tus datos se almacenan localmente, por lo que puedes explorar transacciones, ver análisis y exportar informes sin internet."
+		},
+		"q6": {
+			"question": "¿Vector Expense admite PDF protegidos con contraseña?",
+			"answer": "Sí. Vector Expense detecta automáticamente los PDF cifrados y te solicita la contraseña antes de analizarlos. Puedes guardar opcionalmente la contraseña para esa tarjeta, de modo que las subidas futuras del mismo banco se desbloqueen automáticamente."
+		},
+		"q7": {
+			"question": "¿Puedo añadir transacciones manualmente?",
+			"answer": "Absolutamente. Puedes añadir gastos manualmente con categorización de IA en tiempo real mientras escribes. Adjunta fotos de recibos, añade notas, marca transacciones importantes y rastrea entradas manuales junto con tus estados analizados en una vista unificada."
+		}
+	},
+	"testimonials": {
+		"sectionTitle": "Testimonios",
+		"sectionSubtitle": "Lo que dicen nuestros usuarios",
+		"t1": {
+			"text": "Vector Expense ha cambiado completamente cómo hago seguimiento de mis gastos de negocio. Solo subo mi estado de HDFC y todo queda categorizado al instante.",
+			"role": "Diseñador/a freelance"
+		},
+		"t2": {
+			"text": "El enfoque de privacidad primero fue lo que me convenció. Sin necesidad de cuenta, sin datos almacenados en servidores. Exactamente como deberían funcionar las apps financieras.",
+			"role": "Ingeniero/a de software"
+		},
+		"t3": {
+			"text": "Gestionar 4 tarjetas de crédito solía ser una pesadilla. Vector Expense detecta automáticamente cada tarjeta y me da análisis por tarjeta. Increíble.",
+			"role": "Dueño/a de pequeña empresa"
+		},
+		"t4": {
+			"text": "La precisión del análisis de IA es impresionante. 3 modelos votan sobre cada transacción, así que casi nunca necesito corregir nada.",
+			"role": "Gerente de producto"
+		},
+		"t5": {
+			"text": "Me encanta que funcione con mis estados de Barclays y Amex. El soporte multidivisa es perfecto para mis gastos de viaje.",
+			"role": "Director/a de marketing"
+		},
+		"t6": {
+			"text": "La función de exportación CSV me ahorra horas durante la temporada de impuestos. Sube el estado, exporta transacciones, listo.",
+			"role": "Contador/a público"
+		},
+		"t7": {
+			"text": "El nivel gratuito con 3 cargas por mes es más que suficiente para mí. La mejor herramienta de presupuesto que encontré que no quiere todos mis datos.",
+			"role": "Estudiante de posgrado"
+		},
+		"t8": {
+			"text": "Por fin una app que maneja correctamente el formato de números indio. Los detalles que importan.",
+			"role": "Fundador/a de startup"
+		},
+		"t9": {
+			"text": "El modo demo me permitió probar todo antes de subir un solo documento. Incorporación inteligente.",
+			"role": "Investigador/a de UX"
+		},
+		"t10": {
+			"text": "Funciona perfectamente con mis estados de ICICI, SBI y Axis. Los gráficos de desglose por categorías son hermosos.",
+			"role": "Analista de datos"
+		},
+		"t11": {
+			"text": "Viajo entre EE. UU. y el Reino Unido por trabajo. Vector Expense gestiona tanto los estados de Chase como los de HSBC con el formato de moneda correcto.",
+			"role": "Consultor/a"
+		},
+		"t12": {
+			"text": "La función de copia de seguridad cifrada me da tranquilidad. Todos mis datos financieros están protegidos con contraseña y permanecen en mi teléfono.",
+			"role": "Médico/a"
+		}
+	},
+	"cta": {
+		"headline": "Deja de adivinar adónde va tu dinero.",
+		"subtitle": "Sube tu estado y obtén información instantánea impulsada por IA.",
+		"button": "Comenzar"
+	},
+	"footer": {
+		"features": "Funciones",
+		"pricing": "Precios",
+		"faq": "Preguntas frecuentes",
+		"blog": "Blog",
+		"privacy": "Privacidad",
+		"terms": "Términos",
+		"copyright": "© {year} Vector Expense. Todos los derechos reservados."
+	},
+	"privacy": {
+		"title": "Política de privacidad",
+		"backToHome": "Volver al inicio",
+		"lastUpdated": "Última actualización: 14 de marzo de 2026",
+		"tagline": "Vector Expense - Tu dinero. Dirigido.",
+		"metaTitle": "Política de privacidad - Vector Expense",
+		"metaDescription": "Política de privacidad de Vector Expense. Tus datos permanecen en tu dispositivo. Sin cuentas, sin rastreo, sin almacenamiento en servidores.",
+		"corePrinciple": {
+			"title": "Nuestro principio fundamental",
+			"content": "Vector Expense se basa en una promesa simple: <bold>tus datos financieros nunca abandonan tu dispositivo</bold>. Diseñamos Vector Expense desde cero para que sea privacidad primero. No hay cuentas que crear, datos que sincronizar ni servidores que almacenen tu información."
+		},
+		"dataProcessing": {
+			"title": "Cómo se procesan tus datos",
+			"pdfProcessing": "<bold>Procesamiento de PDF:</bold> Cuando subes un estado de tarjeta de crédito, el PDF se envía a nuestro servidor únicamente para la extracción de texto y el análisis. El archivo se procesa completamente en memoria y se <bold>descarta de inmediato</bold> tras completar el análisis. No escribimos tu PDF en disco, no registramos su contenido ni conservamos ninguna copia.",
+			"localStorage": "<bold>Solo almacenamiento local:</bold> Todas las transacciones analizadas, los estados y la información de gastos se almacenan localmente en tu dispositivo usando SQLite. Estos datos nunca abandonan tu teléfono.",
+			"noCloudSync": "<bold>Sin sincronización en la nube:</bold> Vector Expense no tiene cuentas de usuario, almacenamiento en la nube ni ningún mecanismo de sincronización. Tus datos existen únicamente en el dispositivo donde usas la app."
+		},
+		"notCollected": {
+			"title": "Qué NO recopilamos",
+			"item1": "Información personal o datos de identidad",
+			"item2": "Números de tarjeta de crédito o números de cuenta",
+			"item3": "Datos de transacciones o historial financiero",
+			"item4": "Identificadores de dispositivo o huellas digitales",
+			"item5": "Análisis de uso o seguimiento de comportamiento",
+			"item6": "Datos de ubicación",
+			"item7": "Cookies o píxeles de seguimiento entre sitios"
+		},
+		"thirdParty": {
+			"title": "Servicios de terceros",
+			"content": "Vector Expense no comparte tus datos con terceros. No integramos SDK de publicidad, plataformas de análisis ni rastreadores de redes sociales. El único servicio externo utilizado es nuestra propia API de análisis, que procesa tu PDF en memoria y no retiene nada.",
+			"aiNote": "Cuando se utiliza el análisis con IA, el contenido de texto de tu estado puede enviarse a proveedores de IA para su procesamiento. Esto se hace sin ninguna información identificativa y no se retienen datos para fines de entrenamiento según sus términos de API."
+		},
+		"dataRetention": {
+			"title": "Retención de datos",
+			"content": "Dado que no almacenamos tus datos en nuestros servidores, no hay nada que retener o eliminar por nuestra parte. Todos los datos viven en tu dispositivo. Puedes eliminar todos tus datos en cualquier momento borrando el almacenamiento de la app o desinstalando Vector Expense."
+		},
+		"security": {
+			"title": "Seguridad",
+			"content": "Toda la comunicación entre la app Vector Expense y nuestra API de análisis utiliza cifrado HTTPS/TLS. Los PDF se procesan en búferes de memoria aislados y nunca se persisten. Nuestra API aplica límites de velocidad para prevenir abusos."
+		},
+		"children": {
+			"title": "Privacidad de los menores",
+			"content": "Vector Expense no está dirigida a menores de 13 años. No recopilamos a sabiendas ninguna información de menores."
+		},
+		"changes": {
+			"title": "Cambios en esta política",
+			"content": "Podemos actualizar esta política de privacidad de vez en cuando. Cualquier cambio se reflejará en esta página con una fecha de revisión actualizada. Nuestro compromiso fundamental con el diseño de privacidad primero no cambiará."
+		},
+		"contact": {
+			"title": "Contáctanos",
+			"content": "Si tienes preguntas sobre esta política de privacidad o las prácticas de privacidad de Vector Expense, contáctanos:"
+		}
+	},
+	"terms": {
+		"title": "Términos de servicio",
+		"backToHome": "Volver al inicio",
+		"lastUpdated": "Última actualización: 27 de marzo de 2026",
+		"tagline": "Vector Expense - Tu dinero. Dirigido.",
+		"metaTitle": "Términos de servicio - Vector Expense",
+		"metaDescription": "Términos de servicio de Vector Expense. Entiende tus derechos y responsabilidades al usar Vector Expense.",
+		"acceptance": {
+			"title": "1. Aceptación de los términos",
+			"content": "Al descargar, instalar o usar Vector Expense (\"la App\"), aceptas quedar vinculado/a por estos Términos de servicio. Si no aceptas estos términos, no uses la App."
+		},
+		"description": {
+			"title": "2. Descripción del servicio",
+			"content": "Vector Expense es un analizador de estados de tarjeta de crédito con privacidad primero que extrae datos de transacciones de estados en PDF y proporciona información de gastos. La App procesa tus documentos, categoriza transacciones y presenta análisis, todo con el foco en mantener tus datos privados y bajo tu control."
+		},
+		"responsibilities": {
+			"title": "3. Responsabilidades del usuario",
+			"ownership": "<bold>Propiedad del documento:</bold> Declaras que tienes el derecho legal de subir y procesar cualquier documento que envíes a Vector Expense. Solo debes subir tus propios estados de tarjeta de crédito o estados que estés autorizado/a a acceder.",
+			"accurateUse": "<bold>Uso preciso:</bold> Eres responsable de verificar la precisión de los datos de transacciones analizados. Vector Expense usa IA y coincidencia de patrones para extraer datos, lo que en ocasiones puede producir errores. La App es una herramienta de conveniencia, no un registro financiero certificado.",
+			"lawfulUse": "<bold>Uso legal:</bold> Aceptas usar Vector Expense solo para fines legales y de acuerdo con las leyes y regulaciones aplicables."
+		},
+		"freeTrial": {
+			"title": "4. Prueba gratuita",
+			"intro": "Los nuevos usuarios reciben una prueba gratuita con las siguientes asignaciones:",
+			"parses": "<highlight>15 análisis de estados</highlight> dentro de una <highlight>ventana de 15 días</highlight>",
+			"noCreditCard": "No se requiere tarjeta de crédito para comenzar",
+			"fullAccess": "Acceso completo a todas las funciones incluyendo análisis con IA, 12 categorías de gasto, gestión multitarjeta y análisis",
+			"anyBank": "Funciona con cualquier banco que emita estados en PDF en INR, USD, EUR y GBP",
+			"expiry": "La prueba expira cuando se alcanza la ventana de 15 días o el límite de 15 análisis, lo que ocurra primero. El estado de la prueba se persiste de forma segura en el dispositivo para sobrevivir a reinstalaciones. Nos reservamos el derecho de modificar los límites de prueba con previo aviso razonable."
+		},
+		"freeFeatures": {
+			"title": "5. Funciones gratuitas",
+			"intro": "Las siguientes funciones están disponibles para todos los usuarios sin costo, independientemente del estado de suscripción:",
+			"manualEntry": "Entrada manual de transacciones con categorización de IA",
+			"demoMode": "Modo demo con 24 transacciones de muestra para explorar análisis",
+			"offlineAccess": "Acceso sin conexión completo a datos previamente analizados",
+			"charts": "Gráficos de gastos, desglose por categorías y análisis de comercios",
+			"csvExport": "Exportación CSV y copias de seguridad locales cifradas con AES"
+		},
+		"proSubscription": {
+			"title": "6. Suscripción Pro",
+			"intro": "Vector Expense ofrece una suscripción Pro de renovación automática con dos opciones de facturación:",
+			"monthly": "<bold>Mensual:</bold> <highlight>$3/mes</highlight> - 4 análisis de estados por mes",
+			"yearly": "<bold>Anual:</bold> <highlight>$24/año</highlight> ($2/mes) - 4 análisis de estados por mes, ahorra un 33%",
+			"allowance": "<bold>Asignación de suscripción:</bold> Los suscriptores Pro reciben 4 análisis de estados por ciclo de facturación rotativo de 30 días. La asignación se restablece automáticamente según la fecha de inicio de tu suscripción.",
+			"payment": "<bold>Pago:</bold> Las suscripciones se facturan a través de la Apple App Store o Google Play Store. El pago se carga a tu cuenta de la tienda de apps al confirmar la compra. La suscripción se renueva automáticamente a menos que se cancele al menos 24 horas antes del final del período de facturación actual.",
+			"cancellation": "<bold>Cancelación:</bold> Puedes cancelar tu suscripción en cualquier momento desde la configuración de tu cuenta en la tienda de apps. La cancelación entra en vigor al final del período de facturación actual. No se proporcionan reembolsos por períodos de facturación parciales.",
+			"priceChanges": "<bold>Cambios de precio:</bold> Nos reservamos el derecho de cambiar los precios de la suscripción. Los suscriptores existentes serán notificados con anticipación y tendrán la opción de cancelar antes de que entren en vigor los nuevos precios."
+		},
+		"credits": {
+			"title": "7. Créditos de pago por uso",
+			"intro": "Como alternativa a una suscripción, puedes comprar créditos de análisis de estados como compras únicas dentro de la app:",
+			"pack30": "<bold>30 análisis</bold> por <highlight>$10</highlight> (~$0.33 por análisis)",
+			"pack70": "<bold>70 análisis</bold> por <highlight>$20</highlight> (~$0.29 por análisis)",
+			"noExpiry": "<bold>Sin vencimiento:</bold> Los créditos comprados no caducan y permanecen disponibles hasta ser utilizados.",
+			"consumptionOrder": "<bold>Orden de consumo:</bold> Al analizar un estado, el sistema consume primero de la asignación de prueba, luego de la asignación de suscripción y luego del saldo de créditos.",
+			"nonRefundable": "<bold>No reembolsable:</bold> Las compras de créditos no son reembolsables una vez consumidos. Los créditos no utilizados se persisten entre reinstalaciones para usuarios autenticados."
+		},
+		"appStore": {
+			"title": "8. Términos de Apple App Store",
+			"content": "Si descargas Vector Expense de la Apple App Store, tu uso de la App también está sujeto al Acuerdo de licencia de usuario final (EULA) estándar de Apple. Puedes revisar el EULA estándar de Apple en: <appleLink>apple.com/legal/internet-services/itunes/dev/stdeula</appleLink>. En caso de conflicto entre estos Términos y el EULA estándar de Apple, el EULA estándar de Apple prevalecerá para las compras y suscripciones de la App Store."
+		},
+		"ip": {
+			"title": "9. Propiedad intelectual",
+			"content": "Vector Expense, su logotipo, diseño y tecnología subyacente son propiedad intelectual del equipo de Vector Expense. Se te otorga una licencia limitada, no exclusiva e intransferible para usar la App con fines personales y no comerciales."
+		},
+		"warranties": {
+			"title": "10. Exclusión de garantías",
+			"content": "Vector Expense se proporciona <bold>\"TAL CUAL\"</bold> y <bold>\"SEGÚN DISPONIBILIDAD\"</bold> sin garantías de ningún tipo, ya sean expresas o implícitas, incluyendo pero no limitadas a las garantías implícitas de comerciabilidad, idoneidad para un propósito particular y no infracción.",
+			"accuracy": "No garantizamos que la App sea ininterrumpida, libre de errores, o que los resultados del análisis sean 100% precisos. El análisis basado en IA y expresiones regulares es inherentemente probabilístico y puede producir resultados incorrectos."
+		},
+		"liability": {
+			"title": "11. Limitación de responsabilidad",
+			"content": "En la máxima medida permitida por la ley aplicable, Vector Expense y sus creadores no serán responsables de ningún daño indirecto, incidental, especial, consecuente o punitivo, ni de ninguna pérdida de beneficios, datos o fondo de comercio, derivados del uso de la App.",
+			"verification": "Reconoces que Vector Expense es una herramienta de análisis y visualización y no debe usarse como única base para decisiones financieras. Siempre verifica la información financiera importante con tu banco o institución financiera."
+		},
+		"dataPrivacy": {
+			"title": "12. Datos y privacidad",
+			"content": "Tu uso de Vector Expense también está regido por nuestra <privacyLink>Política de privacidad</privacyLink>, que detalla cómo gestionamos (y no almacenamos) tus datos. Al usar Vector Expense, reconoces y aceptas las prácticas descritas en la Política de privacidad."
+		},
+		"termination": {
+			"title": "13. Terminación",
+			"content": "Nos reservamos el derecho de suspender o terminar el acceso a la API de análisis de Vector Expense para cualquier usuario que viole estos términos o abuse del servicio, incluyendo pero no limitado a superar los límites de velocidad, scraping automatizado o subir archivos maliciosos."
+		},
+		"changesToTerms": {
+			"title": "14. Cambios en los términos",
+			"content": "Podemos actualizar estos Términos de servicio de vez en cuando. Los cambios se publicarán en esta página con una fecha de revisión actualizada. El uso continuado de la App después de publicar los cambios constituye la aceptación de los términos actualizados."
+		},
+		"governingLaw": {
+			"title": "15. Ley aplicable",
+			"content": "Estos términos se regirán e interpretarán de acuerdo con las leyes aplicables, sin tener en cuenta los principios de conflicto de leyes."
+		},
+		"contact": {
+			"title": "16. Contacto",
+			"content": "Para preguntas sobre estos Términos de servicio, contáctanos:"
+		}
+	},
+	"blog": {
+		"title": "Blog",
+		"pageTitle": "Información y guías",
+		"pageSubtitle": "Finanzas con privacidad primero, análisis con IA y control de tus gastos.",
+		"all": "Todos",
+		"noPosts": "No se encontraron publicaciones. ¡Vuelve pronto!",
+		"backToHome": "Volver al inicio",
+		"metaTitle": "Blog - Vector Expense",
+		"metaDescription": "Información sobre finanzas con privacidad primero, análisis con IA y gestión de gastos personales.",
+		"relatedPosts": "Publicaciones relacionadas",
+		"breadcrumbHome": "Inicio",
+		"breadcrumbBlog": "Blog",
+		"minRead": "{time} min de lectura",
+		"by": "Por {author}",
+		"questionsAnswered": "Preguntas respondidas en este artículo"
+	},
+	"languageSwitcher": {
+		"label": "Idioma"
+	},
+	"common": {
+		"downloadOnAppStore": "Descargar en el App Store"
+	}
+}

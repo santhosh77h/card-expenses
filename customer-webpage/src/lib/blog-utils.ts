@@ -34,16 +34,26 @@ export function extractHeadings(content: string): TocHeading[] {
   return headings;
 }
 
+const LOCALE_MAP: Record<string, string> = {
+  en: "en-US",
+  hi: "hi-IN",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+};
+
 export function formatPublishedDate(
   dateString: string,
-  style: "short" | "long" = "short"
+  style: "short" | "long" = "short",
+  locale: string = "en"
 ): string {
   if (!dateString) return "";
   const options: Intl.DateTimeFormatOptions =
     style === "long"
       ? { month: "long", day: "numeric", year: "numeric" }
       : { month: "short", day: "numeric", year: "numeric" };
-  return new Date(dateString).toLocaleDateString("en-US", options);
+  const intlLocale = LOCALE_MAP[locale] || "en-US";
+  return new Date(dateString).toLocaleDateString(intlLocale, options);
 }
 
 export function getPostFaq(post: BlogPost): FaqItem[] {

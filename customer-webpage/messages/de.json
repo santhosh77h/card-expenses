@@ -1,0 +1,420 @@
+{
+	"metadata": {
+		"title": "{name} | {description}",
+		"description": "Datenschutzorientierter Kreditkartenabrechnung-Parser. PDF hochladen, sofortige Ausgabeneinblicke erhalten – keine Daten auf unseren Servern gespeichert. Funktioniert mit jeder Bank, die PDF-Abrechnungen ausstellt.",
+		"ogTitle": "{name} - {description}",
+		"ogDescription": "Datenschutzorientierter Kreditkartenabrechnung-Parser. PDF hochladen, sofortige Ausgabeneinblicke erhalten."
+	},
+	"nav": {
+		"features": "Funktionen",
+		"pricing": "Preise",
+		"faq": "FAQ",
+		"blog": "Blog",
+		"downloadApp": "App herunterladen",
+		"downloadAlt": "Im App Store herunterladen"
+	},
+	"hero": {
+		"badge": "Datenschutzorientiertes Ausgaben-Tracking",
+		"title": "Analysieren Sie Ihre Kreditkartenabrechnungen mit <highlight>KI-Präzision</highlight>",
+		"subtitle": "Laden Sie die PDF-Abrechnung jeder Bank hoch und erhalten Sie sofortige Ausgabenübersichten, intelligente Kategorisierung und exportierbare Berichte. Kein Konto erforderlich.",
+		"tryDemo": "Demo ausprobieren",
+		"trustNoAccount": "Kein Konto erforderlich",
+		"trustPrivacy": "Datenschutz an erster Stelle",
+		"trustAnyBank": "Funktioniert mit jeder Bank"
+	},
+	"howItWorks": {
+		"sectionTitle": "So funktioniert es",
+		"sectionSubtitle": "Drei einfache Schritte",
+		"step1Title": "Hochladen",
+		"step1Description": "Fotografieren Sie Ihre Kreditkartenabrechnung als PDF oder wählen Sie sie aus. Verschlüsselte PDFs werden automatisch erkannt.",
+		"step2Title": "Analysieren",
+		"step2Description": "Unser KI-Konsensmotor mit 3 Modellen extrahiert jede Transaktion und kategorisiert Ausgaben automatisch.",
+		"step3Title": "Einblicke",
+		"step3Description": "Erhalten Sie sofortige Ausgabenübersichten, Kategoriediagramme und exportierbare CSV-Berichte – alles lokal gespeichert."
+	},
+	"featureScroll": {
+		"sectionTitle": "Erleben",
+		"sectionSubtitle": "Eine App wie keine andere"
+	},
+	"featureHighlight": {
+		"sectionTitle": "Funktionen",
+		"sectionSubtitle": "Leistungsstarke Funktionen",
+		"aiParsing": {
+			"title": "KI-gestützte Analyse",
+			"description": "Der 3-Modell-Konsensmotor validiert jede Transaktion für nahezu perfekte Genauigkeit."
+		},
+		"smartCategories": {
+			"title": "Intelligente Kategorien",
+			"description": "12 Ausgabenkategorien werden automatisch per KI und Schlüsselwortabgleich in mehreren Sprachen zugewiesen."
+		},
+		"detailedAnalytics": {
+			"title": "Detaillierte Analysen",
+			"description": "Erhalten Sie sofortige Ausgabenübersichten, Kategoriediagramme und exportierbare CSV-Berichte."
+		}
+	},
+	"bento": {
+		"sectionTitle": "Vorteile",
+		"sectionSubtitle": "Sie kann vieles",
+		"aiParsing": {
+			"title": "KI-gestützte Analyse",
+			"content": "Unser 3-Modell-Konsensmotor nutzt GPT-4o-mini, Claude und Gemini, um jede Abrechnung parallel zu analysieren. Eine intelligente Vorab-Analysesonde erkennt Layout, Währung und Bank vor der Extraktion – Felder werden per Mehrheitsvotum aufgelöst, für nahezu perfekte Genauigkeit."
+		},
+		"smartCategorization": {
+			"title": "Intelligente Kategorisierung",
+			"content": "12 Ausgabenkategorien werden automatisch per KI und Schlüsselwortabgleich zugewiesen. Jede Transaktion erhält einen Konfidenzwert."
+		},
+		"transactionDetails": {
+			"title": "Transaktionsdetails",
+			"content": "Durchsuchen Sie jede Transaktion mit Händlernamen, Beträgen, Datum und Kategorien. Unterstützt 11 Transaktionstypen: Kauf, Zahlung, Erstattung, EMI, Gebühr, Zinsen, Cashback, Prämie, Stornierung, Anpassung und Überweisung. Markieren, kommentieren und Belege anhängen."
+		},
+		"multiCardAnalytics": {
+			"title": "Multi-Karten-Analysen",
+			"content": "Verwalten Sie mehrere Kreditkarten mit kartenspezifischen Analysen, Auslastungsverfolgung und Trend-Minidiagrammen für alle Ihre Banken."
+		}
+	},
+	"benefits": {
+		"sectionTitle": "Vorteile",
+		"sectionSubtitle": "Was Sie mit {name} tun können",
+		"previousSlide": "Vorherige Folie",
+		"nextSlide": "Nächste Folie",
+		"item1": "Sparen Sie Stunden bei der Ausgabenverfolgung. Laden Sie ein PDF hoch und erhalten Sie in Sekunden eine vollständige Ausgabenübersicht.",
+		"item2": "Eliminieren Sie Kategorisierungsfehler mit dem 3-Modell-KI-Konsens, der jede Transaktion validiert.",
+		"item3": "Verfolgen Sie Ausgaben über alle Karten hinweg mit kartenspezifischen Analysen, Auslastungsverfolgung und Trend-Minidiagrammen.",
+		"item4": "Exportieren und sichern Sie mit Vertrauen. CSV-Export und AES-verschlüsselte Backups für vollständige Datenportabilität."
+	},
+	"features": {
+		"sectionTitle": "Funktionen",
+		"sectionSubtitle": "Leistungsstarke Funktionen",
+		"aiParsing": {
+			"name": "KI-gestützte Abrechnungsanalyse",
+			"description": "Laden Sie die PDF-Kreditkartenabrechnung jeder Bank hoch und lassen Sie unseren 3-Modell-KI-Konsensmotor jede Transaktion automatisch extrahieren. GPT-4o-mini, Claude und Gemini analysieren parallel mit Mehrheitsvotum für nahezu perfekte Genauigkeit."
+		},
+		"privacy": {
+			"name": "Datenschutzorientiertes Design",
+			"description": "Keine Datenspeicherung. Ihre Kreditkartenabrechnungen werden vollständig im Arbeitsspeicher verarbeitet und sofort gelöscht. Alle Finanzdaten bleiben verschlüsselt auf Ihrem Gerät – kein Konto, keine Cloud-Synchronisierung, kein Tracking."
+		},
+		"categorization": {
+			"name": "Intelligente Ausgabenkategorisierung",
+			"description": "12 Ausgabenkategorien werden automatisch per KI und Schlüsselwortabgleich zugewiesen. Lebensmittel, Einkauf, Shopping, Transport, Unterhaltung, Gesundheit, Versorgungsleistungen, Reisen, Bildung, Finanzen, Überweisungen – alles in mehreren Sprachen erkannt."
+		},
+		"multiCurrency": {
+			"name": "Multi-Währungs-Unterstützung",
+			"description": "Verfolgen Sie Ausgaben in INR (₹), USD ($), EUR (€) und GBP (£) mit regionsspezifischer Formatierung. Funktioniert mit jeder Bank, die PDF-Abrechnungen ausstellt – wenn sie es drucken, liest Vector es."
+		},
+		"multiCard": {
+			"name": "Multi-Karten-Verwaltung",
+			"description": "Verwalten Sie alle Ihre Kreditkarten an einem Ort. Kartendaten automatisch aus Abrechnungen erkennen, farbcodierte Profile, kartenspezifische Ausgabenanalysen, Auslastungsverfolgung und Trend-Minidiagramme."
+		},
+		"offline": {
+			"name": "Offline- und verschlüsselter Speicher",
+			"description": "Alle Transaktionsdaten lokal in AES-verschlüsseltem SQLite gespeichert. Transaktionen durchsuchen, Analysen anzeigen und Berichte exportieren – nach der ersten Analyse ohne Internet. Passwortgeschützte Backups für Datenportabilität."
+		},
+		"demo": {
+			"name": "Demo-Modus",
+			"description": "Testen Sie Vector Expense, bevor Sie ein einziges Dokument hochladen. Erkunden Sie 24 realistische Transaktionen in allen 12 Ausgabenkategorien mit einem Tippen – vollständige Analysen, CSV-Export und Kategorieaufschlüsselungen inklusive."
+		},
+		"manual": {
+			"name": "Manuelle Transaktionseingabe",
+			"description": "Ausgaben manuell mit KI-Kategorisierung in Echtzeit während der Eingabe hinzufügen. Belegfotos anhängen, Notizen hinzufügen, wichtige Transaktionen markieren und Ausgaben neben Ihren analysierten Abrechnungen verfolgen."
+		}
+	},
+	"pricing": {
+		"sectionTitle": "Preise",
+		"sectionSubtitle": "Einfache Preisgestaltung",
+		"freeTrial": "Kostenlose Testversion",
+		"freeTrialDescription": "{statements} kostenlose Abrechnungsanalysen über {days} Tage",
+		"noCreditCard": "Keine Kreditkarte erforderlich. Vollständiger Zugang zu allen Funktionen.",
+		"bestValue": "Bestes Preis-Leistungs-Verhältnis",
+		"perMonth": "Monat",
+		"perYear": "Jahr",
+		"monthlyEquivalent": "(2 $/Monat)",
+		"startFreeTrial": "Kostenlose Testversion starten",
+		"topUpNote": "Mehr Analysen benötigt? Aufladekredit-Pakete verfügbar: 10 $ für 30 Abrechnungen oder 20 $ für 70 Abrechnungen.",
+		"monthly": {
+			"name": "Monatlich",
+			"description": "Flexibles Monatsabonnement"
+		},
+		"yearly": {
+			"name": "Jährlich",
+			"description": "Bestes Preis-Leistungs-Verhältnis – 33 % sparen gegenüber monatlich"
+		},
+		"features": {
+			"parses": "4 Abrechnungsanalysen pro Monat",
+			"aiEngine": "KI-Konsensmotor mit 3 Modellen",
+			"categories": "12 Ausgabenkategorien",
+			"multiCard": "Multi-Karten-Verwaltung",
+			"csvExport": "CSV-Export und verschlüsselte Backups",
+			"offline": "Offline-Zugriff nach der Analyse"
+		}
+	},
+	"faq": {
+		"sectionTitle": "FAQ",
+		"sectionSubtitle": "Häufig gestellte Fragen",
+		"q1": {
+			"question": "Wie funktioniert die KI-Analyse?",
+			"answer": "Vector Expense nutzt einen 3-Modell-Konsensmotor – GPT-4o-mini, Claude 3.5 Haiku und Gemini 2.0 Flash analysieren jede Abrechnung parallel. Felder werden per Mehrheitsvotum aufgelöst, was Halluzinationen eliminiert. Jede Transaktion erhält einen Konfidenzwert."
+		},
+		"q2": {
+			"question": "Sind meine Finanzdaten sicher?",
+			"answer": "Absolut. Vector Expense verarbeitet PDFs vollständig im Arbeitsspeicher – keine Finanzdaten werden jemals auf den Festplatten unserer Server gespeichert. Alle Ihre Daten werden lokal auf Ihrem Gerät in einer verschlüsselten SQLite-Datenbank gespeichert. Kein Konto, keine Cloud-Synchronisierung, kein Tracking."
+		},
+		"q3": {
+			"question": "Kann ich Vector Expense mit anderen Apps integrieren?",
+			"answer": "Vector Expense unterstützt CSV-Export für jede Abrechnung, den Sie in Tabellenkalkulationen, Buchhaltungssoftware oder andere Finanztools importieren können. Verschlüsselte Backups können über das native Share-Sheet Ihres Geräts geteilt werden."
+		},
+		"q4": {
+			"question": "Welche Banken und Währungen werden unterstützt?",
+			"answer": "Vector Expense funktioniert mit jeder Bank, die PDF-Abrechnungen ausstellt – HDFC, Chase, Barclays, American Express, HSBC und mehr. Wenn sie es drucken, liest Vector es. Unterstützte Währungen: INR (₹), USD ($), EUR (€) und GBP (£) mit regionsspezifischer Formatierung."
+		},
+		"q5": {
+			"question": "Kann ich Vector Expense offline verwenden?",
+			"answer": "Ja! Nach der ersten Abrechnungsanalyse (die für die KI-Verarbeitung Internet erfordert) funktionieren alle Funktionen vollständig offline. Ihre Daten werden lokal gespeichert, sodass Sie Transaktionen durchsuchen, Analysen anzeigen und Berichte exportieren können – ohne Internet."
+		},
+		"q6": {
+			"question": "Unterstützt Vector Expense passwortgeschützte PDFs?",
+			"answer": "Ja. Vector Expense erkennt verschlüsselte PDFs automatisch und fordert das Passwort vor der Analyse an. Sie können das Passwort optional für diese Karte speichern, damit zukünftige Uploads derselben Bank automatisch entsperrt werden."
+		},
+		"q7": {
+			"question": "Kann ich Transaktionen manuell hinzufügen?",
+			"answer": "Absolut. Sie können Ausgaben manuell mit KI-Kategorisierung in Echtzeit während der Eingabe hinzufügen. Belegfotos anhängen, Notizen hinzufügen, wichtige Transaktionen markieren und manuelle Einträge neben Ihren analysierten Abrechnungen in einer einheitlichen Ansicht verfolgen."
+		}
+	},
+	"testimonials": {
+		"sectionTitle": "Erfahrungsberichte",
+		"sectionSubtitle": "Was unsere Nutzer sagen",
+		"t1": {
+			"text": "Vector Expense hat meine Art, Geschäftsausgaben zu verfolgen, völlig verändert. Ich lade einfach meine HDFC-Abrechnung hoch und alles ist sofort kategorisiert.",
+			"role": "Freelance-Designer/in"
+		},
+		"t2": {
+			"text": "Der datenschutzorientierte Ansatz hat mich überzeugt. Kein Konto erforderlich, keine Daten auf Servern gespeichert. Genau so sollten Finanz-Apps funktionieren.",
+			"role": "Software-Ingenieur/in"
+		},
+		"t3": {
+			"text": "4 Kreditkarten zu verwalten war ein Albtraum. Vector Expense erkennt jede Karte automatisch und gibt mir kartenspezifische Analysen. Unglaublich.",
+			"role": "Kleinunternehmer/in"
+		},
+		"t4": {
+			"text": "Die Genauigkeit der KI-Analyse ist beeindruckend. 3 Modelle stimmen über jede Transaktion ab, sodass ich selten etwas korrigieren muss.",
+			"role": "Produktmanager/in"
+		},
+		"t5": {
+			"text": "Ich liebe es, dass es mit meinen Barclays- und Amex-Abrechnungen funktioniert. Die Multi-Währungs-Unterstützung ist perfekt für meine Reiseausgaben.",
+			"role": "Marketingdirektor/in"
+		},
+		"t6": {
+			"text": "Die CSV-Exportfunktion spart mir Stunden während der Steuersaison. Abrechnung hochladen, Transaktionen exportieren, fertig.",
+			"role": "Steuerberater/in"
+		},
+		"t7": {
+			"text": "Der kostenlose Tarif mit 3 Uploads pro Monat ist mehr als genug für mich. Das beste Budgetierungstool, das ich gefunden habe und das nicht alle meine Daten will.",
+			"role": "Doktorand/in"
+		},
+		"t8": {
+			"text": "Endlich eine App, die indische Zahlenformatierung korrekt handhabt. Die Details, die zählen.",
+			"role": "Startup-Gründer/in"
+		},
+		"t9": {
+			"text": "Der Demo-Modus ermöglichte mir, alles auszuprobieren, bevor ich ein einziges Dokument hochgeladen habe. Intelligentes Onboarding.",
+			"role": "UX-Forscher/in"
+		},
+		"t10": {
+			"text": "Funktioniert einwandfrei mit meinen ICICI-, SBI- und Axis-Abrechnungen. Die Kategorieaufschlüsselungsdiagramme sind wunderschön.",
+			"role": "Datenanalyst/in"
+		},
+		"t11": {
+			"text": "Ich reise beruflich zwischen den USA und dem Vereinigten Königreich. Vector Expense verarbeitet sowohl Chase- als auch HSBC-Abrechnungen mit korrekter Währungsformatierung.",
+			"role": "Berater/in"
+		},
+		"t12": {
+			"text": "Die verschlüsselte Backup-Funktion gibt mir Sicherheit. Alle meine Finanzdaten sind passwortgeschützt und bleiben auf meinem Telefon.",
+			"role": "Arzt/Ärztin"
+		}
+	},
+	"cta": {
+		"headline": "Hören Sie auf zu raten, wohin Ihr Geld geht.",
+		"subtitle": "Laden Sie Ihre Abrechnung hoch und erhalten Sie sofortige KI-gestützte Einblicke.",
+		"button": "Jetzt starten"
+	},
+	"footer": {
+		"features": "Funktionen",
+		"pricing": "Preise",
+		"faq": "FAQ",
+		"blog": "Blog",
+		"privacy": "Datenschutz",
+		"terms": "Nutzungsbedingungen",
+		"copyright": "© {year} Vector Expense. Alle Rechte vorbehalten."
+	},
+	"privacy": {
+		"title": "Datenschutzrichtlinie",
+		"backToHome": "Zurück zur Startseite",
+		"lastUpdated": "Zuletzt aktualisiert: 14. März 2026",
+		"tagline": "Vector Expense - Ihr Geld. Gesteuert.",
+		"metaTitle": "Datenschutzrichtlinie - Vector Expense",
+		"metaDescription": "Datenschutzrichtlinie von Vector Expense. Ihre Daten bleiben auf Ihrem Gerät. Kein Konto, kein Tracking, kein Serverspeicher.",
+		"corePrinciple": {
+			"title": "Unser Grundprinzip",
+			"content": "Vector Expense basiert auf einem einfachen Versprechen: <bold>Ihre Finanzdaten verlassen niemals Ihr Gerät</bold>. Wir haben Vector Expense von Grund auf datenschutzorientiert konzipiert. Es gibt keine Konten zu erstellen, keine Daten zu synchronisieren und keine Server, die Ihre Informationen speichern."
+		},
+		"dataProcessing": {
+			"title": "Wie Ihre Daten verarbeitet werden",
+			"pdfProcessing": "<bold>PDF-Verarbeitung:</bold> Wenn Sie eine Kreditkartenabrechnung hochladen, wird das PDF ausschließlich zur Textextraktion und Analyse an unseren Server gesendet. Die Datei wird vollständig im Arbeitsspeicher verarbeitet und nach Abschluss der Analyse <bold>sofort gelöscht</bold>. Wir schreiben Ihr PDF nicht auf die Festplatte, protokollieren seinen Inhalt nicht und behalten keine Kopie.",
+			"localStorage": "<bold>Nur lokaler Speicher:</bold> Alle analysierten Transaktionen, Abrechnungen und Ausgabeninformationen werden lokal auf Ihrem Gerät mit SQLite gespeichert. Diese Daten verlassen niemals Ihr Telefon.",
+			"noCloudSync": "<bold>Keine Cloud-Synchronisierung:</bold> Vector Expense hat keine Benutzerkonten, keinen Cloud-Speicher oder Synchronisierungsmechanismus. Ihre Daten existieren nur auf dem Gerät, auf dem Sie die App verwenden."
+		},
+		"notCollected": {
+			"title": "Was wir NICHT erfassen",
+			"item1": "Persönliche Informationen oder Identitätsdetails",
+			"item2": "Kreditkartennummern oder Kontonummern",
+			"item3": "Transaktionsdaten oder Finanzhistorie",
+			"item4": "Gerätekennungen oder Fingerabdrücke",
+			"item5": "Nutzungsanalysen oder Verhaltens-Tracking",
+			"item6": "Standortdaten",
+			"item7": "Cookies oder seitenübergreifende Tracking-Pixel"
+		},
+		"thirdParty": {
+			"title": "Drittanbieterdienste",
+			"content": "Vector Expense teilt Ihre Daten nicht mit Dritten. Wir integrieren keine Werbe-SDKs, Analyseplattformen oder Social-Media-Tracker. Der einzige verwendete externe Dienst ist unsere eigene Analyse-API, die Ihr PDF im Arbeitsspeicher verarbeitet und nichts speichert.",
+			"aiNote": "Bei Verwendung der KI-gestützten Analyse kann der Textinhalt Ihrer Abrechnung zur Verarbeitung an KI-Anbieter gesendet werden. Dies geschieht ohne identifizierende Informationen, und gemäß deren API-Bedingungen werden keine Daten für Trainingszwecke aufbewahrt."
+		},
+		"dataRetention": {
+			"title": "Datenspeicherung",
+			"content": "Da wir Ihre Daten nicht auf unseren Servern speichern, gibt es unsererseits nichts aufzubewahren oder zu löschen. Alle Daten befinden sich auf Ihrem Gerät. Sie können alle Ihre Daten jederzeit löschen, indem Sie den App-Speicher leeren oder Vector Expense deinstallieren."
+		},
+		"security": {
+			"title": "Sicherheit",
+			"content": "Die gesamte Kommunikation zwischen der Vector Expense-App und unserer Analyse-API erfolgt über HTTPS/TLS-Verschlüsselung. PDFs werden in isolierten Arbeitsspeicherpuffern verarbeitet und niemals persistiert. Unsere API erzwingt Ratenbegrenzungen zur Missbrauchsverhinderung."
+		},
+		"children": {
+			"title": "Datenschutz für Kinder",
+			"content": "Vector Expense richtet sich nicht an Kinder unter 13 Jahren. Wir erfassen wissentlich keine Informationen von Kindern."
+		},
+		"changes": {
+			"title": "Änderungen dieser Richtlinie",
+			"content": "Wir können diese Datenschutzrichtlinie von Zeit zu Zeit aktualisieren. Änderungen werden auf dieser Seite mit einem aktualisierten Revisionsdatum angezeigt. Unser grundlegendes Engagement für datenschutzorientiertes Design wird sich nicht ändern."
+		},
+		"contact": {
+			"title": "Kontakt",
+			"content": "Wenn Sie Fragen zu dieser Datenschutzrichtlinie oder den Datenschutzpraktiken von Vector Expense haben, wenden Sie sich bitte an uns:"
+		}
+	},
+	"terms": {
+		"title": "Nutzungsbedingungen",
+		"backToHome": "Zurück zur Startseite",
+		"lastUpdated": "Zuletzt aktualisiert: 27. März 2026",
+		"tagline": "Vector Expense - Ihr Geld. Gesteuert.",
+		"metaTitle": "Nutzungsbedingungen - Vector Expense",
+		"metaDescription": "Nutzungsbedingungen von Vector Expense. Verstehen Sie Ihre Rechte und Pflichten bei der Nutzung von Vector Expense.",
+		"acceptance": {
+			"title": "1. Annahme der Bedingungen",
+			"content": "Durch das Herunterladen, Installieren oder Verwenden von Vector Expense (\"die App\") erklären Sie sich damit einverstanden, an diese Nutzungsbedingungen gebunden zu sein. Wenn Sie diesen Bedingungen nicht zustimmen, verwenden Sie die App nicht."
+		},
+		"description": {
+			"title": "2. Beschreibung des Dienstes",
+			"content": "Vector Expense ist ein datenschutzorientierter Kreditkartenabrechnung-Parser, der Transaktionsdaten aus PDF-Abrechnungen extrahiert und Ausgabeneinblicke bietet. Die App verarbeitet Ihre Dokumente, kategorisiert Transaktionen und präsentiert Analysen – alles mit dem Fokus, Ihre Daten privat und unter Ihrer Kontrolle zu halten."
+		},
+		"responsibilities": {
+			"title": "3. Pflichten des Nutzers",
+			"ownership": "<bold>Dokumenteigentum:</bold> Sie versichern, dass Sie das gesetzliche Recht haben, alle bei Vector Expense eingereichten Dokumente hochzuladen und zu verarbeiten. Sie dürfen nur Ihre eigenen Kreditkartenabrechnungen oder Abrechnungen hochladen, zu deren Zugriff Sie berechtigt sind.",
+			"accurateUse": "<bold>Korrekte Nutzung:</bold> Sie sind für die Überprüfung der Richtigkeit der analysierten Transaktionsdaten verantwortlich. Vector Expense verwendet KI und Mustererkennung zur Datenextraktion, was gelegentlich Fehler produzieren kann. Die App ist ein praktisches Hilfsmittel, kein zertifizierter Finanzbeleg.",
+			"lawfulUse": "<bold>Rechtmäßige Nutzung:</bold> Sie erklären sich damit einverstanden, Vector Expense nur für rechtmäßige Zwecke und in Übereinstimmung mit den geltenden Gesetzen und Vorschriften zu verwenden."
+		},
+		"freeTrial": {
+			"title": "4. Kostenlose Testversion",
+			"intro": "Neue Nutzer erhalten eine kostenlose Testversion mit folgenden Kontingenten:",
+			"parses": "<highlight>15 Abrechnungsanalysen</highlight> innerhalb eines <highlight>15-Tage-Fensters</highlight>",
+			"noCreditCard": "Keine Kreditkarte zum Starten erforderlich",
+			"fullAccess": "Vollständiger Zugang zu allen Funktionen, einschließlich KI-gestützter Analyse, 12 Ausgabenkategorien, Multi-Karten-Verwaltung und Analysen",
+			"anyBank": "Funktioniert mit jeder Bank, die PDF-Abrechnungen in INR, USD, EUR und GBP ausstellt",
+			"expiry": "Die Testversion läuft ab, wenn entweder das 15-Tage-Fenster oder das 15-Analyse-Limit erreicht wird, je nachdem, was zuerst eintritt. Der Teststatus wird sicher auf dem Gerät gespeichert, um Neuinstallationen zu überstehen. Wir behalten uns das Recht vor, Testlimits mit angemessener Vorankündigung zu ändern."
+		},
+		"freeFeatures": {
+			"title": "5. Kostenlose Funktionen",
+			"intro": "Folgende Funktionen sind für alle Nutzer kostenlos verfügbar, unabhängig vom Abonnementstatus:",
+			"manualEntry": "Manuelle Transaktionseingabe mit KI-Kategorisierung",
+			"demoMode": "Demo-Modus mit 24 Beispieltransaktionen zur Erkundung von Analysen",
+			"offlineAccess": "Vollständiger Offline-Zugriff auf zuvor analysierte Daten",
+			"charts": "Ausgabendiagramme, Kategorieaufschlüsselungen und Händleranalysen",
+			"csvExport": "CSV-Export und AES-verschlüsselte lokale Backups"
+		},
+		"proSubscription": {
+			"title": "6. Pro-Abonnement",
+			"intro": "Vector Expense bietet ein automatisch erneuerbares Pro-Abonnement mit zwei Abrechnungsoptionen:",
+			"monthly": "<bold>Monatlich:</bold> <highlight>3 $/Monat</highlight> – 4 Abrechnungsanalysen pro Monat",
+			"yearly": "<bold>Jährlich:</bold> <highlight>24 $/Jahr</highlight> (2 $/Monat) – 4 Abrechnungsanalysen pro Monat, 33 % sparen",
+			"allowance": "<bold>Abonnementkontingent:</bold> Pro-Abonnenten erhalten 4 Abrechnungsanalysen pro rollendem 30-Tage-Abrechnungszeitraum. Das Kontingent wird automatisch basierend auf Ihrem Abonnementbeginn zurückgesetzt.",
+			"payment": "<bold>Zahlung:</bold> Abonnements werden über den Apple App Store oder Google Play Store abgerechnet. Die Zahlung wird bei Kaufbestätigung Ihrem App-Store-Konto belastet. Das Abonnement verlängert sich automatisch, sofern es nicht mindestens 24 Stunden vor Ende des aktuellen Abrechnungszeitraums gekündigt wird.",
+			"cancellation": "<bold>Kündigung:</bold> Sie können Ihr Abonnement jederzeit über Ihre App-Store-Kontoeinstellungen kündigen. Die Kündigung wird am Ende des aktuellen Abrechnungszeitraums wirksam. Für anteilige Abrechnungszeiträume werden keine Rückerstattungen gewährt.",
+			"priceChanges": "<bold>Preisänderungen:</bold> Wir behalten uns das Recht vor, die Abonnementpreise zu ändern. Bestehende Abonnenten werden im Voraus benachrichtigt und erhalten die Möglichkeit zu kündigen, bevor neue Preise in Kraft treten."
+		},
+		"credits": {
+			"title": "7. Pay-as-you-go-Credits",
+			"intro": "Als Alternative zu einem Abonnement können Sie Abrechnungsanalyse-Credits als einmalige In-App-Käufe erwerben:",
+			"pack30": "<bold>30 Analysen</bold> für <highlight>10 $</highlight> (~0,33 $ pro Analyse)",
+			"pack70": "<bold>70 Analysen</bold> für <highlight>20 $</highlight> (~0,29 $ pro Analyse)",
+			"noExpiry": "<bold>Kein Ablaufdatum:</bold> Gekaufte Credits verfallen nicht und bleiben bis zur Nutzung verfügbar.",
+			"consumptionOrder": "<bold>Verbrauchsreihenfolge:</bold> Beim Analysieren einer Abrechnung verbraucht das System zuerst das Testkontingent, dann das Abonnementkontingent und dann das Credit-Guthaben.",
+			"nonRefundable": "<bold>Nicht erstattungsfähig:</bold> Credit-Käufe sind nach dem Verbrauch nicht erstattungsfähig. Ungenutzte Credits bleiben bei authentifizierten Nutzern über Neuinstallationen hinaus erhalten."
+		},
+		"appStore": {
+			"title": "8. Apple App Store-Bedingungen",
+			"content": "Wenn Sie Vector Expense aus dem Apple App Store herunterladen, unterliegt Ihre Nutzung der App auch dem Standard-Endbenutzer-Lizenzvertrag (EULA) von Apple. Sie können den Apple Standard-EULA unter folgendem Link einsehen: <appleLink>apple.com/legal/internet-services/itunes/dev/stdeula</appleLink>. Im Falle eines Widerspruchs zwischen diesen Bedingungen und dem Apple Standard-EULA hat der Apple Standard-EULA für App-Store-Käufe und Abonnements Vorrang."
+		},
+		"ip": {
+			"title": "9. Geistiges Eigentum",
+			"content": "Vector Expense, sein Logo, Design und die zugrunde liegende Technologie sind geistiges Eigentum des Vector Expense-Teams. Ihnen wird eine eingeschränkte, nicht-exklusive, nicht übertragbare Lizenz zur Nutzung der App für persönliche, nicht-kommerzielle Zwecke gewährt."
+		},
+		"warranties": {
+			"title": "10. Gewährleistungsausschluss",
+			"content": "Vector Expense wird <bold>\"WIE BESEHEN\"</bold> und <bold>\"WIE VERFÜGBAR\"</bold> ohne jegliche ausdrückliche oder stillschweigende Garantien bereitgestellt, einschließlich, aber nicht beschränkt auf stillschweigende Garantien der Marktgängigkeit, Eignung für einen bestimmten Zweck und Nichtverletzung.",
+			"accuracy": "Wir garantieren nicht, dass die App unterbrechungsfrei oder fehlerfrei ist oder dass die Analyseergebnisse zu 100 % korrekt sind. KI- und Regex-basierte Analyse ist von Natur aus probabilistisch und kann fehlerhafte Ergebnisse produzieren."
+		},
+		"liability": {
+			"title": "11. Haftungsbeschränkung",
+			"content": "Im maximal gesetzlich zulässigen Umfang haften Vector Expense und seine Ersteller nicht für indirekte, zufällige, besondere, Folge- oder Strafschäden oder Verluste von Gewinnen, Daten oder Geschäftswert, die aus Ihrer Nutzung der App entstehen.",
+			"verification": "Sie erkennen an, dass Vector Expense ein Analyse- und Visualisierungswerkzeug ist und nicht als einzige Grundlage für Finanzentscheidungen verwendet werden sollte. Überprüfen Sie wichtige Finanzinformationen immer bei Ihrer Bank oder Finanzinstitution."
+		},
+		"dataPrivacy": {
+			"title": "12. Daten und Datenschutz",
+			"content": "Ihre Nutzung von Vector Expense unterliegt auch unserer <privacyLink>Datenschutzrichtlinie</privacyLink>, die detailliert beschreibt, wie wir Ihre Daten handhaben (und nicht speichern). Durch die Nutzung von Vector Expense erkennen Sie die in der Datenschutzrichtlinie beschriebenen Praktiken an und stimmen ihnen zu."
+		},
+		"termination": {
+			"title": "13. Kündigung",
+			"content": "Wir behalten uns das Recht vor, den Zugang zur Analyse-API von Vector Expense für Nutzer zu sperren oder zu beenden, die gegen diese Bedingungen verstoßen oder den Dienst missbrauchen, einschließlich, aber nicht beschränkt auf das Überschreiten von Ratenlimits, automatisiertes Scraping oder das Hochladen schädlicher Dateien."
+		},
+		"changesToTerms": {
+			"title": "14. Änderungen der Bedingungen",
+			"content": "Wir können diese Nutzungsbedingungen von Zeit zu Zeit aktualisieren. Änderungen werden auf dieser Seite mit einem aktualisierten Revisionsdatum veröffentlicht. Die fortgesetzte Nutzung der App nach der Veröffentlichung von Änderungen gilt als Annahme der aktualisierten Bedingungen."
+		},
+		"governingLaw": {
+			"title": "15. Anwendbares Recht",
+			"content": "Diese Bedingungen unterliegen den geltenden Gesetzen und werden gemäß diesen ausgelegt, ohne Rücksicht auf Kollisionsnormen."
+		},
+		"contact": {
+			"title": "16. Kontakt",
+			"content": "Bei Fragen zu diesen Nutzungsbedingungen wenden Sie sich bitte an uns:"
+		}
+	},
+	"blog": {
+		"title": "Blog",
+		"pageTitle": "Einblicke und Leitfäden",
+		"pageSubtitle": "Datenschutzorientierte Finanzen, KI-gestützte Analyse und Kontrolle über Ihre Ausgaben.",
+		"all": "Alle",
+		"noPosts": "Keine Beiträge gefunden. Schauen Sie bald wieder vorbei!",
+		"backToHome": "Zurück zur Startseite",
+		"metaTitle": "Blog - Vector Expense",
+		"metaDescription": "Einblicke in datenschutzorientierte Finanzen, KI-gestützte Analyse und persönliches Ausgabenmanagement.",
+		"relatedPosts": "Verwandte Beiträge",
+		"breadcrumbHome": "Startseite",
+		"breadcrumbBlog": "Blog",
+		"minRead": "{time} Min. Lesezeit",
+		"by": "Von {author}",
+		"questionsAnswered": "In diesem Artikel beantwortete Fragen"
+	},
+	"languageSwitcher": {
+		"label": "Sprache"
+	},
+	"common": {
+		"downloadOnAppStore": "Im App Store herunterladen"
+	}
+}

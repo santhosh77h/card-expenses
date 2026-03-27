@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { BlogPost } from "@/lib/blog-api";
 import { formatPublishedDate } from "@/lib/blog-utils";
 

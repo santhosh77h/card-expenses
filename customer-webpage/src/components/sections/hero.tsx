@@ -8,6 +8,7 @@ import { easeOutCubic } from "@/lib/animation";
 import { motion } from "framer-motion";
 import { Globe, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 const fadeUp = (delay: number, y = 20) => ({
   initial: { opacity: 0, y },
@@ -15,13 +16,16 @@ const fadeUp = (delay: number, y = 20) => ({
   transition: { duration: 0.5, delay, ease: easeOutCubic },
 });
 
-const trustSignals = [
-  { icon: ShieldCheck, label: "No account needed" },
-  { icon: Lock, label: "Privacy-first" },
-  { icon: Globe, label: "Works with any bank" },
-];
-
 export function Hero() {
+  const t = useTranslations("hero");
+  const tc = useTranslations("common");
+
+  const trustSignals = [
+    { icon: ShieldCheck, label: t("trustNoAccount") },
+    { icon: Lock, label: t("trustPrivacy") },
+    { icon: Globe, label: t("trustAnyBank") },
+  ];
+
   return (
     <Section id="hero" className="min-h-[90vh] w-full overflow-hidden">
       <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
@@ -32,7 +36,7 @@ export function Hero() {
             <motion.div {...fadeUp(0.1, 10)}>
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
                 <ShieldCheck className="h-4 w-4" />
-                Privacy-First Expense Tracking
+                {t("badge")}
               </span>
             </motion.div>
 
@@ -41,8 +45,11 @@ export function Hero() {
               {...fadeUp(0.15)}
               className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-balance leading-[1.1]"
             >
-              Parse Your Credit Card Statements with{" "}
-              <span className="text-primary">AI Precision</span>
+              {t.rich("title", {
+                highlight: (chunks) => (
+                  <span className="text-primary">{chunks}</span>
+                ),
+              })}
             </motion.h1>
 
             {/* Subtitle */}
@@ -50,9 +57,7 @@ export function Hero() {
               {...fadeUp(0.25)}
               className="mt-6 text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0 text-balance leading-relaxed"
             >
-              Upload any bank&apos;s PDF statement and get instant spending
-              breakdowns, smart categorization, and exportable reports. No
-              account needed.
+              {t("subtitle")}
             </motion.p>
 
             {/* Dual CTA */}
@@ -63,12 +68,12 @@ export function Hero() {
               <a href="#" className="flex-shrink-0">
                 <img
                   src="/badges/download-black.svg"
-                  alt="Download on the App Store"
+                  alt={tc("downloadOnAppStore")}
                   className="h-12 dark:hidden block"
                 />
                 <img
                   src="/badges/download-white.svg"
-                  alt="Download on the App Store"
+                  alt={tc("downloadOnAppStore")}
                   className="h-12 hidden dark:block"
                 />
               </a>
@@ -78,7 +83,7 @@ export function Hero() {
                 asChild
                 className="rounded-full"
               >
-                <a href="#feature-highlight">Try Demo</a>
+                <a href="#feature-highlight">{t("tryDemo")}</a>
               </Button>
             </motion.div>
 

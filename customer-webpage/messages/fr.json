@@ -1,0 +1,420 @@
+{
+	"metadata": {
+		"title": "{name} | {description}",
+		"description": "Analyseur de relevés de carte de crédit axé sur la confidentialité. Importez un PDF, obtenez des informations sur vos dépenses instantanément - aucune donnée stockée sur nos serveurs. Fonctionne avec toute banque émettant des relevés en PDF.",
+		"ogTitle": "{name} - {description}",
+		"ogDescription": "Analyseur de relevés de carte de crédit axé sur la confidentialité. Importez un PDF, obtenez des informations sur vos dépenses instantanément."
+	},
+	"nav": {
+		"features": "Fonctionnalités",
+		"pricing": "Tarifs",
+		"faq": "FAQ",
+		"blog": "Blog",
+		"downloadApp": "Télécharger l'appli",
+		"downloadAlt": "Télécharger sur l'App Store"
+	},
+	"hero": {
+		"badge": "Suivi des dépenses axé sur la confidentialité",
+		"title": "Analysez vos relevés de carte de crédit avec une <highlight>précision IA</highlight>",
+		"subtitle": "Importez le relevé PDF de n'importe quelle banque et obtenez instantanément une décomposition de vos dépenses, une catégorisation intelligente et des rapports exportables. Aucun compte nécessaire.",
+		"tryDemo": "Essayer la démo",
+		"trustNoAccount": "Aucun compte nécessaire",
+		"trustPrivacy": "Confidentialité d'abord",
+		"trustAnyBank": "Fonctionne avec toute banque"
+	},
+	"howItWorks": {
+		"sectionTitle": "Comment ça fonctionne",
+		"sectionSubtitle": "Trois étapes simples",
+		"step1Title": "Importer",
+		"step1Description": "Prenez une photo ou sélectionnez votre relevé de carte de crédit en PDF. Les PDF chiffrés sont détectés automatiquement.",
+		"step2Title": "Analyser",
+		"step2Description": "Notre moteur de consensus IA à 3 modèles extrait chaque transaction et catégorise les dépenses automatiquement.",
+		"step3Title": "Insights",
+		"step3Description": "Obtenez instantanément une décomposition des dépenses, des graphiques par catégorie et des rapports CSV exportables, le tout stocké localement."
+	},
+	"featureScroll": {
+		"sectionTitle": "Expérience",
+		"sectionSubtitle": "Une application comme nulle autre"
+	},
+	"featureHighlight": {
+		"sectionTitle": "Fonctionnalités",
+		"sectionSubtitle": "Des fonctionnalités puissantes",
+		"aiParsing": {
+			"title": "Analyse par IA",
+			"description": "Le moteur de consensus à 3 modèles valide chaque transaction pour une précision quasi parfaite."
+		},
+		"smartCategories": {
+			"title": "Catégories intelligentes",
+			"description": "12 catégories de dépenses attribuées automatiquement via l'IA et la correspondance de mots-clés en plusieurs langues."
+		},
+		"detailedAnalytics": {
+			"title": "Analyses détaillées",
+			"description": "Obtenez instantanément une décomposition des dépenses, des graphiques par catégorie et des rapports CSV exportables."
+		}
+	},
+	"bento": {
+		"sectionTitle": "Avantages",
+		"sectionSubtitle": "Elle fait beaucoup de choses",
+		"aiParsing": {
+			"title": "Analyse par IA",
+			"content": "Notre moteur de consensus à 3 modèles utilise GPT-4o-mini, Claude et Gemini pour analyser chaque relevé en parallèle. Une sonde de pré-analyse d'intelligence documentaire détecte la mise en page, la devise et la banque avant l'extraction - les champs sont résolus par vote majoritaire pour une précision quasi parfaite."
+		},
+		"smartCategorization": {
+			"title": "Catégorisation intelligente",
+			"content": "12 catégories de dépenses sont attribuées automatiquement à l'aide de l'IA et de la correspondance de mots-clés. Chaque transaction reçoit un score de confiance."
+		},
+		"transactionDetails": {
+			"title": "Détails des transactions",
+			"content": "Parcourez chaque transaction avec les noms des marchands, les montants, les dates et les catégories. Prise en charge de 11 types de transactions : achat, paiement, remboursement, EMI, frais, intérêts, cashback, récompense, annulation, ajustement et virement. Marquez, annotez et joignez des reçus."
+		},
+		"multiCardAnalytics": {
+			"title": "Analyses multi-cartes",
+			"content": "Gérez plusieurs cartes de crédit avec des analyses par carte, le suivi du taux d'utilisation et des mini-graphiques de tendances sur toutes vos banques."
+		}
+	},
+	"benefits": {
+		"sectionTitle": "Avantages",
+		"sectionSubtitle": "Ce que vous pouvez faire avec {name}",
+		"previousSlide": "Diapositive précédente",
+		"nextSlide": "Diapositive suivante",
+		"item1": "Économisez des heures sur le suivi des dépenses. Importez un PDF et obtenez une décomposition complète en quelques secondes.",
+		"item2": "Éliminez les erreurs de catégorisation grâce au consensus IA à 3 modèles qui valide chaque transaction.",
+		"item3": "Suivez les dépenses sur toutes vos cartes avec des analyses par carte, le suivi du taux d'utilisation et des mini-graphiques de tendances.",
+		"item4": "Exportez et sauvegardez en toute confiance. Export CSV et sauvegardes chiffrées AES pour une portabilité totale des données."
+	},
+	"features": {
+		"sectionTitle": "Fonctionnalités",
+		"sectionSubtitle": "Des fonctionnalités puissantes",
+		"aiParsing": {
+			"name": "Analyse de relevés par IA",
+			"description": "Importez le relevé PDF de n'importe quelle banque et laissez notre moteur de consensus IA à 3 modèles extraire chaque transaction automatiquement. GPT-4o-mini, Claude et Gemini analysent en parallèle avec vote majoritaire pour une précision quasi parfaite."
+		},
+		"privacy": {
+			"name": "Conception axée sur la confidentialité",
+			"description": "Zéro rétention de données. Vos relevés de carte de crédit sont traités entièrement en mémoire et immédiatement supprimés. Toutes les données financières restent chiffrées sur votre appareil - sans compte, sans synchronisation cloud, sans suivi."
+		},
+		"categorization": {
+			"name": "Catégorisation intelligente des dépenses",
+			"description": "12 catégories de dépenses attribuées automatiquement à l'aide de l'IA et de la correspondance de mots-clés. Alimentation, courses, shopping, transport, divertissement, santé, services, voyage, éducation, finance, virements - tout détecté en plusieurs langues."
+		},
+		"multiCurrency": {
+			"name": "Support multi-devises",
+			"description": "Suivez vos dépenses en INR (₹), USD ($), EUR (€) et GBP (£) avec un formatage adapté à la région. Fonctionne avec toute banque émettant des relevés en PDF - s'ils l'impriment, Vector le lit."
+		},
+		"multiCard": {
+			"name": "Gestion multi-cartes",
+			"description": "Gérez toutes vos cartes de crédit en un seul endroit. Détection automatique des détails de la carte à partir des relevés, profils codés par couleur, analyses des dépenses par carte, suivi du taux d'utilisation et mini-graphiques de tendances."
+		},
+		"offline": {
+			"name": "Stockage hors ligne et chiffré",
+			"description": "Toutes les données de transactions stockées localement dans SQLite chiffré AES. Parcourez les transactions, consultez les analyses et exportez des rapports sans internet après l'analyse initiale. Sauvegardes protégées par mot de passe pour la portabilité des données."
+		},
+		"demo": {
+			"name": "Mode démo",
+			"description": "Essayez Vector Expense avant d'importer un seul document. Explorez 24 transactions réalistes dans les 12 catégories de dépenses en un seul geste - analyses complètes, export CSV et décompositions par catégorie inclus."
+		},
+		"manual": {
+			"name": "Saisie manuelle de transactions",
+			"description": "Ajoutez des dépenses manuellement avec une catégorisation IA en temps réel au fur et à mesure de la saisie. Joignez des photos de reçus, ajoutez des notes, marquez les transactions importantes et suivez vos dépenses en parallèle de vos relevés analysés."
+		}
+	},
+	"pricing": {
+		"sectionTitle": "Tarifs",
+		"sectionSubtitle": "Tarification simple",
+		"freeTrial": "Essai gratuit",
+		"freeTrialDescription": "{statements} analyses de relevés gratuites sur {days} jours",
+		"noCreditCard": "Aucune carte de crédit requise. Accès complet à toutes les fonctionnalités.",
+		"bestValue": "Meilleur rapport qualité-prix",
+		"perMonth": "mois",
+		"perYear": "an",
+		"monthlyEquivalent": "(2 $/mois)",
+		"startFreeTrial": "Démarrer l'essai gratuit",
+		"topUpNote": "Besoin de plus d'analyses ? Des packs de crédits rechargeables sont disponibles : 10 $ pour 30 relevés ou 20 $ pour 70 relevés.",
+		"monthly": {
+			"name": "Mensuel",
+			"description": "Abonnement mensuel flexible"
+		},
+		"yearly": {
+			"name": "Annuel",
+			"description": "Meilleur rapport qualité-prix - économisez 33 % par rapport au mensuel"
+		},
+		"features": {
+			"parses": "4 analyses de relevés par mois",
+			"aiEngine": "Moteur de consensus IA à 3 modèles",
+			"categories": "12 catégories de dépenses",
+			"multiCard": "Gestion multi-cartes",
+			"csvExport": "Export CSV et sauvegardes chiffrées",
+			"offline": "Accès hors ligne après analyse"
+		}
+	},
+	"faq": {
+		"sectionTitle": "FAQ",
+		"sectionSubtitle": "Questions fréquemment posées",
+		"q1": {
+			"question": "Comment fonctionne l'analyse par IA ?",
+			"answer": "Vector Expense utilise un moteur de consensus à 3 modèles - GPT-4o-mini, Claude 3.5 Haiku et Gemini 2.0 Flash analysent chaque relevé en parallèle. Les champs sont résolus par vote majoritaire, éliminant les hallucinations. Chaque transaction reçoit un score de confiance."
+		},
+		"q2": {
+			"question": "Mes données financières sont-elles sécurisées ?",
+			"answer": "Absolument. Vector Expense traite les PDF entièrement en mémoire - aucune donnée financière n'est jamais écrite sur le disque de nos serveurs. Toutes vos données sont stockées localement sur votre appareil dans une base de données SQLite chiffrée. Aucun compte, aucune synchronisation cloud, aucun suivi."
+		},
+		"q3": {
+			"question": "Puis-je intégrer Vector Expense avec d'autres applications ?",
+			"answer": "Vector Expense prend en charge l'export CSV pour tout relevé, que vous pouvez importer dans des tableurs, des logiciels de comptabilité ou d'autres outils financiers. Les sauvegardes chiffrées peuvent être partagées via la feuille de partage native de votre appareil."
+		},
+		"q4": {
+			"question": "Quelles banques et devises sont prises en charge ?",
+			"answer": "Vector Expense fonctionne avec toute banque émettant des relevés en PDF - HDFC, Chase, Barclays, American Express, HSBC et bien d'autres. S'ils l'impriment, Vector le lit. Devises prises en charge : INR (₹), USD ($), EUR (€) et GBP (£) avec formatage adapté à la région."
+		},
+		"q5": {
+			"question": "Puis-je utiliser Vector Expense hors ligne ?",
+			"answer": "Oui ! Après l'analyse initiale du relevé (qui nécessite internet pour le traitement IA), toutes les fonctionnalités fonctionnent complètement hors ligne. Vos données sont stockées localement, vous pouvez donc parcourir les transactions, consulter les analyses et exporter des rapports sans internet."
+		},
+		"q6": {
+			"question": "Vector Expense prend-il en charge les PDF protégés par mot de passe ?",
+			"answer": "Oui. Vector Expense détecte automatiquement les PDF chiffrés et vous invite à saisir le mot de passe avant l'analyse. Vous pouvez éventuellement enregistrer le mot de passe pour cette carte, de sorte que les importations futures de la même banque soient déverrouillées automatiquement."
+		},
+		"q7": {
+			"question": "Puis-je ajouter des transactions manuellement ?",
+			"answer": "Absolument. Vous pouvez ajouter des dépenses manuellement avec une catégorisation IA en temps réel au fur et à mesure de la saisie. Joignez des photos de reçus, ajoutez des notes, marquez les transactions importantes et suivez les saisies manuelles en parallèle de vos relevés analysés dans une vue unifiée."
+		}
+	},
+	"testimonials": {
+		"sectionTitle": "Témoignages",
+		"sectionSubtitle": "Ce que disent nos utilisateurs",
+		"t1": {
+			"text": "Vector Expense a complètement changé ma façon de suivre mes dépenses professionnelles. Je télécharge simplement mon relevé HDFC et tout est catégorisé instantanément.",
+			"role": "Designer freelance"
+		},
+		"t2": {
+			"text": "L'approche axée sur la confidentialité m'a convaincu. Aucun compte requis, aucune donnée stockée sur les serveurs. Exactement comme les applications financières devraient fonctionner.",
+			"role": "Ingénieur/e logiciel"
+		},
+		"t3": {
+			"text": "Gérer 4 cartes de crédit était un cauchemar. Vector Expense détecte automatiquement chaque carte et me fournit des analyses par carte. Incroyable.",
+			"role": "Chef/fe de petite entreprise"
+		},
+		"t4": {
+			"text": "La précision de l'analyse IA est impressionnante. 3 modèles votent sur chaque transaction, donc j'ai rarement besoin de corriger quoi que ce soit.",
+			"role": "Chef/fe de produit"
+		},
+		"t5": {
+			"text": "J'adore que ça fonctionne avec mes relevés Barclays et Amex. Le support multi-devises est parfait pour mes dépenses de voyage.",
+			"role": "Directeur/trice marketing"
+		},
+		"t6": {
+			"text": "La fonction d'export CSV me fait gagner des heures pendant la saison fiscale. Importez le relevé, exportez les transactions, terminé.",
+			"role": "Expert/e-comptable"
+		},
+		"t7": {
+			"text": "Le niveau gratuit avec 3 importations par mois est plus que suffisant pour moi. Le meilleur outil de budget que j'ai trouvé qui ne veut pas toutes mes données.",
+			"role": "Étudiant/e diplômé/e"
+		},
+		"t8": {
+			"text": "Enfin une application qui gère correctement le formatage des nombres indiens. Les détails qui comptent.",
+			"role": "Fondateur/trice de startup"
+		},
+		"t9": {
+			"text": "Le mode démo m'a permis de tout essayer avant d'importer un seul document. Une intégration intelligente.",
+			"role": "Chercheur/euse UX"
+		},
+		"t10": {
+			"text": "Fonctionne parfaitement avec mes relevés ICICI, SBI et Axis. Les graphiques de décomposition par catégorie sont magnifiques.",
+			"role": "Analyste de données"
+		},
+		"t11": {
+			"text": "Je voyage entre les États-Unis et le Royaume-Uni pour le travail. Vector Expense gère aussi bien les relevés Chase que HSBC avec le bon formatage de devise.",
+			"role": "Consultant/e"
+		},
+		"t12": {
+			"text": "La fonction de sauvegarde chiffrée me donne la tranquillité d'esprit. Toutes mes données financières sont protégées par mot de passe et restent sur mon téléphone.",
+			"role": "Médecin"
+		}
+	},
+	"cta": {
+		"headline": "Arrêtez de deviner où va votre argent.",
+		"subtitle": "Importez votre relevé et obtenez des informations instantanées propulsées par l'IA.",
+		"button": "Commencer"
+	},
+	"footer": {
+		"features": "Fonctionnalités",
+		"pricing": "Tarifs",
+		"faq": "FAQ",
+		"blog": "Blog",
+		"privacy": "Confidentialité",
+		"terms": "Conditions",
+		"copyright": "© {year} Vector Expense. Tous droits réservés."
+	},
+	"privacy": {
+		"title": "Politique de confidentialité",
+		"backToHome": "Retour à l'accueil",
+		"lastUpdated": "Dernière mise à jour : 14 mars 2026",
+		"tagline": "Vector Expense - Votre argent. Maîtrisé.",
+		"metaTitle": "Politique de confidentialité - Vector Expense",
+		"metaDescription": "Politique de confidentialité de Vector Expense. Vos données restent sur votre appareil. Aucun compte, aucun suivi, aucun stockage sur serveur.",
+		"corePrinciple": {
+			"title": "Notre principe fondamental",
+			"content": "Vector Expense repose sur une promesse simple : <bold>vos données financières ne quittent jamais votre appareil</bold>. Nous avons conçu Vector Expense dès le départ pour être axé sur la confidentialité. Aucun compte à créer, aucune donnée à synchroniser et aucun serveur stockant vos informations."
+		},
+		"dataProcessing": {
+			"title": "Comment vos données sont traitées",
+			"pdfProcessing": "<bold>Traitement PDF :</bold> Lorsque vous importez un relevé de carte de crédit, le PDF est envoyé à notre serveur uniquement pour l'extraction et l'analyse du texte. Le fichier est traité entièrement en mémoire et est <bold>immédiatement supprimé</bold> une fois l'analyse terminée. Nous n'écrivons pas votre PDF sur le disque, n'enregistrons pas son contenu et ne conservons aucune copie.",
+			"localStorage": "<bold>Stockage local uniquement :</bold> Toutes les transactions analysées, les relevés et les informations sur les dépenses sont stockés localement sur votre appareil à l'aide de SQLite. Ces données ne quittent jamais votre téléphone.",
+			"noCloudSync": "<bold>Aucune synchronisation cloud :</bold> Vector Expense ne dispose pas de comptes utilisateur, de stockage cloud ni d'aucun mécanisme de synchronisation. Vos données n'existent que sur l'appareil où vous utilisez l'application."
+		},
+		"notCollected": {
+			"title": "Ce que nous ne collectons PAS",
+			"item1": "Informations personnelles ou détails d'identité",
+			"item2": "Numéros de carte de crédit ou numéros de compte",
+			"item3": "Données de transactions ou historique financier",
+			"item4": "Identifiants d'appareil ou empreintes digitales",
+			"item5": "Analyses d'utilisation ou suivi comportemental",
+			"item6": "Données de localisation",
+			"item7": "Cookies ou pixels de suivi intersites"
+		},
+		"thirdParty": {
+			"title": "Services tiers",
+			"content": "Vector Expense ne partage pas vos données avec des tiers. Nous n'intégrons pas de SDK publicitaires, de plateformes d'analyse ou de trackers de réseaux sociaux. Le seul service externe utilisé est notre propre API d'analyse, qui traite votre PDF en mémoire et ne conserve rien.",
+			"aiNote": "Lorsque l'analyse par IA est utilisée, le contenu textuel de votre relevé peut être envoyé à des fournisseurs d'IA pour traitement. Cela se fait sans aucune information d'identification, et aucune donnée n'est conservée à des fins d'entraînement conformément à leurs conditions d'API."
+		},
+		"dataRetention": {
+			"title": "Conservation des données",
+			"content": "Étant donné que nous ne stockons pas vos données sur nos serveurs, il n'y a rien à conserver ou à supprimer de notre côté. Toutes les données résident sur votre appareil. Vous pouvez supprimer toutes vos données à tout moment en effaçant le stockage de l'application ou en désinstallant Vector Expense."
+		},
+		"security": {
+			"title": "Sécurité",
+			"content": "Toutes les communications entre l'application Vector Expense et notre API d'analyse utilisent le chiffrement HTTPS/TLS. Les PDF sont traités dans des tampons mémoire isolés et ne sont jamais persistés. Notre API applique des limites de débit pour prévenir les abus."
+		},
+		"children": {
+			"title": "Confidentialité des enfants",
+			"content": "Vector Expense n'est pas destinée aux enfants de moins de 13 ans. Nous ne collectons pas sciemment d'informations auprès des enfants."
+		},
+		"changes": {
+			"title": "Modifications de cette politique",
+			"content": "Nous pouvons mettre à jour cette politique de confidentialité de temps en temps. Toute modification sera reflétée sur cette page avec une date de révision mise à jour. Notre engagement fondamental envers la conception axée sur la confidentialité ne changera pas."
+		},
+		"contact": {
+			"title": "Nous contacter",
+			"content": "Si vous avez des questions sur cette politique de confidentialité ou les pratiques de confidentialité de Vector Expense, veuillez nous contacter :"
+		}
+	},
+	"terms": {
+		"title": "Conditions d'utilisation",
+		"backToHome": "Retour à l'accueil",
+		"lastUpdated": "Dernière mise à jour : 27 mars 2026",
+		"tagline": "Vector Expense - Votre argent. Maîtrisé.",
+		"metaTitle": "Conditions d'utilisation - Vector Expense",
+		"metaDescription": "Conditions d'utilisation de Vector Expense. Comprenez vos droits et responsabilités lors de l'utilisation de Vector Expense.",
+		"acceptance": {
+			"title": "1. Acceptation des conditions",
+			"content": "En téléchargeant, installant ou utilisant Vector Expense (« l'Application »), vous acceptez d'être lié/e par ces Conditions d'utilisation. Si vous n'acceptez pas ces conditions, n'utilisez pas l'Application."
+		},
+		"description": {
+			"title": "2. Description du service",
+			"content": "Vector Expense est un analyseur de relevés de carte de crédit axé sur la confidentialité qui extrait les données de transactions des relevés PDF et fournit des informations sur les dépenses. L'Application traite vos documents, catégorise les transactions et présente des analyses, le tout en mettant l'accent sur la confidentialité de vos données et leur contrôle par vous."
+		},
+		"responsibilities": {
+			"title": "3. Responsabilités de l'utilisateur",
+			"ownership": "<bold>Propriété du document :</bold> Vous déclarez avoir le droit légal d'importer et de traiter tout document soumis à Vector Expense. Vous ne devez importer que vos propres relevés de carte de crédit ou des relevés que vous êtes autorisé/e à consulter.",
+			"accurateUse": "<bold>Utilisation précise :</bold> Vous êtes responsable de vérifier l'exactitude des données de transactions analysées. Vector Expense utilise l'IA et la correspondance de modèles pour extraire les données, ce qui peut occasionnellement produire des erreurs. L'Application est un outil de commodité, pas un dossier financier certifié.",
+			"lawfulUse": "<bold>Utilisation légale :</bold> Vous acceptez d'utiliser Vector Expense uniquement à des fins légales et conformément aux lois et réglementations applicables."
+		},
+		"freeTrial": {
+			"title": "4. Essai gratuit",
+			"intro": "Les nouveaux utilisateurs bénéficient d'un essai gratuit avec les allocations suivantes :",
+			"parses": "<highlight>15 analyses de relevés</highlight> dans une <highlight>fenêtre de 15 jours</highlight>",
+			"noCreditCard": "Aucune carte de crédit requise pour démarrer",
+			"fullAccess": "Accès complet à toutes les fonctionnalités, notamment l'analyse par IA, 12 catégories de dépenses, la gestion multi-cartes et les analyses",
+			"anyBank": "Fonctionne avec toute banque émettant des relevés PDF en INR, USD, EUR et GBP",
+			"expiry": "L'essai expire lorsque la fenêtre de 15 jours ou la limite de 15 analyses est atteinte, selon la première éventualité. L'état de l'essai est conservé de manière sécurisée sur l'appareil pour survivre aux réinstallations. Nous nous réservons le droit de modifier les limites d'essai avec un préavis raisonnable."
+		},
+		"freeFeatures": {
+			"title": "5. Fonctionnalités gratuites",
+			"intro": "Les fonctionnalités suivantes sont disponibles gratuitement pour tous les utilisateurs, quel que soit leur statut d'abonnement :",
+			"manualEntry": "Saisie manuelle de transactions avec catégorisation IA",
+			"demoMode": "Mode démo avec 24 transactions exemples pour explorer les analyses",
+			"offlineAccess": "Accès hors ligne complet aux données précédemment analysées",
+			"charts": "Graphiques de dépenses, décompositions par catégorie et analyse des marchands",
+			"csvExport": "Export CSV et sauvegardes locales chiffrées AES"
+		},
+		"proSubscription": {
+			"title": "6. Abonnement Pro",
+			"intro": "Vector Expense propose un abonnement Pro à renouvellement automatique avec deux options de facturation :",
+			"monthly": "<bold>Mensuel :</bold> <highlight>3 $/mois</highlight> - 4 analyses de relevés par mois",
+			"yearly": "<bold>Annuel :</bold> <highlight>24 $/an</highlight> (2 $/mois) - 4 analyses de relevés par mois, économisez 33 %",
+			"allowance": "<bold>Allocation d'abonnement :</bold> Les abonnés Pro reçoivent 4 analyses de relevés par cycle de facturation glissant de 30 jours. L'allocation se réinitialise automatiquement en fonction de la date de début de votre abonnement.",
+			"payment": "<bold>Paiement :</bold> Les abonnements sont facturés via l'Apple App Store ou le Google Play Store. Le paiement est débité de votre compte de la boutique d'applications lors de la confirmation d'achat. L'abonnement se renouvelle automatiquement sauf annulation au moins 24 heures avant la fin de la période de facturation en cours.",
+			"cancellation": "<bold>Résiliation :</bold> Vous pouvez résilier votre abonnement à tout moment via les paramètres de votre compte dans la boutique d'applications. La résiliation prend effet à la fin de la période de facturation en cours. Aucun remboursement n'est accordé pour les périodes de facturation partielles.",
+			"priceChanges": "<bold>Modifications de prix :</bold> Nous nous réservons le droit de modifier les tarifs d'abonnement. Les abonnés existants seront informés à l'avance et auront la possibilité d'annuler avant l'entrée en vigueur des nouveaux tarifs."
+		},
+		"credits": {
+			"title": "7. Crédits à la consommation",
+			"intro": "En alternative à un abonnement, vous pouvez acheter des crédits d'analyse de relevés sous forme d'achats uniques intégrés à l'application :",
+			"pack30": "<bold>30 analyses</bold> pour <highlight>10 $</highlight> (~0,33 $ par analyse)",
+			"pack70": "<bold>70 analyses</bold> pour <highlight>20 $</highlight> (~0,29 $ par analyse)",
+			"noExpiry": "<bold>Sans expiration :</bold> Les crédits achetés n'expirent pas et restent disponibles jusqu'à leur utilisation.",
+			"consumptionOrder": "<bold>Ordre de consommation :</bold> Lors de l'analyse d'un relevé, le système consomme d'abord l'allocation d'essai, puis l'allocation d'abonnement, puis le solde de crédits.",
+			"nonRefundable": "<bold>Non remboursable :</bold> Les achats de crédits ne sont pas remboursables une fois consommés. Les crédits inutilisés sont conservés entre les réinstallations pour les utilisateurs authentifiés."
+		},
+		"appStore": {
+			"title": "8. Conditions de l'Apple App Store",
+			"content": "Si vous téléchargez Vector Expense depuis l'Apple App Store, votre utilisation de l'Application est également soumise au Contrat de licence d'utilisateur final (CLUF) standard d'Apple. Vous pouvez consulter le CLUF standard Apple à l'adresse : <appleLink>apple.com/legal/internet-services/itunes/dev/stdeula</appleLink>. En cas de conflit entre ces Conditions et le CLUF standard Apple, le CLUF standard Apple prévaudra pour les achats et abonnements de l'App Store."
+		},
+		"ip": {
+			"title": "9. Propriété intellectuelle",
+			"content": "Vector Expense, son logo, sa conception et sa technologie sous-jacente sont la propriété intellectuelle de l'équipe Vector Expense. Une licence limitée, non exclusive et non transférable vous est accordée pour utiliser l'Application à des fins personnelles et non commerciales."
+		},
+		"warranties": {
+			"title": "10. Exclusion de garanties",
+			"content": "Vector Expense est fourni <bold>« EN L'ÉTAT »</bold> et <bold>« SELON DISPONIBILITÉ »</bold> sans garanties d'aucune sorte, expresses ou implicites, y compris mais sans s'y limiter les garanties implicites de qualité marchande, d'adéquation à un usage particulier et de non-contrefaçon.",
+			"accuracy": "Nous ne garantissons pas que l'Application sera ininterrompue, sans erreur, ou que les résultats d'analyse seront précis à 100 %. L'analyse basée sur l'IA et les expressions régulières est intrinsèquement probabiliste et peut produire des résultats incorrects."
+		},
+		"liability": {
+			"title": "11. Limitation de responsabilité",
+			"content": "Dans la mesure maximale permise par la loi applicable, Vector Expense et ses créateurs ne seront pas responsables de tout dommage indirect, accessoire, spécial, consécutif ou punitif, ni de toute perte de profits, de données ou de clientèle, découlant de votre utilisation de l'Application.",
+			"verification": "Vous reconnaissez que Vector Expense est un outil d'analyse et de visualisation et ne doit pas être utilisé comme seule base pour des décisions financières. Vérifiez toujours les informations financières importantes auprès de votre banque ou institution financière."
+		},
+		"dataPrivacy": {
+			"title": "12. Données et confidentialité",
+			"content": "Votre utilisation de Vector Expense est également régie par notre <privacyLink>Politique de confidentialité</privacyLink>, qui détaille comment nous gérons (et ne stockons pas) vos données. En utilisant Vector Expense, vous reconnaissez et acceptez les pratiques décrites dans la Politique de confidentialité."
+		},
+		"termination": {
+			"title": "13. Résiliation",
+			"content": "Nous nous réservons le droit de suspendre ou de mettre fin à l'accès à l'API d'analyse de Vector Expense pour tout utilisateur qui viole ces conditions ou abuse du service, y compris mais sans s'y limiter le dépassement des limites de débit, le scraping automatisé ou l'importation de fichiers malveillants."
+		},
+		"changesToTerms": {
+			"title": "14. Modifications des conditions",
+			"content": "Nous pouvons mettre à jour ces Conditions d'utilisation de temps en temps. Les modifications seront publiées sur cette page avec une date de révision mise à jour. L'utilisation continue de l'Application après la publication des modifications constitue l'acceptation des conditions mises à jour."
+		},
+		"governingLaw": {
+			"title": "15. Droit applicable",
+			"content": "Ces conditions seront régies et interprétées conformément aux lois applicables, sans égard aux principes de conflits de lois."
+		},
+		"contact": {
+			"title": "16. Contact",
+			"content": "Pour toute question concernant ces Conditions d'utilisation, veuillez nous contacter :"
+		}
+	},
+	"blog": {
+		"title": "Blog",
+		"pageTitle": "Insights et guides",
+		"pageSubtitle": "Finance axée sur la confidentialité, analyse par IA et maîtrise de vos dépenses.",
+		"all": "Tous",
+		"noPosts": "Aucune publication trouvée. Revenez bientôt !",
+		"backToHome": "Retour à l'accueil",
+		"metaTitle": "Blog - Vector Expense",
+		"metaDescription": "Insights sur la finance axée sur la confidentialité, l'analyse par IA et la gestion des dépenses personnelles.",
+		"relatedPosts": "Articles connexes",
+		"breadcrumbHome": "Accueil",
+		"breadcrumbBlog": "Blog",
+		"minRead": "{time} min de lecture",
+		"by": "Par {author}",
+		"questionsAnswered": "Questions traitées dans cet article"
+	},
+	"languageSwitcher": {
+		"label": "Langue"
+	},
+	"common": {
+		"downloadOnAppStore": "Télécharger sur l'App Store"
+	}
+}

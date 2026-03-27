@@ -8,13 +8,15 @@ import BlogCard from "@/components/blog/BlogCard";
 import BlogFaq from "@/components/blog/BlogFaq";
 import Breadcrumb from "@/components/blog/Breadcrumb";
 import TableOfContents from "@/components/blog/TableOfContents";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
   const post = await getBlogPost(slug);
   if (!post) return { title: "Post Not Found - Vector Expense" };
 
@@ -49,9 +51,12 @@ export async function generateMetadata({
 export default async function BlogPostPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("blog");
+
   const post = await getBlogPost(slug);
   if (!post) notFound();
 
@@ -154,7 +159,7 @@ export default async function BlogPostPage({
                   {post.category}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                  {post.read_time} min read
+                  {t("minRead", { time: post.read_time })}
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
@@ -164,7 +169,7 @@ export default async function BlogPostPage({
                 {post.excerpt}
               </p>
               <div className="flex items-center gap-4 text-sm text-muted-foreground border-b border-border pb-6">
-                <span>By {post.author}</span>
+                <span>{t("by", { author: post.author })}</span>
                 {post.published_at && (
                   <span>
                     {formatPublishedDate(post.published_at, "long")}
@@ -189,7 +194,7 @@ export default async function BlogPostPage({
         {/* Related posts - full width below */}
         {filtered.length > 0 && (
           <div className="mt-16 pt-10 border-t border-border max-w-3xl">
-            <h3 className="text-xl font-semibold mb-6">Related Posts</h3>
+            <h3 className="text-xl font-semibold mb-6">{t("relatedPosts")}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filtered.map((related) => (
                 <BlogCard key={related.id} post={related} />

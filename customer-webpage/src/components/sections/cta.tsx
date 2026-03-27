@@ -1,9 +1,14 @@
+"use client";
+
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { Icons } from "@/components/icons";
+import { useTranslations } from "next-intl";
 
 export function CTA() {
+  const t = useTranslations("cta");
+
   return (
     <section id="cta">
       <div className="py-14">
@@ -24,10 +29,10 @@ export function CTA() {
             </div>
             <div className="z-10 mt-4 flex flex-col items-center text-center text-black dark:text-white">
               <h1 className="text-3xl font-bold lg:text-4xl">
-                Stop guessing where your money goes.
+                {t("headline")}
               </h1>
               <p className="mt-2">
-                Upload your statement and get instant AI-powered insights.
+                {t("subtitle")}
               </p>
               <a
                 href="#"
@@ -39,7 +44,7 @@ export function CTA() {
                   "group mt-4 rounded-[2rem] px-6"
                 )}
               >
-                Get Started
+                {t("button")}
                 <ChevronRight className="ml-1 size-4 transition-all duration-300 ease-out group-hover:translate-x-1" />
               </a>
             </div>

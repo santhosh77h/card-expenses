@@ -10,8 +10,9 @@ import { UploadScreenPreview } from "@/components/ui/upload-screen-preview";
 import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 const previewComponents: Record<string, { component: React.ReactNode; scrollable?: boolean }> = {
   "card-analytics": { component: <CardAnalyticsPreview />, scrollable: true },
@@ -27,6 +28,7 @@ interface FeatureProps {
   direction: "ltr" | "rtl";
   isActive: boolean;
   previewId?: string;
+  downloadAlt: string;
 }
 
 function Feature({
@@ -36,6 +38,7 @@ function Feature({
   direction,
   isActive,
   previewId,
+  downloadAlt,
 }: FeatureProps) {
   const isLTR = direction === "ltr";
   const textVariants = {
@@ -95,12 +98,12 @@ function Feature({
             <Link href="#" className="inline-block mx-auto lg:mx-0">
               <img
                 src="/badges/download-black.svg"
-                alt="Download on the App Store"
+                alt={downloadAlt}
                 className="h-12 dark:hidden block"
               />
               <img
                 src="/badges/download-white.svg"
-                alt="Download on the App Store"
+                alt={downloadAlt}
                 className="h-12 hidden dark:block"
               />
             </Link>
@@ -129,6 +132,8 @@ function Feature({
 }
 
 export function FeatureHighlight() {
+  const t = useTranslations("featureHighlight");
+  const tc = useTranslations("common");
   const features = siteConfig.featureHighlight;
 
   const [activeFeature, setActiveFeature] = useState(-1);
@@ -156,13 +161,22 @@ export function FeatureHighlight() {
   return (
     <Section
       id="feature-highlight"
-      title="Features"
-      subtitle="Powerful features"
+      title={t("sectionTitle")}
+      subtitle={t("sectionSubtitle")}
       className="container px-10 mx-auto max-w-[var(--max-container-width)]"
       ref={containerRef}
     >
       {features.map((feature, index) => (
-        <Feature key={index} isActive={activeFeature === index} {...feature} />
+        <Feature
+          key={feature.key}
+          isActive={activeFeature === index}
+          title={t(`${feature.key}.title`)}
+          description={t(`${feature.key}.description`)}
+          imageSrc={feature.imageSrc}
+          direction={feature.direction}
+          previewId={feature.previewId}
+          downloadAlt={tc("downloadOnAppStore")}
+        />
       ))}
     </Section>
   );

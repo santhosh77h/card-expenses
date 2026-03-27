@@ -1,21 +1,10 @@
 import { Icons } from "@/components/icons";
 import { siteConfig } from "@/lib/config";
+import { getTranslations } from "next-intl/server";
 
-type FooterLink = {
-  text: string;
-  url: string;
-};
+export async function Footer() {
+  const t = await getTranslations("footer");
 
-const links: FooterLink[] = [
-  { text: "Features", url: "#features" },
-  { text: "Pricing", url: "#pricing" },
-  { text: "FAQ", url: "#faq" },
-  { text: "Blog", url: "/blog" },
-  { text: "Privacy", url: "/privacy" },
-  { text: "Terms", url: "/terms" },
-];
-
-export function Footer() {
   return (
     <footer className="flex flex-col gap-y-5 px-7 py-5 md:px-10 w-full max-w-full">
       <div className="flex items-center justify-between">
@@ -55,17 +44,17 @@ export function Footer() {
       </div>
       <div className="flex flex-col justify-between gap-y-5 md:flex-row md:items-center">
         <ul className="flex flex-col gap-x-5 gap-y-2 text-muted-foreground md:flex-row md:items-center">
-          {links.map((link, index) => (
+          {siteConfig.footerLinks.map((link) => (
             <li
-              key={index}
+              key={link.key}
               className="text-[15px]/normal font-medium text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground hover:underline hover:underline-offset-4"
             >
-              <a href={link.url}>{link.text}</a>
+              <a href={link.href}>{t(link.key)}</a>
             </li>
           ))}
         </ul>
         <div className="flex items-center justify-between text-sm font-medium tracking-tight text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Vector Expense. All rights reserved.</p>
+          <p>{t("copyright", { year: new Date().getFullYear().toString() })}</p>
         </div>
       </div>
     </footer>

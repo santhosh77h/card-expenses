@@ -1,18 +1,19 @@
 "use client";
 
 import { Section } from "@/components/section";
-import { HOW_IT_WORKS } from "@/lib/constants";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Upload, Cpu, BarChart3 } from "lucide-react";
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  upload: Upload,
-  cpu: Cpu,
-  "bar-chart": BarChart3,
-};
+const steps = [
+  { step: 1, icon: Upload, titleKey: "step1Title", descKey: "step1Description" },
+  { step: 2, icon: Cpu, titleKey: "step2Title", descKey: "step2Description" },
+  { step: 3, icon: BarChart3, titleKey: "step3Title", descKey: "step3Description" },
+] as const;
 
 export function HowItWorks() {
+  const t = useTranslations("howItWorks");
   const ref = useRef(null);
 
   const { scrollYProgress } = useScroll({
@@ -26,8 +27,8 @@ export function HowItWorks() {
   return (
     <Section
       id="how-it-works"
-      title="How It Works"
-      subtitle="Three simple steps"
+      title={t("sectionTitle")}
+      subtitle={t("sectionSubtitle")}
       className="container px-10 mx-auto max-w-[var(--max-container-width)]"
       ref={ref}
     >
@@ -35,8 +36,8 @@ export function HowItWorks() {
         style={{ opacity, y }}
         className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto py-10"
       >
-        {HOW_IT_WORKS.map((step) => {
-          const Icon = iconMap[step.icon] || Upload;
+        {steps.map((step) => {
+          const Icon = step.icon;
           return (
             <div
               key={step.step}
@@ -50,9 +51,9 @@ export function HowItWorks() {
                   {step.step}
                 </span>
               </div>
-              <h3 className="text-xl font-semibold">{step.title}</h3>
+              <h3 className="text-xl font-semibold">{t(step.titleKey)}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                {step.description}
+                {t(step.descKey)}
               </p>
             </div>
           );

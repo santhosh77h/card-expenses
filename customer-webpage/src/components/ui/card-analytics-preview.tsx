@@ -24,7 +24,7 @@ const merchants = [
 const insights = [
   { label: "\u2191 Unusual spike", text: "February was 113% above", rest: " your monthly average. Shopping and Travel were the biggest drivers." },
   { label: "\u{1F37D} Dining trend", text: "increased 22%", rest: " over the last 3 months compared to the 3 months prior.", prefix: "Food & Dining spend has " },
-  { label: "\u2713 Best month", text: "September was your lowest spend month", rest: " at \u20B928,900 \u2014 10% below your yearly average." },
+  { label: "\u2713 Best month", text: "September was your lowest spend month", rest: " at \u20B928,900 - 10% below your yearly average." },
 ];
 
 // Donut chart angles

@@ -8,8 +8,10 @@ import { UploadScreenPreview } from "@/components/ui/upload-screen-preview";
 import { easeOutCubic } from "@/lib/animation";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 
 export function FeatureScroll() {
+  const t = useTranslations("featureScroll");
   const phone1Ref = useRef(null);
   const phone2Ref = useRef(null);
   const phone3Ref = useRef(null);
@@ -42,8 +44,8 @@ export function FeatureScroll() {
   return (
     <Section
       id="feature-scroll"
-      title="Experience"
-      subtitle="An app unlike any other"
+      title={t("sectionTitle")}
+      subtitle={t("sectionSubtitle")}
       className="container px-4 sm:px-10 mx-auto max-w-[var(--max-container-width)]"
     >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mx-auto select-none">

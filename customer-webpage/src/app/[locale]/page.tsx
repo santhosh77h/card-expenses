@@ -11,54 +11,63 @@ import { Hero } from "@/components/sections/hero";
 import { HowItWorks } from "@/components/sections/how-it-works";
 import { Pricing } from "@/components/sections/pricing";
 import { siteConfig } from "@/lib/config";
-import { FAQ_DATA } from "@/lib/constants";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 
-const softwareAppJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Vector Expense",
-  applicationCategory: "FinanceApplication",
-  operatingSystem: "iOS, Android",
-  description:
-    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights. Your PII is never saved on our servers.",
-  offers: [
-    {
-      "@type": "Offer",
-      price: "3",
-      priceCurrency: "USD",
-      description: "Monthly plan — 8 statement parses per month",
-    },
-    {
-      "@type": "Offer",
-      price: "24",
-      priceCurrency: "USD",
-      description: "Yearly plan — 12 statement parses per month",
-    },
-  ],
-};
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
 
-const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQ_DATA.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: faq.answer,
-    },
-  })),
-};
+  const t = await getTranslations("faq");
+  const tMeta = await getTranslations("metadata");
 
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Vector Expense",
-  url: siteConfig.url,
-  description: "Privacy-first credit card statement parser.",
-};
+  const softwareAppJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Vector Expense",
+    applicationCategory: "FinanceApplication",
+    operatingSystem: "iOS, Android",
+    description: tMeta("ogDescription"),
+    offers: [
+      {
+        "@type": "Offer",
+        price: "3",
+        priceCurrency: "USD",
+        description: "Monthly plan - 4 statement parses per month",
+      },
+      {
+        "@type": "Offer",
+        price: "24",
+        priceCurrency: "USD",
+        description: "Yearly plan - 4 statement parses per month",
+      },
+    ],
+  };
 
-export default function Home() {
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: siteConfig.faqKeys.map((key) => ({
+      "@type": "Question",
+      name: t(`${key}.question`),
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: t(`${key}.answer`),
+      },
+    })),
+  };
+
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Vector Expense",
+    url: siteConfig.url,
+    description: tMeta("ogDescription"),
+  };
+
   return (
     <main className="relative">
       <script
