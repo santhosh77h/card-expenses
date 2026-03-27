@@ -18,7 +18,7 @@ const fadeUp = (delay: number, y = 20) => ({
 const trustSignals = [
   { icon: ShieldCheck, label: "No account needed" },
   { icon: Lock, label: "Privacy-first" },
-  { icon: Globe, label: "40+ banks supported" },
+  { icon: Globe, label: "Works with any bank" },
 ];
 
 export function Hero() {

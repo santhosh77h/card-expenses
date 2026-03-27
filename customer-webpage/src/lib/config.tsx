@@ -39,19 +39,19 @@ export const siteConfig = {
     {
       name: "Privacy-First Design",
       description:
-        "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device — no accounts, no cloud sync, no tracking.",
+        "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device -no accounts, no cloud sync, no tracking.",
       icon: <ShieldIcon className="h-6 w-6" />,
     },
     {
       name: "Smart Expense Categorization",
       description:
-        "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers — all detected across multiple languages.",
+        "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers -all detected across multiple languages.",
       icon: <TagsIcon className="h-6 w-6" />,
     },
     {
       name: "Multi-Currency Support",
       description:
-        "Track expenses in INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting. Supports 40+ banks across India, US, and UK including HDFC, Chase, Barclays, and American Express.",
+        "Track expenses in INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting. Works with any bank that issues a PDF statement -if they print it, Vector reads it.",
       icon: <GlobeIcon className="h-6 w-6" />,
     },
     {
@@ -69,7 +69,7 @@ export const siteConfig = {
     {
       name: "Demo Mode",
       description:
-        "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap — full analytics, CSV export, and category breakdowns included.",
+        "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap -full analytics, CSV export, and category breakdowns included.",
       icon: <PlayCircleIcon className="h-6 w-6" />,
     },
     {
@@ -109,7 +109,7 @@ export const siteConfig = {
     {
       title: "AI-Powered Parsing",
       content:
-        "Our 3-model consensus engine uses GPT-4o-mini, Claude, and Gemini to parse every statement in parallel. A document intelligence pre-parse probe detects layout, currency, and bank before extraction — fields are resolved by majority voting for near-perfect accuracy.",
+        "Our 3-model consensus engine uses GPT-4o-mini, Claude, and Gemini to parse every statement in parallel. A document intelligence pre-parse probe detects layout, currency, and bank before extraction -fields are resolved by majority voting for near-perfect accuracy.",
       imageSrc: "/screenshots/home.svg",
       imageAlt: "Vector Expense home screen",
       fullWidth: true,
@@ -125,7 +125,7 @@ export const siteConfig = {
     {
       title: "Transaction Details",
       content:
-        "Browse every transaction with merchant names, amounts, dates, and categories. Supports 11 transaction types — purchase, payment, refund, EMI, fee, interest, cashback, reward, reversal, adjustment, and transfer. Flag, annotate, and attach receipts.",
+        "Browse every transaction with merchant names, amounts, dates, and categories. Supports 11 transaction types -purchase, payment, refund, EMI, fee, interest, cashback, reward, reversal, adjustment, and transfer. Flag, annotate, and attach receipts.",
       imageSrc: "/screenshots/transactions.svg",
       imageAlt: "Transaction list",
       fullWidth: false,
@@ -200,7 +200,7 @@ export const siteConfig = {
         "CSV export & encrypted backups",
         "Offline access after parse",
       ],
-      description: "Best value — save 33% vs monthly",
+      description: "Best value -save 33% vs monthly",
       buttonText: "Start Free Trial",
       isPopular: true,
     },
@@ -210,7 +210,7 @@ export const siteConfig = {
       question: "How does the AI parsing work?",
       answer: (
         <span>
-          Vector Expense uses a 3-model consensus engine &mdash; GPT-4o-mini, Claude 3.5
+          Vector Expense uses a 3-model consensus engine -GPT-4o-mini, Claude 3.5
           Haiku, and Gemini 2.0 Flash parse every statement in parallel. Fields
           are resolved by majority voting, eliminating hallucinations. Each
           transaction gets a confidence score.
@@ -221,7 +221,7 @@ export const siteConfig = {
       question: "Is my financial data safe?",
       answer: (
         <span>
-          Absolutely. Vector Expense processes PDFs entirely in-memory &mdash; no
+          Absolutely. Vector Expense processes PDFs entirely in-memory -no
           financial data is ever written to disk on our servers. All your data is
           stored locally on your device in an encrypted SQLite database. No
           accounts, no cloud sync, no tracking.
@@ -242,9 +242,10 @@ export const siteConfig = {
       question: "Which banks and currencies are supported?",
       answer: (
         <span>
-          Vector Expense supports 40+ banks across India, US, and UK, plus global cards
-          like American Express and HSBC. Currencies supported: INR (&rupee;), USD ($), EUR
-          (&euro;), and GBP (&pound;) with locale-specific formatting.
+          Vector Expense works with any bank that issues a PDF statement -HDFC,
+          Chase, Barclays, American Express, HSBC, and more. If they print it, Vector
+          reads it. Currencies supported: INR (&rupee;), USD ($), EUR (&euro;), and GBP
+          (&pound;) with locale-specific formatting.
         </span>
       ),
     },

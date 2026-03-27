@@ -93,49 +93,87 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              4. Free Tier &amp; Usage Limits
+              4. Free Trial
             </h2>
             <p>
-              Vector Expense offers a free tier with the following limitations:
+              New users receive a free trial with the following allowances:
             </p>
             <ul className="mt-4 space-y-2 list-disc list-inside text-muted-foreground">
               <li>
-                Up to{" "}
-                <span className="text-primary font-medium">
-                  3 statement uploads per month
-                </span>
+                <span className="text-primary font-medium">15 statement parses</span>{" "}
+                within a{" "}
+                <span className="text-primary font-medium">15-day window</span>
               </li>
-              <li>AI-powered parsing with automatic categorization</li>
-              <li>Full local storage and analytics features</li>
-              <li>Support for all 33+ supported banks</li>
+              <li>No credit card required to start</li>
+              <li>Full access to all features including AI-powered parsing,
+                12 spending categories, multi-card management, and analytics</li>
+              <li>Works with any bank that issues a PDF statement across INR, USD, EUR, and GBP</li>
             </ul>
             <p className="mt-4">
-              Free tier limits reset on the first day of each calendar month.
-              We reserve the right to modify free tier limits with reasonable
-              notice.
+              The trial expires when either the 15-day window or the 15-parse
+              limit is reached, whichever comes first. Trial state is persisted
+              securely on-device to survive reinstalls. We reserve the right to
+              modify trial limits with reasonable notice.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              5. Pro Subscription
+              5. Free Features
             </h2>
+            <p>
+              The following features are available to all users at no cost,
+              regardless of subscription status:
+            </p>
+            <ul className="mt-4 space-y-2 list-disc list-inside text-muted-foreground">
+              <li>Manual transaction entry with AI categorization</li>
+              <li>Demo mode with 24 sample transactions for exploring analytics</li>
+              <li>Full offline access to previously parsed data</li>
+              <li>Spending charts, category breakdowns, and merchant analysis</li>
+              <li>CSV export and AES-encrypted local backups</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              6. Pro Subscription
+            </h2>
+            <p className="mb-4">
+              Vector Expense offers an auto-renewable Pro subscription with two
+              billing options:
+            </p>
+            <div className="p-4 rounded-lg bg-muted border border-border mb-4">
+              <ul className="space-y-2 list-none">
+                <li>
+                  <strong className="text-foreground">Monthly:</strong>{" "}
+                  <span className="text-primary font-medium">$3/month</span>{" "}
+                  &mdash; 4 statement parses per month
+                </li>
+                <li>
+                  <strong className="text-foreground">Yearly:</strong>{" "}
+                  <span className="text-primary font-medium">$24/year</span>{" "}
+                  ($2/month) &mdash; 4 statement parses per month, save 33%
+                </li>
+              </ul>
+            </div>
             <ul className="space-y-3 list-none">
               <li className="pl-4 border-l-2 border-primary/30">
-                <strong className="text-foreground">Features:</strong> The Pro
-                subscription removes upload limits and provides access to
-                premium features including advanced analytics, export
-                capabilities, and priority parsing.
+                <strong className="text-foreground">Subscription Allowance:</strong>{" "}
+                Pro subscribers receive 4 statement parses per rolling 30-day
+                billing cycle. The allowance resets automatically based on your
+                subscription start date.
               </li>
               <li className="pl-4 border-l-2 border-primary/30">
-                <strong className="text-foreground">Billing:</strong> Pro
-                subscriptions are billed on a recurring basis (monthly or
-                annually) through the platform&apos;s app store (Apple App Store or
-                Google Play Store). Pricing is displayed before purchase.
+                <strong className="text-foreground">Payment:</strong>{" "}
+                Subscriptions are billed through the Apple App Store or Google
+                Play Store. Payment is charged to your app store account at
+                confirmation of purchase. The subscription automatically renews
+                unless cancelled at least 24 hours before the end of the
+                current billing period.
               </li>
               <li className="pl-4 border-l-2 border-primary/30">
-                <strong className="text-foreground">Cancellation:</strong> You may
-                cancel your subscription at any time through your app store
+                <strong className="text-foreground">Cancellation:</strong> You
+                may cancel your subscription at any time through your app store
                 account settings. Cancellation takes effect at the end of the
                 current billing period. No refunds are provided for partial
                 billing periods.
@@ -146,29 +184,75 @@ export default function TermsPage() {
                 subscribers will be notified in advance and given the option to
                 cancel before new pricing takes effect.
               </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              7. Pay-As-You-Go Credits
+            </h2>
+            <p className="mb-4">
+              As an alternative to a subscription, you may purchase statement
+              parse credits as one-time in-app purchases:
+            </p>
+            <div className="p-4 rounded-lg bg-muted border border-border mb-4">
+              <ul className="space-y-2 list-none">
+                <li>
+                  <strong className="text-foreground">30 parses</strong> for{" "}
+                  <span className="text-primary font-medium">$10</span>{" "}
+                  (~$0.33 per parse)
+                </li>
+                <li>
+                  <strong className="text-foreground">70 parses</strong> for{" "}
+                  <span className="text-primary font-medium">$20</span>{" "}
+                  (~$0.29 per parse)
+                </li>
+              </ul>
+            </div>
+            <ul className="space-y-3 list-none">
               <li className="pl-4 border-l-2 border-primary/30">
-                <strong className="text-foreground">Apple EULA:</strong> If you
-                download Vector Expense from the Apple App Store, your use of the
-                App is also subject to Apple&apos;s standard End User License
-                Agreement (EULA). You can review the Apple Standard EULA at:{" "}
-                <a
-                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 transition-colors underline underline-offset-4"
-                >
-                  apple.com/legal/internet-services/itunes/dev/stdeula
-                </a>
-                . In the event of any conflict between these Terms and the Apple
-                Standard EULA, the Apple Standard EULA shall take precedence for
-                App Store purchases and subscriptions.
+                <strong className="text-foreground">No Expiry:</strong>{" "}
+                Purchased credits do not expire and remain available until used.
+              </li>
+              <li className="pl-4 border-l-2 border-primary/30">
+                <strong className="text-foreground">Consumption Order:</strong>{" "}
+                When you parse a statement, the system consumes from trial
+                allowance first, then subscription allowance, then credit
+                balance.
+              </li>
+              <li className="pl-4 border-l-2 border-primary/30">
+                <strong className="text-foreground">Non-Refundable:</strong>{" "}
+                Credit purchases are non-refundable once consumed. Unused
+                credits are persisted across reinstalls for authenticated users.
               </li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              6. Intellectual Property
+              8. Apple App Store Terms
+            </h2>
+            <p>
+              If you download Vector Expense from the Apple App Store, your use
+              of the App is also subject to Apple&apos;s standard End User License
+              Agreement (EULA). You can review the Apple Standard EULA at:{" "}
+              <a
+                href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary/80 transition-colors underline underline-offset-4"
+              >
+                apple.com/legal/internet-services/itunes/dev/stdeula
+              </a>
+              . In the event of any conflict between these Terms and the Apple
+              Standard EULA, the Apple Standard EULA shall take precedence for
+              App Store purchases and subscriptions.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              9. Intellectual Property
             </h2>
             <p>
               Vector Expense, its logo, design, and underlying technology are the
@@ -180,7 +264,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              7. Disclaimer of Warranties
+              10. Disclaimer of Warranties
             </h2>
             <div className="p-4 rounded-lg bg-muted border border-border">
               <p>
@@ -205,7 +289,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              8. Limitation of Liability
+              11. Limitation of Liability
             </h2>
             <p>
               To the maximum extent permitted by applicable law, Vector Expense and its
@@ -224,7 +308,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              9. Data &amp; Privacy
+              12. Data &amp; Privacy
             </h2>
             <p>
               Your use of Vector Expense is also governed by our{" "}
@@ -242,7 +326,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              10. Termination
+              13. Termination
             </h2>
             <p>
               We reserve the right to suspend or terminate access to Vector Expense&apos;s
@@ -254,7 +338,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              11. Changes to Terms
+              14. Changes to Terms
             </h2>
             <p>
               We may update these Terms of Service from time to time. Changes
@@ -266,7 +350,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              12. Governing Law
+              15. Governing Law
             </h2>
             <p>
               These terms shall be governed by and construed in accordance with
@@ -276,7 +360,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-foreground mb-4">
-              13. Contact
+              16. Contact
             </h2>
             <p>
               For questions about these Terms of Service, please contact us:

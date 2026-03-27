@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: `${siteConfig.name} | ${siteConfig.description}`,
   description:
-    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers. Supports 33+ banks across India, US, and UK.",
+    "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers. Works with any bank that issues a PDF statement.",
   keywords: siteConfig.keywords,
   openGraph: {
     title: `${siteConfig.name} - ${siteConfig.description}`,

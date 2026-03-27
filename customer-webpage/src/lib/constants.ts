@@ -23,19 +23,19 @@ export const FEATURES = [
   {
     title: "Privacy-First Design",
     description:
-      "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device — no accounts, no cloud sync, no tracking.",
+      "Zero data retention. Your credit card statements are processed entirely in-memory and immediately discarded. All financial data stays encrypted on your device -no accounts, no cloud sync, no tracking.",
     icon: "shield",
   },
   {
     title: "Smart Expense Categorization",
     description:
-      "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers — all detected across multiple languages.",
+      "12 spending categories auto-assigned using AI and keyword matching. Food, groceries, shopping, transport, entertainment, health, utilities, travel, education, finance, transfers -all detected across multiple languages.",
     icon: "tags",
   },
   {
     title: "Multi-Currency Support",
     description:
-      "Track expenses in INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting. Supports 40+ banks across India, US, and UK including HDFC, Chase, Barclays, and American Express.",
+      "Track expenses in INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting. Works with any bank that issues a PDF statement -if they print it, Vector reads it.",
     icon: "globe",
   },
   {
@@ -53,7 +53,7 @@ export const FEATURES = [
   {
     title: "Demo Mode",
     description:
-      "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap — full analytics, CSV export, and category breakdowns included.",
+      "Try Vector Expense before uploading a single document. Explore 24 realistic transactions across all 12 spending categories with one tap -full analytics, CSV export, and category breakdowns included.",
     icon: "play-circle",
   },
   {
@@ -234,7 +234,7 @@ export const PRICING = [
     name: "Yearly",
     price: "$24",
     period: "per year",
-    description: "Best value — save 33% vs monthly",
+    description: "Best value -save 33% vs monthly",
     features: [
       "4 statement parses per month",
       "3-model AI consensus engine",
@@ -288,7 +288,7 @@ export const FAQ_DATA = [
   {
     question: "Which banks and currencies are supported?",
     answer:
-      "Vector Expense supports 40+ banks across India, US, and UK, plus global cards like American Express and HSBC. Currencies supported: INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting.",
+      "Vector Expense works with any bank that issues a PDF statement -HDFC, Chase, Barclays, American Express, HSBC, and more. If they print it, Vector reads it. Currencies supported: INR (₹), USD ($), EUR (€), and GBP (£) with locale-specific formatting.",
   },
   {
     question: "Can I use Vector Expense offline?",

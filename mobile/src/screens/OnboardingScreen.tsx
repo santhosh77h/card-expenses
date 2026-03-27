@@ -46,11 +46,11 @@ const slides: Slide[] = [
     tag: 'Welcome to Vector',
     title: 'Your finances,\nbeautifully understood',
     description:
-      'Upload credit card statements and get instant clarity on where your money goes \u2014 all private, all on-device.',
+      'Upload credit card statements and get instant clarity on where your money goes -all private, all on-device.',
     features: [
-      { text: '7+ banks supported \u2014 HDFC, ICICI, Axis & more' },
+      { text: 'Works with any bank -if they print it, Vector reads it' },
       { text: 'No account needed, no cloud, no tracking' },
-      { text: 'INR, USD, EUR, GBP \u2014 multi-currency ready' },
+      { text: 'INR, USD, EUR, GBP -multi-currency ready' },
     ],
     iconBg: 'rgba(0,229,160,0.08)',
     accentColor: ACCENT,
@@ -72,7 +72,7 @@ const slides: Slide[] = [
     features: [
       { text: 'Password-protected PDFs handled automatically', dotColor: '#5BA4F5' },
       { text: 'SHA-256 duplicate detection on every upload', dotColor: '#5BA4F5' },
-      { text: 'Re-upload to see what changed \u2014 added, removed', dotColor: '#5BA4F5' },
+      { text: 'Re-upload to see what changed -added, removed', dotColor: '#5BA4F5' },
     ],
     iconBg: 'rgba(55,138,221,0.1)',
     accentColor: '#5BA4F5',
@@ -91,7 +91,7 @@ const slides: Slide[] = [
     tag: 'Analytics',
     title: 'Charts that actually\ntell a story',
     description:
-      'Trend lines, category donuts, merchant rankings, and month-over-month comparisons \u2014 all rendered from your local data.',
+      'Trend lines, category donuts, merchant rankings, and month-over-month comparisons -all rendered from your local data.',
     features: [
       { text: '12-month spending trend with average overlay', dotColor: '#C879FF' },
       { text: '12 smart categories auto-assigned to transactions', dotColor: '#C879FF' },
@@ -112,11 +112,11 @@ const slides: Slide[] = [
   {
     key: 'ask',
     tag: 'Ask Vector',
-    title: 'Just ask \u2014 in plain\nEnglish',
+    title: 'Just ask -in plain\nEnglish',
     description:
-      'Type questions like \u201chow much did I spend on Swiggy last month?\u201d and get instant answers \u2014 no internet, no servers, fully on-device AI.',
+      'Type questions like \u201chow much did I spend on Swiggy last month?\u201d and get instant answers -no internet, no servers, fully on-device AI.',
     features: [
-      { text: '"Total Swiggy spend?" \u2014 instant answer, no typing filters', dotColor: '#FFB93C' },
+      { text: '"Total Swiggy spend?" -instant answer, no typing filters', dotColor: '#FFB93C' },
       { text: 'Spell correction handles typos automatically', dotColor: '#FFB93C' },
       { text: 'Results shown as charts, tables, or summaries', dotColor: '#FFB93C' },
     ],
