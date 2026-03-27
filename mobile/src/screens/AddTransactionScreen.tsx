@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { spacing, borderRadius, fontSize, CURRENCY_CONFIG } from '../theme';
-import type { ThemeColors } from '../theme';
+import { spacing, borderRadius, fontSize, CURRENCY_CONFIG, SUPPORTED_CURRENCIES } from '../theme';
+import type { ThemeColors, CurrencyCode } from '../theme';
 import { useColors } from '../hooks/useColors';
 import { useStore, CreditCard } from '../store';
 import { categorizeTransaction, CATEGORIES } from '../utils/api';
@@ -52,6 +52,7 @@ export default function AddTransactionScreen() {
   const [receiptTempUri, setReceiptTempUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [currencyOverride, setCurrencyOverride] = useState<CurrencyCode | null>(null);
 
   const amountRef = useRef<TextInput>(null);
   const dateRef = useRef<TextInput>(null);
@@ -64,15 +65,23 @@ export default function AddTransactionScreen() {
   const effectiveCategory = manualCategory ?? categoryInfo;
 
   const selectedCard = cards.find((c) => c.id === selectedCardId);
-  const cardCurrency = selectedCard?.currency ?? defaultCurrency;
-  const currencySymbol = CURRENCY_CONFIG[cardCurrency].symbol;
+  const baseCurrency = selectedCard?.currency ?? defaultCurrency;
+  const activeCurrency = currencyOverride ?? baseCurrency;
+  const currencySymbol = CURRENCY_CONFIG[activeCurrency].symbol;
+
+  // Cycle to next currency
+  const cycleCurrency = () => {
+    const idx = SUPPORTED_CURRENCIES.indexOf(activeCurrency);
+    const next = SUPPORTED_CURRENCIES[(idx + 1) % SUPPORTED_CURRENCIES.length];
+    setCurrencyOverride(next === baseCurrency ? null : next);
+  };
 
   // Currency-aware quick amount presets
   const quickAmounts = useMemo(() => {
-    if (cardCurrency === 'INR') return [100, 500, 1000, 5000];
+    if (activeCurrency === 'INR') return [100, 500, 1000, 5000];
     return [10, 50, 100, 500];
-  }, [cardCurrency]);
-  const incrementStep = cardCurrency === 'INR' ? 100 : 10;
+  }, [activeCurrency]);
+  const incrementStep = activeCurrency === 'INR' ? 100 : 10;
 
   // Autocomplete: deduplicated descriptions, manual-first then statements
   const allDescriptions = useMemo(() => {
@@ -143,7 +152,7 @@ export default function AddTransactionScreen() {
         category_icon: effectiveCategory.category_icon,
         type,
         cardId: selectedCardId,
-        currency: cardCurrency,
+        currency: activeCurrency,
       });
       // Consolidate all enrichment writes
       const enrichmentPatch: { notes?: string; flagged?: boolean; receiptUri?: string } = {};
@@ -167,7 +176,7 @@ export default function AddTransactionScreen() {
       capture(AnalyticsEvents.TRANSACTION_ADDED, {
         category: effectiveCategory.category,
         type,
-        currency: cardCurrency,
+        currency: activeCurrency,
       });
       navigation.goBack();
     } finally {
@@ -307,19 +316,30 @@ export default function AddTransactionScreen() {
           </View>
         )}
 
-        {/* Amount */}
-        <Text style={styles.label}>Amount ({currencySymbol} {cardCurrency})</Text>
-        <TextInput
-          ref={amountRef}
-          style={styles.input}
-          placeholder={`e.g. ${currencySymbol}450`}
-          placeholderTextColor={colors.textMuted}
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          returnKeyType="next"
-          onSubmitEditing={() => dateRef.current?.focus()}
-        />
+        {/* Amount + Currency */}
+        <Text style={styles.label}>Amount</Text>
+        <View style={styles.amountRow}>
+          <TouchableOpacity
+            style={styles.currencyPill}
+            onPress={cycleCurrency}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.currencyPillSymbol}>{currencySymbol}</Text>
+            <Text style={styles.currencyPillCode}>{activeCurrency}</Text>
+            <Feather name="chevron-down" size={12} color={colors.textMuted} />
+          </TouchableOpacity>
+          <TextInput
+            ref={amountRef}
+            style={styles.amountInput}
+            placeholder="0.00"
+            placeholderTextColor={colors.textMuted}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            returnKeyType="next"
+            onSubmitEditing={() => dateRef.current?.focus()}
+          />
+        </View>
 
         {/* Quick amount pills */}
         <View style={styles.quickAmountRow}>
@@ -378,7 +398,7 @@ export default function AddTransactionScreen() {
               styles.cardChip,
               !selectedCardId && styles.cardChipActive,
             ]}
-            onPress={() => setSelectedCardId(undefined)}
+            onPress={() => { setSelectedCardId(undefined); setCurrencyOverride(null); }}
           >
             <Text style={[styles.cardChipText, !selectedCardId && styles.cardChipTextActive]}>
               None
@@ -391,7 +411,7 @@ export default function AddTransactionScreen() {
                 styles.cardChip,
                 selectedCardId === c.id && styles.cardChipActive,
               ]}
-              onPress={() => setSelectedCardId(c.id)}
+              onPress={() => { setSelectedCardId(c.id); setCurrencyOverride(null); }}
             >
               <View style={[styles.cardChipDot, { backgroundColor: c.color }]} />
               <Text style={[styles.cardChipText, selectedCardId === c.id && styles.cardChipTextActive]}>
@@ -549,6 +569,43 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: spacing.sm,
   },
   input: {
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
+    fontSize: fontSize.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  currencyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  currencyPillSymbol: {
+    color: colors.textPrimary,
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+  },
+  currencyPillCode: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: '500',
+  },
+  amountInput: {
+    flex: 1,
     backgroundColor: colors.surface,
     color: colors.textPrimary,
     fontSize: fontSize.lg,

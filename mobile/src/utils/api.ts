@@ -72,6 +72,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Food & Dining'],
 			category_icon: 'coffee',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-2',
@@ -82,6 +83,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Food & Dining'],
 			category_icon: 'coffee',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-3',
@@ -92,6 +94,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Food & Dining'],
 			category_icon: 'coffee',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-4',
@@ -102,6 +105,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Groceries'],
 			category_icon: 'shopping-cart',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-5',
@@ -112,6 +116,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Groceries'],
 			category_icon: 'shopping-cart',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-6',
@@ -122,6 +127,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Shopping'],
 			category_icon: 'shopping-bag',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-7',
@@ -132,6 +138,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Shopping'],
 			category_icon: 'shopping-bag',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-8',
@@ -142,6 +149,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Transportation'],
 			category_icon: 'car',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-9',
@@ -152,6 +160,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Transportation'],
 			category_icon: 'car',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-10',
@@ -162,6 +171,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Entertainment'],
 			category_icon: 'film',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-11',
@@ -172,6 +182,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Entertainment'],
 			category_icon: 'film',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-12',
@@ -182,6 +193,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Health & Medical'],
 			category_icon: 'heart',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-13',
@@ -192,6 +204,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Health & Medical'],
 			category_icon: 'heart',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-14',
@@ -202,6 +215,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Utilities & Bills'],
 			category_icon: 'zap',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-15',
@@ -212,6 +226,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Utilities & Bills'],
 			category_icon: 'zap',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-16',
@@ -222,6 +237,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Travel'],
 			category_icon: 'plane',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-17',
@@ -232,6 +248,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Travel'],
 			category_icon: 'plane',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-18',
@@ -242,6 +259,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Education'],
 			category_icon: 'book-open',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-19',
@@ -252,6 +270,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Education'],
 			category_icon: 'book-open',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-20',
@@ -262,6 +281,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Finance & Investment'],
 			category_icon: 'trending-up',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-21',
@@ -272,6 +292,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Finance & Investment'],
 			category_icon: 'trending-up',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-22',
@@ -282,6 +303,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Transfers'],
 			category_icon: 'repeat',
 			type: 'debit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-23',
@@ -292,6 +314,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Shopping'],
 			category_icon: 'shopping-bag',
 			type: 'credit',
+			currency: 'INR',
 		},
 		{
 			id: 'demo-24',
@@ -302,6 +325,7 @@ export function parseDemoStatement(): ParseResult {
 			category_color: categoryColors['Shopping'],
 			category_icon: 'shopping-bag',
 			type: 'credit',
+			currency: 'INR',
 		},
 	];
 

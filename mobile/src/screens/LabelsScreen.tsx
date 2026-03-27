@@ -221,10 +221,9 @@ export default function LabelsScreen() {
     }
     lines.push(`Transactions: ${selectedStats.count}`);
     if (selectedStats.count > 0) {
-      const firstCur = Object.keys(selectedStats.totals)[0] as CurrencyCode | undefined;
-      if (firstCur) {
-        const avg = selectedStats.totals[firstCur] / selectedStats.count;
-        lines.push(`Avg/Txn: ${formatCurrency(avg, firstCur)}`);
+      for (const [cur, total] of Object.entries(selectedStats.totals)) {
+        const avg = total / selectedStats.count;
+        lines.push(`Avg/Txn: ${formatCurrency(avg, cur as CurrencyCode)}`);
       }
     }
     Share.share({ message: lines.join('\n') });
@@ -234,19 +233,22 @@ export default function LabelsScreen() {
     ? cards.find((c) => c.id === detailTxn.cardId)
     : undefined;
 
-  // Primary currency total for subtitle
-  const primaryCur = (Object.keys(globalStats.totals)[0] ?? defaultCurrency) as CurrencyCode;
-  const primaryTotal = globalStats.totals[primaryCur] ?? 0;
+  const globalTotalEntries = Object.entries(globalStats.totals) as [CurrencyCode, number][];
 
   // -------------------------------------------------------------------------
   // List view — all labels
   // -------------------------------------------------------------------------
   if (!selectedLabelId) {
+    const subtitleParts = [
+      `${globalStats.labelCount} label${globalStats.labelCount !== 1 ? 's' : ''}`,
+      ...globalTotalEntries.map(([cur, amt]) => formatCurrency(amt, cur)),
+    ];
+
     const listHeader = labels.length > 0 ? (
       <>
         {/* Subtitle */}
         <Text style={styles.subtitle}>
-          {globalStats.labelCount} label{globalStats.labelCount !== 1 ? 's' : ''} · {formatCurrency(primaryTotal, primaryCur)} tracked
+          {subtitleParts.join(' · ')} tracked
         </Text>
 
         {/* Three stat tiles */}
@@ -261,9 +263,17 @@ export default function LabelsScreen() {
           </View>
           <View style={styles.statTile}>
             <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, { color: colors.debit }]} numberOfLines={1}>
-              {formatCurrency(primaryTotal, primaryCur)}
-            </Text>
+            {globalTotalEntries.length > 0 ? (
+              globalTotalEntries.map(([cur, amt]) => (
+                <Text key={cur} style={[styles.statValue, { color: colors.debit }]} numberOfLines={1}>
+                  {formatCurrency(amt, cur)}
+                </Text>
+              ))
+            ) : (
+              <Text style={[styles.statValue, { color: colors.debit }]} numberOfLines={1}>
+                {formatCurrency(0, defaultCurrency as CurrencyCode)}
+              </Text>
+            )}
           </View>
         </View>
       </>
@@ -342,9 +352,8 @@ export default function LabelsScreen() {
   // -------------------------------------------------------------------------
   // Detail view — transactions under a label
   // -------------------------------------------------------------------------
-  const detailCur = (Object.keys(selectedStats?.totals ?? {})[0] ?? defaultCurrency) as CurrencyCode;
-  const detailTotal = selectedStats?.totals[detailCur] ?? 0;
-  const detailAvg = selectedStats?.count ? detailTotal / selectedStats.count : 0;
+  const detailTotalEntries = Object.entries(selectedStats?.totals ?? {}) as [CurrencyCode, number][];
+  const txnCount = selectedStats?.count ?? 0;
 
   const detailHeader = (
     <>
@@ -367,21 +376,37 @@ export default function LabelsScreen() {
         <View style={styles.heroStatStrip}>
           <View style={styles.heroStat}>
             <Text style={styles.heroStatLabel}>Total</Text>
-            <Text style={[styles.heroStatValue, { color: colors.debit }]} numberOfLines={1}>
-              {formatCurrency(detailTotal, detailCur)}
-            </Text>
+            {detailTotalEntries.length > 0 ? (
+              detailTotalEntries.map(([cur, amt]) => (
+                <Text key={cur} style={[styles.heroStatValue, { color: colors.debit }]} numberOfLines={1}>
+                  {formatCurrency(amt, cur)}
+                </Text>
+              ))
+            ) : (
+              <Text style={[styles.heroStatValue, { color: colors.debit }]} numberOfLines={1}>
+                {formatCurrency(0, defaultCurrency as CurrencyCode)}
+              </Text>
+            )}
           </View>
           <View style={[styles.heroStatDivider, { backgroundColor: colors.border }]} />
           <View style={styles.heroStat}>
             <Text style={styles.heroStatLabel}>Transactions</Text>
-            <Text style={styles.heroStatValue}>{selectedStats?.count ?? 0}</Text>
+            <Text style={styles.heroStatValue}>{txnCount}</Text>
           </View>
           <View style={[styles.heroStatDivider, { backgroundColor: colors.border }]} />
           <View style={styles.heroStat}>
             <Text style={styles.heroStatLabel}>Avg/Txn</Text>
-            <Text style={styles.heroStatValue} numberOfLines={1}>
-              {formatCurrency(detailAvg, detailCur)}
-            </Text>
+            {detailTotalEntries.length > 0 ? (
+              detailTotalEntries.map(([cur, amt]) => (
+                <Text key={cur} style={styles.heroStatValue} numberOfLines={1}>
+                  {formatCurrency(txnCount ? amt / txnCount : 0, cur)}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.heroStatValue} numberOfLines={1}>
+                {formatCurrency(0, defaultCurrency as CurrencyCode)}
+              </Text>
+            )}
           </View>
         </View>
       </View>
