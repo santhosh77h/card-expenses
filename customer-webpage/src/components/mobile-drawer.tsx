@@ -35,7 +35,7 @@ export function MobileDrawer() {
           </div>
         </DrawerHeader>
         <DrawerFooter>
-          <Link href="#" className="flex justify-center">
+          <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex justify-center">
             <img
               src="/badges/download-black.svg"
               alt={tc("downloadOnAppStore")}
@@ -46,7 +46,7 @@ export function MobileDrawer() {
               alt={tc("downloadOnAppStore")}
               className="h-12 hidden dark:block"
             />
-          </Link>
+          </a>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

@@ -5,6 +5,7 @@ import { CardAnalyticsPreview } from "@/components/ui/card-analytics-preview";
 import { IPhoneFrame } from "@/components/ui/iphone-frame";
 import { UploadScreenPreview } from "@/components/ui/upload-screen-preview";
 import { easeOutCubic } from "@/lib/animation";
+import { siteConfig } from "@/lib/config";
 import { motion } from "framer-motion";
 import { Globe, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ export function Hero() {
               {...fadeUp(0.35)}
               className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-4"
             >
-              <a href="#" className="flex-shrink-0">
+              <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                 <img
                   src="/badges/download-black.svg"
                   alt={tc("downloadOnAppStore")}

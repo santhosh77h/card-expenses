@@ -26,12 +26,12 @@ export async function generateMetadata({
   alternateLanguages["x-default"] = siteConfig.url;
 
   return {
-    title: `${siteConfig.name} | ${siteConfig.description}`,
+    title: `Vector Expense — AI Credit Card Statement Parser | Privacy-First`,
     description:
       "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights - no data ever stored on our servers. Works with any bank that issues a PDF statement.",
     keywords: siteConfig.keywords,
     openGraph: {
-      title: `${siteConfig.name} - ${siteConfig.description}`,
+      title: `Vector Expense — AI Credit Card Statement Parser`,
       description:
         "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights.",
       type: "website",
@@ -41,12 +41,21 @@ export async function generateMetadata({
         .map((l) => localeToOgLocale[l]),
       siteName: siteConfig.name,
       url: siteConfig.url,
+      images: [
+        {
+          url: `${siteConfig.url}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: "Vector Expense — AI-powered credit card statement parser",
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${siteConfig.name} - ${siteConfig.description}`,
+      title: `Vector Expense — AI Credit Card Statement Parser`,
       description:
         "Privacy-first credit card statement parser. Upload a PDF, get instant spending insights.",
+      images: [`${siteConfig.url}/og-image.png`],
     },
     robots: {
       index: true,
@@ -55,8 +64,6 @@ export async function generateMetadata({
     icons: "/favicon.ico",
     metadataBase: new URL(siteConfig.url),
     alternates: {
-      canonical:
-        locale === "en" ? siteConfig.url : `${siteConfig.url}/${locale}`,
       languages: alternateLanguages,
     },
   };

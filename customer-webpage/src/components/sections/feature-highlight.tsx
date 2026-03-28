@@ -10,7 +10,6 @@ import { UploadScreenPreview } from "@/components/ui/upload-screen-preview";
 import { siteConfig } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Link } from "@/i18n/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -95,7 +94,7 @@ function Feature({
             {description}
           </motion.p>
           <motion.div variants={itemVariants}>
-            <Link href="#" className="inline-block mx-auto lg:mx-0">
+            <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="inline-block mx-auto lg:mx-0">
               <img
                 src="/badges/download-black.svg"
                 alt={downloadAlt}
@@ -106,7 +105,7 @@ function Feature({
                 alt={downloadAlt}
                 className="h-12 hidden dark:block"
               />
-            </Link>
+            </a>
           </motion.div>
         </div>
       </motion.div>

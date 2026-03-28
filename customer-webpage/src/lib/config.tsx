@@ -27,6 +27,7 @@ export const siteConfig = {
     twitter: "https://x.com/Vector_Expense",
     instagram: "https://www.instagram.com/vector_expense/",
     linkedin: "https://www.linkedin.com/company/vector-expense",
+    appStore: "https://apps.apple.com/us/app/vector-expense/id6761052010",
   },
   featureKeys: [
     { key: "aiParsing", icon: <BrainIcon className="h-6 w-6" /> },

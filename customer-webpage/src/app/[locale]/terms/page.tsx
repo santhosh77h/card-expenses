@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { siteConfig } from "@/lib/config";
 import type { Metadata } from "next";
 
 export async function generateMetadata({
@@ -13,6 +14,12 @@ export async function generateMetadata({
   return {
     title: t("metaTitle"),
     description: t("metaDescription"),
+    alternates: {
+      canonical:
+        locale === "en"
+          ? `${siteConfig.url}/terms`
+          : `${siteConfig.url}/${locale}/terms`,
+    },
   };
 }
 

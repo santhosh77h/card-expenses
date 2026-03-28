@@ -21,10 +21,11 @@ export async function generateMetadata({
   if (!post) return { title: "Post Not Found - Vector Expense" };
 
   const url = `${siteConfig.url}/blog/${post.slug}`;
-  const images = post.cover_image ? [post.cover_image] : [];
+  const defaultOgImage = `${siteConfig.url}/og-image.png`;
+  const images = post.cover_image ? [post.cover_image] : [defaultOgImage];
 
   return {
-    title: `${post.title} - Vector Expense Blog`,
+    title: `${post.title} | Vector Expense`,
     description: post.excerpt,
     alternates: { canonical: url },
     openGraph: {
@@ -37,13 +38,13 @@ export async function generateMetadata({
       modifiedTime: post.updated_at,
       authors: [post.author],
       tags: post.tags,
-      ...(images.length > 0 && { images }),
+      images,
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.excerpt,
-      ...(images.length > 0 && { images }),
+      images,
     },
   };
 }

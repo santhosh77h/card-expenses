@@ -30,3 +30,6 @@ mobile/android/
 *.swo
 
 build-*
+
+.agents/
+.claude/skills

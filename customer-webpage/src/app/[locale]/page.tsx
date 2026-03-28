@@ -12,6 +12,22 @@ import { HowItWorks } from "@/components/sections/how-it-works";
 import { Pricing } from "@/components/sections/pricing";
 import { siteConfig } from "@/lib/config";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  return {
+    alternates: {
+      canonical:
+        locale === "en" ? siteConfig.url : `${siteConfig.url}/${locale}`,
+    },
+  };
+}
 
 export default async function Home({
   params,
@@ -29,7 +45,7 @@ export default async function Home({
     "@type": "SoftwareApplication",
     name: "Vector Expense",
     applicationCategory: "FinanceApplication",
-    operatingSystem: "iOS, Android",
+    operatingSystem: "iOS",
     description: tMeta("ogDescription"),
     offers: [
       {
@@ -65,7 +81,18 @@ export default async function Home({
     "@type": "Organization",
     name: "Vector Expense",
     url: siteConfig.url,
+    logo: `${siteConfig.url}/logo.png`,
     description: tMeta("ogDescription"),
+    sameAs: [
+      siteConfig.links.twitter,
+      siteConfig.links.instagram,
+      siteConfig.links.linkedin,
+    ],
+    contactPoint: {
+      "@type": "ContactPoint",
+      email: siteConfig.links.email,
+      contactType: "customer support",
+    },
   };
 
   return (

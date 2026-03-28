@@ -71,7 +71,7 @@ export function Header() {
               <span className="font-bold text-xl">{siteConfig.name}</span>
             </Link>
             <div className="hidden lg:block">
-              <Link href="#" className="flex-shrink-0">
+              <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                 <img
                   src="/badges/download-black.svg"
                   alt={tc("downloadOnAppStore")}
@@ -82,7 +82,7 @@ export function Header() {
                   alt={tc("downloadOnAppStore")}
                   className="h-10 hidden dark:block"
                 />
-              </Link>
+              </a>
             </div>
             <div className="mt-2 cursor-pointer block lg:hidden">
               <MobileDrawer />
