@@ -14,23 +14,28 @@ import {
   Platform,
   Share,
   UIManager,
+  Alert,
+  Switch,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { spacing, borderRadius, fontSize, formatCurrency } from '../theme';
 import type { ThemeColors, CurrencyCode } from '../theme';
 import { useColors } from '../hooks/useColors';
-import { useStore, Transaction } from '../store';
+import { useStore } from '../store';
 import { EmptyState } from '../components/ui';
-import TransactionDetailModal from '../components/TransactionDetailModal';
+// Uses navigation-based TransactionDetail (formSheet) instead of modal
 import {
   getAllMerchants,
   computeMerchantStats,
+  computeCardBreakdown,
   buildDaySections,
   type MerchantData,
 } from '../utils/merchantAnalytics';
+import { matchRule } from '../utils/smartMerchantEngine';
+import type { SmartMerchantRule } from '../db/smartMerchantRules';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -42,6 +47,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function MerchantInsightsScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const {
@@ -50,23 +56,39 @@ export default function MerchantInsightsScreen() {
     cards,
     defaultCurrency,
     enrichments,
-    updateManualTransaction,
+    savedMerchantFilters,
+    addSavedMerchantFilter,
+    updateSavedMerchantFilter,
+    deleteSavedMerchantFilter,
+    smartMerchantRules,
+    updateSmartMerchantRule,
+    deleteSmartMerchantRule,
   } = useStore();
 
   // --- State ---
-  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+  const preselect = route.params?.preselect as string[] | undefined;
+  const [viewMode, setViewMode] = useState<'filters' | 'list' | 'detail'>(
+    preselect?.length ? 'detail' : 'filters',
+  );
+  const [selectedMerchants, setSelectedMerchants] = useState<string[]>(
+    () => preselect ?? [],
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [sortBy, setSortBy] = useState<'amount' | 'frequency'>('amount');
-  const [detailTxn, setDetailTxn] = useState<Transaction | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addSearchQuery, setAddSearchQuery] = useState('');
+  const [pendingAddMerchants, setPendingAddMerchants] = useState<Set<string>>(new Set());
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveFilterName, setSaveFilterName] = useState('');
+  const [editingFilter, setEditingFilter] = useState<{ id: string; name: string } | null>(null);
+  const [editFilterName, setEditFilterName] = useState('');
   const searchInputRef = useRef<TextInput>(null);
 
   // --- Derived data ---
   const allMerchants = useMemo(
-    () => getAllMerchants(manualTransactions, statements, defaultCurrency as CurrencyCode),
-    [manualTransactions, statements, defaultCurrency],
+    () => getAllMerchants(manualTransactions, statements, defaultCurrency as CurrencyCode, smartMerchantRules),
+    [manualTransactions, statements, defaultCurrency, smartMerchantRules],
   );
 
   const filteredMerchants = useMemo(() => {
@@ -91,6 +113,11 @@ export default function MerchantInsightsScreen() {
     [selectedMerchantData, defaultCurrency],
   );
 
+  const cardBreakdown = useMemo(
+    () => computeCardBreakdown(selectedMerchantData),
+    [selectedMerchantData],
+  );
+
   const daySections = useMemo(
     () => buildDaySections(selectedMerchantData, defaultCurrency as CurrencyCode),
     [selectedMerchantData, defaultCurrency],
@@ -108,7 +135,7 @@ export default function MerchantInsightsScreen() {
     return { merchantCount: allMerchants.length, totals };
   }, [allMerchants, defaultCurrency]);
 
-  const isDetailView = selectedMerchants.length > 0;
+  const isDetailView = viewMode === 'detail';
 
   // --- Search toggle ---
   const toggleSearch = useCallback(() => {
@@ -129,6 +156,7 @@ export default function MerchantInsightsScreen() {
   const selectMerchant = useCallback((name: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedMerchants((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    setViewMode('detail');
     setShowSearch(false);
     setSearchQuery('');
     Keyboard.dismiss();
@@ -138,6 +166,7 @@ export default function MerchantInsightsScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedMerchants((prev) => {
       const next = prev.filter((n) => n !== name);
+      if (next.length === 0) setViewMode('filters');
       return next;
     });
   }, []);
@@ -145,11 +174,12 @@ export default function MerchantInsightsScreen() {
   const clearSelection = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedMerchants([]);
+    setViewMode('filters');
   }, []);
 
   // --- Dynamic header ---
   useLayoutEffect(() => {
-    if (isDetailView) {
+    if (viewMode === 'detail') {
       const title =
         selectedMerchants.length === 1
           ? selectedMerchants[0]
@@ -172,10 +202,23 @@ export default function MerchantInsightsScreen() {
         ),
         headerRight: undefined,
       });
-    } else {
+    } else if (viewMode === 'list') {
       navigation.setOptions({
-        headerTitle: 'Merchants',
-        headerLeft: undefined,
+        headerTitle: 'All Merchants',
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setViewMode('filters'); }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{ marginLeft: Platform.OS === 'ios' ? 0 : spacing.sm }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Feather name="chevron-left" size={24} color={colors.accent} />
+              <Text style={{ color: colors.accent, fontSize: fontSize.lg, fontWeight: '500' }}>
+                Back
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ),
         headerRight: () => (
           <TouchableOpacity
             onPress={toggleSearch}
@@ -190,8 +233,14 @@ export default function MerchantInsightsScreen() {
           </TouchableOpacity>
         ),
       });
+    } else {
+      navigation.setOptions({
+        headerTitle: 'Merchants',
+        headerLeft: undefined,
+        headerRight: undefined,
+      });
     }
-  }, [navigation, isDetailView, selectedMerchants, colors, showSearch, toggleSearch, clearSelection]);
+  }, [navigation, viewMode, selectedMerchants, colors, showSearch, toggleSearch, clearSelection]);
 
   // --- Export ---
   const handleExport = useCallback(async () => {
@@ -236,7 +285,75 @@ export default function MerchantInsightsScreen() {
     Share.share({ message: lines.join('\n') });
   }, [stats, selectedMerchants, defaultCurrency]);
 
-  const detailCard = detailTxn?.cardId ? cards.find((c) => c.id === detailTxn.cardId) : undefined;
+
+  // --- Save filter ---
+  const handleSaveFilter = useCallback(() => {
+    setSaveFilterName(
+      selectedMerchants.length === 1
+        ? selectedMerchants[0]
+        : `${selectedMerchants.length} merchants`,
+    );
+    setShowSaveModal(true);
+  }, [selectedMerchants]);
+
+  const confirmSaveFilter = useCallback(() => {
+    const name = saveFilterName.trim();
+    if (!name) return;
+    addSavedMerchantFilter({
+      id: Date.now().toString(),
+      name,
+      merchants: selectedMerchants,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setShowSaveModal(false);
+    setSaveFilterName('');
+  }, [saveFilterName, selectedMerchants, addSavedMerchantFilter]);
+
+  const handleLoadFilter = useCallback((merchants: string[]) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setSelectedMerchants(merchants);
+    setViewMode('detail');
+  }, []);
+
+  const handleLoadRule = useCallback((rule: SmartMerchantRule) => {
+    // Find all merchant names that match this rule
+    const matchingNames = new Set<string>();
+    for (const m of allMerchants) {
+      for (const txn of m.transactions) {
+        if (matchRule(txn.description, rule)) {
+          matchingNames.add(m.name);
+          break;
+        }
+      }
+    }
+    if (matchingNames.size === 0) {
+      Alert.alert('No Matches', 'No transactions currently match this rule.');
+      return;
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setSelectedMerchants(Array.from(matchingNames));
+    setViewMode('detail');
+  }, [allMerchants]);
+
+  const handleEditFilter = useCallback((filter: { id: string; name: string }) => {
+    setEditingFilter(filter);
+    setEditFilterName(filter.name);
+  }, []);
+
+  const confirmEditFilter = useCallback(() => {
+    if (!editingFilter || !editFilterName.trim()) return;
+    updateSavedMerchantFilter(editingFilter.id, { name: editFilterName.trim() });
+    setEditingFilter(null);
+    setEditFilterName('');
+  }, [editingFilter, editFilterName, updateSavedMerchantFilter]);
+
+  const handleDeleteFilter = useCallback((id: string, name: string) => {
+    Alert.alert('Delete Filter', `Remove "${name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteSavedMerchantFilter(id) },
+    ]);
+  }, [deleteSavedMerchantFilter]);
 
   // --- Add merchant modal filtered list ---
   const addFilteredMerchants = useMemo(() => {
@@ -250,9 +367,208 @@ export default function MerchantInsightsScreen() {
   }, [allMerchants, selectedMerchants, addSearchQuery]);
 
   // =========================================================================
+  // FILTERS LANDING VIEW — saved merchant filters
+  // =========================================================================
+  if (viewMode === 'filters') {
+    const goToList = () => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setViewMode('list');
+    };
+
+    return (
+      <View style={styles.container}>
+        {savedMerchantFilters.length > 0 ? (
+          <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            <Text style={styles.filtersSubtitle}>
+              {savedMerchantFilters.length} saved filter{savedMerchantFilters.length !== 1 ? 's' : ''}
+            </Text>
+
+            {savedMerchantFilters.map((f) => (
+              <TouchableOpacity
+                key={f.id}
+                style={styles.filterRow}
+                onPress={() => handleLoadFilter(f.merchants)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.filterIcon}>
+                  <Feather name="bookmark" size={18} color={colors.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.filterName} numberOfLines={1}>{f.name}</Text>
+                  <Text style={styles.filterSub}>
+                    {f.merchants.length} merchant{f.merchants.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => handleEditFilter(f)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="edit-2" size={15} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteFilter(f.id, f.name)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="trash-2" size={15} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  <Feather name="chevron-right" size={16} color={colors.textMuted + '40'} />
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            {/* Smart Rules section */}
+            <SmartRulesSection
+              rules={smartMerchantRules}
+              colors={colors}
+              styles={styles}
+              onNewRule={() => (navigation as any).navigate('SmartMerchantRule')}
+              onTapRule={(rule: any) => handleLoadRule(rule)}
+              onEditRule={(id: string) => (navigation as any).navigate('SmartMerchantRule', { ruleId: id })}
+              onToggleRule={(id: string, enabled: boolean) => updateSmartMerchantRule(id, { enabled })}
+              onDeleteRule={(id: string, name: string) => {
+                Alert.alert('Delete Rule', `Remove "${name}"?`, [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => deleteSmartMerchantRule(id) },
+                ]);
+              }}
+            />
+
+            <TouchableOpacity style={styles.browseAllBtn} onPress={goToList} activeOpacity={0.8}>
+              <Feather name="shopping-bag" size={16} color={colors.accent} />
+              <Text style={styles.browseAllText}>Browse All Merchants</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.filtersEmptyContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Visual showcase: example filter chips */}
+            <View style={styles.filtersEmptyChipCloud}>
+              {[
+                { name: 'Grocery Run', count: 4, color: '#4ecb8a' },
+                { name: 'Subscriptions', count: 6, color: '#5B8DEF' },
+                { name: 'Food Delivery', count: 3, color: '#FF9F43' },
+                { name: 'Monthly Bills', count: 5, color: '#a78bfa' },
+              ].map((ex, i) => (
+                <View
+                  key={ex.name}
+                  style={[
+                    styles.filtersEmptyChip,
+                    { backgroundColor: ex.color + '14', borderColor: ex.color + '30' },
+                    i === 0 && { transform: [{ rotate: '-2deg' }] },
+                    i === 1 && { transform: [{ rotate: '1.5deg' }], marginTop: -6 },
+                    i === 2 && { transform: [{ rotate: '-1deg' }] },
+                    i === 3 && { transform: [{ rotate: '2deg' }], marginTop: -4 },
+                  ]}
+                >
+                  <Feather name="bookmark" size={14} color={ex.color} />
+                  <Text style={[styles.filtersEmptyChipText, { color: ex.color }]}>{ex.name}</Text>
+                  <View style={[styles.filtersEmptyChipBadge, { backgroundColor: ex.color + '25' }]}>
+                    <Text style={[styles.filtersEmptyChipBadgeText, { color: ex.color }]}>{ex.count}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.filtersEmptyHeadline}>
+              Track merchants{'\n'}you care about
+            </Text>
+
+            <Text style={styles.filtersEmptyBody}>
+              Save merchant groups to quickly recheck spending — perfect for tracking
+              groceries, subscriptions, or recurring vendors across all cards.
+            </Text>
+
+            <View style={styles.filtersEmptyHints}>
+              {[
+                { icon: 'repeat' as const, text: 'Quickly recheck recurring merchant spend' },
+                { icon: 'bar-chart-2' as const, text: 'See card-wise totals across merchants' },
+                { icon: 'zap' as const, text: 'One tap to load — no re-selecting' },
+              ].map((hint) => (
+                <View key={hint.text} style={styles.filtersEmptyHintRow}>
+                  <View style={styles.filtersEmptyHintIcon}>
+                    <Feather name={hint.icon} size={15} color={colors.accent} />
+                  </View>
+                  <Text style={styles.filtersEmptyHintText}>{hint.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.filtersEmptyCta} onPress={goToList} activeOpacity={0.8}>
+              <Feather name="shopping-bag" size={18} color="#000" />
+              <Text style={styles.filtersEmptyCtaText}>Browse All Merchants</Text>
+            </TouchableOpacity>
+
+            {/* Smart Rules section */}
+            <View style={{ alignSelf: 'stretch', marginTop: spacing.xxl }}>
+              <SmartRulesSection
+                rules={smartMerchantRules}
+                colors={colors}
+                styles={styles}
+                onNewRule={() => (navigation as any).navigate('SmartMerchantRule')}
+                onTapRule={(rule: any) => handleLoadRule(rule)}
+              onEditRule={(id: string) => (navigation as any).navigate('SmartMerchantRule', { ruleId: id })}
+                onToggleRule={(id: string, enabled: boolean) => updateSmartMerchantRule(id, { enabled })}
+                onDeleteRule={(id: string, name: string) => {
+                  Alert.alert('Delete Rule', `Remove "${name}"?`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: () => deleteSmartMerchantRule(id) },
+                  ]);
+                }}
+              />
+            </View>
+          </ScrollView>
+        )}
+
+        {/* Edit filter name modal */}
+        <Modal
+          visible={!!editingFilter}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setEditingFilter(null)}
+        >
+          <TouchableOpacity
+            style={styles.saveModalOverlay}
+            activeOpacity={1}
+            onPress={() => setEditingFilter(null)}
+          >
+            <View style={styles.saveModalCard} onStartShouldSetResponder={() => true}>
+              <Text style={styles.saveModalTitle}>Rename Filter</Text>
+              <TextInput
+                style={styles.saveModalInput}
+                placeholder="Filter name"
+                placeholderTextColor={colors.textMuted}
+                value={editFilterName}
+                onChangeText={setEditFilterName}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={confirmEditFilter}
+              />
+              <View style={styles.saveModalActions}>
+                <TouchableOpacity style={styles.saveModalCancel} onPress={() => setEditingFilter(null)}>
+                  <Text style={styles.saveModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveModalConfirm, !editFilterName.trim() && { opacity: 0.35 }]}
+                  onPress={confirmEditFilter}
+                  disabled={!editFilterName.trim()}
+                >
+                  <Text style={styles.saveModalConfirmText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </View>
+    );
+  }
+
+  // =========================================================================
   // LIST VIEW — all merchants
   // =========================================================================
-  if (!isDetailView) {
+  if (viewMode === 'list') {
     const globalTotalEntries = Object.entries(globalStats.totals) as [CurrencyCode, number][];
     const subtitleParts = [
       `${globalStats.merchantCount} merchant${globalStats.merchantCount !== 1 ? 's' : ''}`,
@@ -399,7 +715,7 @@ export default function MerchantInsightsScreen() {
         })}
         <TouchableOpacity
           style={[styles.chip, styles.addChip]}
-          onPress={() => { setAddSearchQuery(''); setShowAddModal(true); }}
+          onPress={() => { setAddSearchQuery(''); setPendingAddMerchants(new Set()); setShowAddModal(true); }}
         >
           <Feather name="plus" size={14} color={colors.accent} />
           <Text style={[styles.chipText, { color: colors.accent }]}>Add</Text>
@@ -444,6 +760,40 @@ export default function MerchantInsightsScreen() {
         ))}
       </View>
 
+      {/* Card breakdown */}
+      {cardBreakdown.length > 0 && (
+        <View style={styles.cardBreakdownSection}>
+          <Text style={styles.cardBreakdownHeader}>CARD BREAKDOWN</Text>
+          {cardBreakdown.map((entry, idx) => {
+            const card = entry.cardId !== '__none__' ? cards.find((c) => c.id === entry.cardId) : undefined;
+            const cardLabel = card ? `${card.nickname || card.issuer} ••${card.last4}` : entry.cardId === '__none__' ? 'No Card' : 'Unknown Card';
+            const cardColor = card?.color ?? colors.textMuted;
+            return (
+              <View
+                key={entry.cardId}
+                style={[
+                  styles.cardBreakdownRow,
+                  idx === cardBreakdown.length - 1 && { borderBottomWidth: 0 },
+                ]}
+              >
+                <View style={[styles.cardDot, { backgroundColor: cardColor }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardBreakdownName} numberOfLines={1}>{cardLabel}</Text>
+                  <Text style={styles.cardBreakdownSub}>{entry.txnCount} transaction{entry.txnCount !== 1 ? 's' : ''}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  {Object.entries(entry.currencies).map(([cur, amt]) => (
+                    <Text key={cur} style={[styles.cardBreakdownAmount, { color: colors.debit }]}>
+                      {formatCurrency(amt, cur as CurrencyCode)}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {/* Action row */}
       <View style={styles.actionRow}>
         <TouchableOpacity style={styles.actionTile} onPress={handleExport}>
@@ -453,6 +803,10 @@ export default function MerchantInsightsScreen() {
         <TouchableOpacity style={styles.actionTile} onPress={handleCopy}>
           <Feather name="copy" size={18} color={colors.accent} />
           <Text style={styles.actionTileLabel}>Copy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionTilePrimary} onPress={handleSaveFilter}>
+          <Feather name="bookmark" size={18} color="#000" />
+          <Text style={styles.actionTilePrimaryLabel}>Save</Text>
         </TouchableOpacity>
       </View>
 
@@ -512,6 +866,7 @@ export default function MerchantInsightsScreen() {
 
                 {section.data.map((txn, idx) => {
                   const enrichment = enrichments[txn.id];
+                  const txnCard = txn.cardId ? cards.find((c) => c.id === txn.cardId) : undefined;
                   return (
                     <TouchableOpacity
                       key={txn.id}
@@ -520,7 +875,7 @@ export default function MerchantInsightsScreen() {
                         idx === section.data.length - 1 && { borderBottomWidth: 0 },
                       ]}
                       activeOpacity={0.7}
-                      onPress={() => setDetailTxn(txn)}
+                      onPress={() => (navigation as any).navigate('TransactionDetail', { transaction: txn, cardId: txn.cardId })}
                     >
                       <View style={[styles.txnIcon, { backgroundColor: txn.category_color + '20' }]}>
                         <Feather
@@ -535,6 +890,12 @@ export default function MerchantInsightsScreen() {
                         </Text>
                         <View style={styles.txnSubRow}>
                           <Text style={styles.txnSub}>{txn.category}</Text>
+                          {txnCard && (
+                            <>
+                              <View style={[styles.txnCardDot, { backgroundColor: txnCard.color }]} />
+                              <Text style={styles.txnCardName} numberOfLines={1}>{'••' + txnCard.last4}</Text>
+                            </>
+                          )}
                           {enrichment?.flagged && (
                             <Feather name="star" size={10} color="#FBBF24" />
                           )}
@@ -561,17 +922,7 @@ export default function MerchantInsightsScreen() {
         />
       )}
 
-      {/* Transaction detail modal */}
-      <TransactionDetailModal
-        visible={!!detailTxn}
-        transaction={detailTxn}
-        onClose={() => setDetailTxn(null)}
-        card={detailCard}
-        isManual={detailTxn?.cardId === undefined}
-        onUpdateTransaction={(txnId, updates) => updateManualTransaction(txnId, updates)}
-      />
-
-      {/* Add merchant modal */}
+      {/* Add merchant modal — multi-select */}
       <Modal
         visible={showAddModal}
         transparent
@@ -590,13 +941,32 @@ export default function MerchantInsightsScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHandleBar} />
             <View style={styles.modalNav}>
-              <Text style={styles.modalTitle}>Add Merchant</Text>
-              <TouchableOpacity
-                onPress={() => setShowAddModal(false)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="x" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Text style={styles.modalTitle}>Add Merchants</Text>
+                {pendingAddMerchants.size > 0 && (
+                  <View style={styles.modalCountBadge}>
+                    <Text style={styles.modalCountBadgeText}>{pendingAddMerchants.size}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    pendingAddMerchants.forEach((name) => selectMerchant(name));
+                    setShowAddModal(false);
+                  }}
+                  disabled={pendingAddMerchants.size === 0}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={[styles.modalDoneText, pendingAddMerchants.size === 0 && { opacity: 0.35 }]}>Done</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowAddModal(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Search */}
@@ -627,37 +997,181 @@ export default function MerchantInsightsScreen() {
               ListEmptyComponent={
                 <EmptyState icon="search" title="No matches" subtitle="Try a different search" />
               }
-              renderItem={({ item: merchant }) => (
-                <TouchableOpacity
-                  style={styles.modalMerchantRow}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    selectMerchant(merchant.name);
-                    setShowAddModal(false);
-                  }}
-                >
-                  <View style={[styles.merchantAvatar, { borderColor: merchant.color + '50', width: 36, height: 36 }]}>
-                    <Text style={[styles.merchantInitials, { color: merchant.color, fontSize: fontSize.xs }]}>
-                      {merchant.initials}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.merchantName} numberOfLines={1}>
-                      {merchant.name}
-                    </Text>
-                    <Text style={styles.merchantSub}>
-                      {merchant.txnCount} transaction{merchant.txnCount !== 1 ? 's' : ''}
-                    </Text>
-                  </View>
-                  <Text style={[styles.merchantAmount, { fontSize: fontSize.sm }]}>
-                    {formatCurrency(merchant.totalAmount, defaultCurrency as CurrencyCode)}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item: merchant }) => {
+                const isChecked = pendingAddMerchants.has(merchant.name);
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalMerchantRow,
+                      isChecked && { backgroundColor: colors.accent + '08' },
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setPendingAddMerchants((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(merchant.name)) {
+                          next.delete(merchant.name);
+                        } else {
+                          next.add(merchant.name);
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    <View style={[styles.merchantAvatar, { borderColor: merchant.color + '50', width: 36, height: 36 }]}>
+                      <Text style={[styles.merchantInitials, { color: merchant.color, fontSize: fontSize.xs }]}>
+                        {merchant.initials}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.merchantName} numberOfLines={1}>
+                        {merchant.name}
+                      </Text>
+                      <Text style={styles.merchantSub}>
+                        {merchant.txnCount} transaction{merchant.txnCount !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <Feather
+                      name={isChecked ? 'check-circle' : 'circle'}
+                      size={20}
+                      color={isChecked ? colors.accent : colors.textMuted + '60'}
+                    />
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Save filter modal */}
+      <Modal
+        visible={showSaveModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSaveModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.saveModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSaveModal(false)}
+        >
+          <View style={styles.saveModalCard} onStartShouldSetResponder={() => true}>
+            <Text style={styles.saveModalTitle}>Save Filter</Text>
+            <TextInput
+              style={styles.saveModalInput}
+              placeholder="Filter name"
+              placeholderTextColor={colors.textMuted}
+              value={saveFilterName}
+              onChangeText={setSaveFilterName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={confirmSaveFilter}
+            />
+            <View style={styles.saveModalActions}>
+              <TouchableOpacity style={styles.saveModalCancel} onPress={() => setShowSaveModal(false)}>
+                <Text style={styles.saveModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveModalConfirm, !saveFilterName.trim() && { opacity: 0.35 }]}
+                onPress={confirmSaveFilter}
+                disabled={!saveFilterName.trim()}
+              >
+                <Text style={styles.saveModalConfirmText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Smart Rules Section
+// ---------------------------------------------------------------------------
+
+function SmartRulesSection({
+  rules,
+  colors,
+  styles: s,
+  onNewRule,
+  onTapRule,
+  onEditRule,
+  onToggleRule,
+  onDeleteRule,
+}: {
+  rules: any[];
+  colors: any;
+  styles: any;
+  onNewRule: () => void;
+  onTapRule: (rule: any) => void;
+  onEditRule: (id: string) => void;
+  onToggleRule: (id: string, enabled: boolean) => void;
+  onDeleteRule: (id: string, name: string) => void;
+}) {
+  return (
+    <View style={{ marginTop: spacing.xl }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+        <Text style={s.smartRulesLabel}>SMART RULES</Text>
+        <TouchableOpacity onPress={onNewRule} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={{ color: colors.accent, fontSize: fontSize.xs, fontWeight: '600' }}>+ New Rule</Text>
+        </TouchableOpacity>
+      </View>
+
+      {rules.length > 0 ? (
+        rules.map((rule: any) => (
+          <TouchableOpacity
+            key={rule.id}
+            style={[s.smartRuleRow, !rule.enabled && { opacity: 0.5 }]}
+            onPress={() => onTapRule(rule)}
+            activeOpacity={0.7}
+          >
+            <View style={s.smartRuleIcon}>
+              <Feather name="git-merge" size={18} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.smartRuleName} numberOfLines={1}>{rule.name}</Text>
+              <Text style={s.smartRuleSub}>
+                {rule.conditions.length} condition{rule.conditions.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => onEditRule(rule.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="edit-2" size={15} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onDeleteRule(rule.id, rule.name)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="trash-2" size={15} color={colors.textMuted} />
+            </TouchableOpacity>
+            <Switch
+              value={rule.enabled}
+              onValueChange={(val) => onToggleRule(rule.id, val)}
+              trackColor={{ false: colors.border, true: colors.accent + '60' }}
+              thumbColor={rule.enabled ? colors.accent : colors.textMuted}
+              style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+            />
+          </TouchableOpacity>
+        ))
+      ) : (
+        <View style={s.smartRuleEmptyCard}>
+          <View style={[s.smartRuleEmptyIcon, { backgroundColor: colors.accent + '15' }]}>
+            <Feather name="git-merge" size={22} color={colors.accent} />
+          </View>
+          <Text style={s.smartRuleEmptyTitle}>Group merchants automatically</Text>
+          <Text style={s.smartRuleEmptyBody}>
+            Define IF conditions to merge multiple raw bank descriptions into one clean merchant name.
+          </Text>
+          <TouchableOpacity style={s.smartRuleEmptyCta} onPress={onNewRule} activeOpacity={0.8}>
+            <Feather name="plus" size={16} color={colors.accent} />
+            <Text style={s.smartRuleEmptyCtaText}>Create Your First Rule</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -875,6 +1389,19 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: fontSize.xs,
       fontWeight: '500',
     },
+    actionTilePrimary: {
+      flex: 1,
+      backgroundColor: colors.accent,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    actionTilePrimaryLabel: {
+      color: '#000',
+      fontSize: fontSize.xs,
+      fontWeight: '600',
+    },
 
     // ── Detail: txn count header ──
     txnCountHeader: {
@@ -1014,8 +1541,375 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xs,
       gap: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
+      borderRadius: borderRadius.sm,
+    },
+    modalCountBadge: {
+      backgroundColor: colors.accent,
+      borderRadius: borderRadius.full,
+      minWidth: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 6,
+    },
+    modalCountBadgeText: {
+      color: '#000',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    modalDoneText: {
+      color: colors.accent,
+      fontSize: fontSize.md,
+      fontWeight: '600',
+    },
+
+    // ── Card breakdown ──
+    cardBreakdownSection: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      marginBottom: spacing.md,
+    },
+    cardBreakdownHeader: {
+      color: colors.textMuted,
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.8,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    cardBreakdownRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      gap: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    cardDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+    },
+    cardBreakdownName: {
+      color: colors.textPrimary,
+      fontSize: fontSize.md,
+      fontWeight: '500',
+      lineHeight: 20,
+    },
+    cardBreakdownSub: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+    },
+    cardBreakdownAmount: {
+      fontSize: fontSize.md,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+
+    // ── Transaction card indicator ──
+    txnCardDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    txnCardName: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      maxWidth: 60,
+      lineHeight: 16,
+    },
+
+    // ── Filters landing view ──
+    filtersSubtitle: {
+      color: colors.textMuted,
+      fontSize: fontSize.sm,
+      lineHeight: 18,
+      paddingBottom: spacing.md,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.sm,
+      gap: spacing.md,
+    },
+    filterIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accent + '15',
+    },
+    filterName: {
+      color: colors.textPrimary,
+      fontSize: fontSize.md,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    filterSub: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+    },
+    browseAllBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+      paddingVertical: spacing.lg,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.accent,
+    },
+    browseAllText: {
+      color: colors.accent,
+      fontSize: fontSize.md,
+      fontWeight: '600',
+    },
+    filtersEmptyContainer: {
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xxl,
+      paddingBottom: 40,
+    },
+    filtersEmptyChipCloud: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.xxl,
+      paddingHorizontal: spacing.md,
+    },
+    filtersEmptyChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+    },
+    filtersEmptyChipText: {
+      fontSize: fontSize.sm,
+      fontWeight: '600',
+    },
+    filtersEmptyChipBadge: {
+      borderRadius: borderRadius.full,
+      minWidth: 18,
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 4,
+    },
+    filtersEmptyChipBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    filtersEmptyHeadline: {
+      color: colors.textPrimary,
+      fontSize: fontSize.hero,
+      fontWeight: '700',
+      textAlign: 'center',
+      lineHeight: 36,
+      marginBottom: spacing.md,
+    },
+    filtersEmptyBody: {
+      color: colors.textSecondary,
+      fontSize: fontSize.md,
+      lineHeight: 22,
+      textAlign: 'center',
+      marginBottom: spacing.xl,
+    },
+    filtersEmptyHints: {
+      alignSelf: 'stretch',
+      gap: spacing.lg,
+      marginBottom: spacing.xxl,
+    },
+    filtersEmptyHintRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    filtersEmptyHintIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.accent + '15',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filtersEmptyHintText: {
+      color: colors.textSecondary,
+      fontSize: fontSize.md,
+      lineHeight: 20,
+      flex: 1,
+    },
+    filtersEmptyCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: colors.accent,
+      borderRadius: borderRadius.lg,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xxl,
+      alignSelf: 'stretch',
+    },
+    filtersEmptyCtaText: {
+      color: '#000',
+      fontSize: fontSize.lg,
+      fontWeight: '600',
+    },
+
+    // ── Save filter modal ──
+    saveModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xxl,
+    },
+    saveModalCard: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.xl,
+      padding: spacing.xl,
+      width: '100%',
+      gap: spacing.lg,
+    },
+    saveModalTitle: {
+      color: colors.textPrimary,
+      fontSize: fontSize.lg,
+      fontWeight: '600',
+    },
+    saveModalInput: {
+      backgroundColor: colors.background,
+      color: colors.textPrimary,
+      fontSize: fontSize.md,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    saveModalActions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    saveModalCancel: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    saveModalCancelText: {
+      color: colors.textSecondary,
+      fontSize: fontSize.md,
+      fontWeight: '500',
+    },
+    saveModalConfirm: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.lg,
+      backgroundColor: colors.accent,
+    },
+    saveModalConfirmText: {
+      color: '#000',
+      fontSize: fontSize.md,
+      fontWeight: '600',
+    },
+
+    // ── Smart Rules ──
+    smartRulesLabel: {
+      color: colors.textMuted,
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.8,
+    },
+    smartRuleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.sm,
+      gap: spacing.md,
+    },
+    smartRuleIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.accent + '15',
+    },
+    smartRuleName: {
+      color: colors.textPrimary,
+      fontSize: fontSize.md,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    smartRuleSub: {
+      color: colors.textMuted,
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+    },
+    smartRuleEmptyCard: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.xl,
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    smartRuleEmptyIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xs,
+    },
+    smartRuleEmptyTitle: {
+      color: colors.textPrimary,
+      fontSize: fontSize.md,
+      fontWeight: '600',
+    },
+    smartRuleEmptyBody: {
+      color: colors.textSecondary,
+      fontSize: fontSize.sm,
+      lineHeight: 20,
+      textAlign: 'center',
+    },
+    smartRuleEmptyCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.accent + '40',
+      marginTop: spacing.sm,
+    },
+    smartRuleEmptyCtaText: {
+      color: colors.accent,
+      fontSize: fontSize.sm,
+      fontWeight: '600',
     },
   });

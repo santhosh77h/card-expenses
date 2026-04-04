@@ -23,6 +23,7 @@ import AskScreen from '../screens/AskScreen';
 import StatementDiffScreen from '../screens/StatementDiffScreen';
 import LabelsScreen from '../screens/LabelsScreen';
 import MerchantInsightsScreen from '../screens/MerchantInsightsScreen';
+import SmartMerchantRuleScreen from '../screens/SmartMerchantRuleScreen';
 import CreditTopUpScreen from '../screens/CreditTopUpScreen';
 import WebViewScreen from '../screens/WebViewScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
@@ -42,7 +43,8 @@ export type RootStackParamList = {
   Ask: undefined;
   StatementDiff: { statementId: string; cardId: string; newParsed: ParseResult };
   Labels: undefined;
-  MerchantInsights: undefined;
+  MerchantInsights: { preselect?: string[] } | undefined;
+  SmartMerchantRule: { ruleId?: string } | undefined;
   CreditTopUp: undefined;
   WebViewPage: { url: string; title: string };
   TransactionDetail: { transaction: import('../store').Transaction; cardId?: string };
@@ -273,6 +275,15 @@ export default function Navigation() {
         options={{
           headerShown: true,
           headerTitle: 'Merchants',
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="SmartMerchantRule"
+        component={SmartMerchantRuleScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Create Rule',
           ...headerOptions,
         }}
       />

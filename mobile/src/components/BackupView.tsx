@@ -13,6 +13,7 @@ import {
   importBackup,
   restoreBackup,
   decryptBackup,
+  APP_VERSION,
   type BackupData,
   type EncryptedBackup,
 } from '../utils/backup';
@@ -27,6 +28,7 @@ export default function BackupView() {
   const [exportingCsv, setExportingCsv] = useState(false);
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<BackupData | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   // Export password states
   const [exportPassword, setExportPassword] = useState('');
@@ -159,13 +161,16 @@ export default function BackupView() {
         {
           text: 'Replace',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            setRestoring(true);
             try {
-              restoreBackup(preview);
+              await restoreBackup(preview);
               setPreview(null);
               Alert.alert('Restore Complete', 'Your data has been restored from backup.');
             } catch (e: any) {
               Alert.alert('Restore Failed', e.message || 'Your data has not been changed.');
+            } finally {
+              setRestoring(false);
             }
           },
         },
@@ -196,6 +201,9 @@ export default function BackupView() {
         </View>
         <Text style={styles.desc}>
           Your backup is encrypted with a password to protect your financial data. Remember this password - you'll need it to restore.
+        </Text>
+        <Text style={styles.versionNote}>
+          This backup requires Vector v{APP_VERSION} or later to restore.
         </Text>
 
         {/* Password */}
@@ -289,6 +297,9 @@ export default function BackupView() {
           <StatRow label="Cards" value={String(pendingEncrypted.summary.cardCount)} />
           <StatRow label="Statements" value={String(pendingEncrypted.summary.statementCount)} />
           <StatRow label="Transactions" value={String(pendingEncrypted.summary.transactionCount)} />
+          {(pendingEncrypted.summary.receiptImageCount ?? 0) > 0 && (
+            <StatRow label="Receipt images" value={String(pendingEncrypted.summary.receiptImageCount)} />
+          )}
           <View style={styles.previewDivider} />
 
           <PasswordField
@@ -331,8 +342,17 @@ export default function BackupView() {
           <StatRow label="Statement transactions" value={String(preview.summary.transactionCount)} />
           <StatRow label="Manual transactions" value={String(preview.summary.manualTransactionCount)} />
           <StatRow label="Enrichments" value={String(preview.summary.enrichmentCount)} />
+          {(preview.summary.receiptImageCount ?? 0) > 0 && (
+            <StatRow label="Receipt images" value={String(preview.summary.receiptImageCount)} />
+          )}
           <View style={{ height: spacing.md }} />
-          <PrimaryButton title="Restore This Backup" icon="refresh-cw" onPress={handleRestore} />
+          <PrimaryButton
+            title={restoring ? 'Restoring...' : 'Restore This Backup'}
+            icon="refresh-cw"
+            onPress={handleRestore}
+            loading={restoring}
+            disabled={restoring}
+          />
           <View style={{ height: spacing.sm }} />
           <PrimaryButton title="Cancel" icon="x" onPress={() => setPreview(null)} variant="outline" />
         </Card>
@@ -511,6 +531,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     height: 1,
     backgroundColor: colors.surfaceElevated,
     marginVertical: spacing.md,
+  },
+  versionNote: {
+    color: colors.textMuted,
+    fontSize: fontSize.xs,
+    lineHeight: 16,
+    marginBottom: spacing.md,
   },
   privacyNote: {
     flexDirection: 'row',

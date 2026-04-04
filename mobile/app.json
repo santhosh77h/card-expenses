@@ -2,7 +2,7 @@
   "expo": {
     "name": "Vector Expense",
     "slug": "cardlytics",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "scheme": "vector",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,7 +25,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "Vector uses Face ID to protect your financial data."
       },
-      "buildNumber": "26",
+      "buildNumber": "28",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {

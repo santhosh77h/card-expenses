@@ -1,5 +1,7 @@
 import type { Transaction, StatementData } from '../store';
 import type { CurrencyCode } from '../theme';
+import type { SmartMerchantRule } from '../db/smartMerchantRules';
+import { resolveSmartMerchant } from './smartMerchantEngine';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -14,6 +16,13 @@ export interface MerchantData {
   minAmount: number;
   color: string;
   transactions: Transaction[];
+}
+
+export interface CardBreakdownEntry {
+  cardId: string;
+  totalAmount: number;
+  txnCount: number;
+  currencies: Record<string, number>;
 }
 
 export interface MerchantStats {
@@ -71,6 +80,7 @@ export function getAllMerchants(
   manualTransactions: Transaction[],
   statements: Record<string, StatementData[]>,
   _defaultCurrency: CurrencyCode,
+  smartRules: SmartMerchantRule[] = [],
 ): MerchantData[] {
   const merchantMap = new Map<string, {
     count: number;
@@ -85,7 +95,8 @@ export function getAllMerchants(
     if (txn.type !== 'debit') return;
     const raw = txn.description?.trim();
     if (!raw) return;
-    const normalized = normalizeMerchantName(raw);
+    const smartMatch = resolveSmartMerchant(raw, smartRules);
+    const normalized = smartMatch?.displayName ?? normalizeMerchantName(raw);
     const existing = merchantMap.get(normalized) ?? {
       count: 0,
       total: 0,
@@ -162,6 +173,28 @@ export function computeMerchantStats(
   }
 
   return { totalSpend: totals, txnCount: count, max: globalMax, min: globalMin };
+}
+
+// ---------------------------------------------------------------------------
+// Card breakdown for selected merchants
+// ---------------------------------------------------------------------------
+
+export function computeCardBreakdown(merchants: MerchantData[]): CardBreakdownEntry[] {
+  const cardMap = new Map<string, { total: number; count: number; currencies: Record<string, number> }>();
+  for (const m of merchants) {
+    for (const txn of m.transactions) {
+      const key = txn.cardId ?? '__none__';
+      const entry = cardMap.get(key) ?? { total: 0, count: 0, currencies: {} };
+      entry.total += txn.amount;
+      entry.count++;
+      const cur = txn.currency ?? 'INR';
+      entry.currencies[cur] = (entry.currencies[cur] ?? 0) + txn.amount;
+      cardMap.set(key, entry);
+    }
+  }
+  return Array.from(cardMap.entries())
+    .map(([cardId, { total, count, currencies }]) => ({ cardId, totalAmount: total, txnCount: count, currencies }))
+    .sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
 // ---------------------------------------------------------------------------

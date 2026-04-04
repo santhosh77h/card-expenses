@@ -349,6 +349,7 @@ export default function LabelsScreen() {
               <Feather name="plus" size={18} color={colors.textOnAccent} />
               <Text style={styles.emptyCtaText}>Create Your First Label</Text>
             </TouchableOpacity>
+
           </ScrollView>
         ) : (
           <FlatList
@@ -1252,4 +1253,5 @@ const createModalStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
+
   });

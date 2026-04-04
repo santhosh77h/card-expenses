@@ -1,6 +1,6 @@
 import type { DB } from '@op-engineering/op-sqlite';
 
-export const LATEST_VERSION = 6;
+export const LATEST_VERSION = 8;
 
 export type MigrationFn = (db: DB) => void;
 
@@ -168,6 +168,37 @@ export const migrations: Record<number, MigrationFn> = {
     );
     db.executeSync(
       `CREATE INDEX IF NOT EXISTS idx_txn_labels_label_id ON transaction_labels(labelId)`,
+    );
+  },
+
+  // v6 → v7: Saved merchant filters
+  7: (db) => {
+    db.executeSync(
+      `CREATE TABLE IF NOT EXISTS saved_merchant_filters (
+        id        TEXT PRIMARY KEY,
+        name      TEXT NOT NULL,
+        merchants TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )`,
+    );
+  },
+
+  // v7 → v8: Smart merchant rules
+  8: (db) => {
+    db.executeSync(
+      `CREATE TABLE IF NOT EXISTS smart_merchant_rules (
+        id            TEXT PRIMARY KEY,
+        name          TEXT NOT NULL,
+        conditions    TEXT NOT NULL,
+        logic         TEXT NOT NULL DEFAULT 'any',
+        category      TEXT,
+        categoryColor TEXT,
+        categoryIcon  TEXT,
+        enabled       INTEGER NOT NULL DEFAULT 1,
+        createdAt     TEXT NOT NULL,
+        updatedAt     TEXT NOT NULL
+      )`,
     );
   },
 };

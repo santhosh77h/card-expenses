@@ -1,9 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 
-const RECEIPTS_DIR = `${FileSystem.documentDirectory}receipts/`;
+export const RECEIPTS_DIR = `${FileSystem.documentDirectory}receipts/`;
 
-async function ensureReceiptsDir() {
+export async function ensureReceiptsDir() {
   const info = await FileSystem.getInfoAsync(RECEIPTS_DIR);
   if (!info.exists) {
     await FileSystem.makeDirectoryAsync(RECEIPTS_DIR, { intermediates: true });

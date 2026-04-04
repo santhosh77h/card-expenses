@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'crypto-js';
+import Constants from 'expo-constants';
 import { getDb } from '../db';
 import { useStore } from '../store';
 import type { CreditCard, StatementData, Transaction, TransactionEnrichment, MonthlyUsage } from '../store';
@@ -12,6 +13,9 @@ import * as dbTxns from '../db/transactions';
 import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
 import * as dbFileHashes from '../db/fileHashes';
+import { RECEIPTS_DIR, ensureReceiptsDir } from './receipts';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,11 +27,18 @@ export interface BackupSummary {
   transactionCount: number;
   manualTransactionCount: number;
   enrichmentCount: number;
+  receiptImageCount?: number;
+}
+
+export interface ReceiptImageData {
+  base64: string;
+  extension: string;
 }
 
 export interface BackupData {
   version: number;
   appName: 'vector';
+  appVersion?: string; // e.g. "1.1.0" — the app version that created this backup
   exportedAt: string;
   summary: BackupSummary;
   data: {
@@ -39,18 +50,25 @@ export interface BackupData {
     enrichments: Record<string, TransactionEnrichment>;
     monthlyUsage: MonthlyUsage[];
     fileHashes: FileHashRecord[];
+    receiptImages?: Record<string, ReceiptImageData>;
   };
 }
+
+// Bump when adding new data fields that older app versions can't handle.
+const CURRENT_BACKUP_VERSION = 2;
 
 // Envelope for encrypted backups - keeps appName visible so we can identify
 // the file without decrypting, and the summary so we can show a preview.
 export interface EncryptedBackup {
   appName: 'vector';
   encrypted: true;
+  appVersion?: string; // min app version needed to restore
   summary: BackupSummary;
   exportedAt: string;
   payload: string; // AES-encrypted JSON string of BackupData
 }
+
+export { APP_VERSION };
 
 // ---------------------------------------------------------------------------
 // Encryption helpers
@@ -73,6 +91,8 @@ function decrypt(ciphertext: string, password: string): string {
 // Validation
 // ---------------------------------------------------------------------------
 
+// Future: when we add forward-compat restore, change this to return warnings
+// instead of hard-rejecting newer versions, and let the user decide.
 export function validateBackup(json: any): { valid: true; data: BackupData } | { valid: false; error: string } {
   if (!json || typeof json !== 'object') {
     return { valid: false, error: 'The selected file is not valid JSON.' };
@@ -80,8 +100,12 @@ export function validateBackup(json: any): { valid: true; data: BackupData } | {
   if (json.appName !== 'vector') {
     return { valid: false, error: 'This file is not a Vector backup.' };
   }
-  if (typeof json.version !== 'number' || json.version > 1) {
-    return { valid: false, error: 'This backup was created by a newer version of the app. Please update Vector.' };
+  if (typeof json.version !== 'number' || json.version > CURRENT_BACKUP_VERSION) {
+    const neededVersion = json.appVersion ?? 'latest';
+    return {
+      valid: false,
+      error: `This backup requires Vector v${neededVersion} or later. Please update the app to restore this backup.`,
+    };
   }
   if (!json.data || typeof json.data !== 'object') {
     return { valid: false, error: 'Backup file is missing data.' };
@@ -131,10 +155,25 @@ export async function exportBackup(password: string): Promise<void> {
   );
   const importedStatementIds = importedResult.rows.map((r) => r.statementId as string);
 
-  // Strip receiptUri from enrichments (local paths aren't transferable)
+  // Collect receipt images as base64 and strip local paths from enrichments
+  const receiptImages: Record<string, ReceiptImageData> = {};
   const cleanedEnrichments: Record<string, TransactionEnrichment> = {};
   for (const [id, e] of Object.entries(enrichments)) {
     cleanedEnrichments[id] = { ...e, receiptUri: undefined };
+    if (e.receiptUri) {
+      try {
+        const info = await FileSystem.getInfoAsync(e.receiptUri);
+        if (info.exists) {
+          const base64 = await FileSystem.readAsStringAsync(e.receiptUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const extension = e.receiptUri.split('.').pop() || 'jpg';
+          receiptImages[id] = { base64, extension };
+        }
+      } catch {
+        // Non-fatal: skip this image
+      }
+    }
   }
 
   // Count total statement transactions
@@ -146,8 +185,9 @@ export async function exportBackup(password: string): Promise<void> {
   }
 
   const backup: BackupData = {
-    version: 1,
+    version: CURRENT_BACKUP_VERSION,
     appName: 'vector',
+    appVersion: APP_VERSION,
     exportedAt: new Date().toISOString(),
     summary: {
       cardCount: cards.length,
@@ -155,6 +195,7 @@ export async function exportBackup(password: string): Promise<void> {
       transactionCount: statementTxnCount,
       manualTransactionCount: manualTransactions.length,
       enrichmentCount: Object.keys(cleanedEnrichments).length,
+      receiptImageCount: Object.keys(receiptImages).length,
     },
     data: {
       cards,
@@ -165,6 +206,7 @@ export async function exportBackup(password: string): Promise<void> {
       enrichments: cleanedEnrichments,
       monthlyUsage,
       fileHashes,
+      receiptImages,
     },
   };
 
@@ -176,6 +218,7 @@ export async function exportBackup(password: string): Promise<void> {
   const envelope: EncryptedBackup = {
     appName: 'vector',
     encrypted: true,
+    appVersion: APP_VERSION,
     summary: backup.summary,
     exportedAt: backup.exportedAt,
     payload: encrypt(JSON.stringify(backup), password),
@@ -235,11 +278,12 @@ export async function importBackup(): Promise<EncryptedBackup | null> {
 // Restore
 // ---------------------------------------------------------------------------
 
-export function restoreBackup(backup: BackupData): void {
+export async function restoreBackup(backup: BackupData): Promise<void> {
   const db = getDb();
-  const { cards, activeCardId, statements, manualTransactions, importedStatementIds, enrichments, monthlyUsage, fileHashes } = backup.data;
+  const { cards, activeCardId, statements, manualTransactions, importedStatementIds, enrichments, monthlyUsage, fileHashes, receiptImages } = backup.data;
   const importedSet = new Set(importedStatementIds ?? []);
 
+  // Phase 1: Synchronous SQLite restore
   db.executeSync('BEGIN');
   try {
     // Clear all existing data (order matters for FKs)
@@ -312,14 +356,44 @@ export function restoreBackup(backup: BackupData): void {
     throw new Error('Restore failed. Your data has not been changed.');
   }
 
-  // Update AsyncStorage (Zustand persist store)
+  // Phase 2: Restore receipt images to filesystem
+  if (receiptImages && Object.keys(receiptImages).length > 0) {
+    await ensureReceiptsDir();
+
+    // Clean out old receipt files
+    try {
+      const existing = await FileSystem.readDirectoryAsync(RECEIPTS_DIR);
+      for (const file of existing) {
+        await FileSystem.deleteAsync(`${RECEIPTS_DIR}${file}`, { idempotent: true });
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    // Write each image and update its enrichment row
+    for (const [txnId, img] of Object.entries(receiptImages)) {
+      try {
+        const destUri = `${RECEIPTS_DIR}${txnId}.${img.extension}`;
+        await FileSystem.writeAsStringAsync(destUri, img.base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        db.executeSync(
+          `UPDATE enrichments SET receiptUri = ? WHERE txnId = ?`,
+          [destUri, txnId],
+        );
+      } catch {
+        // Non-fatal: this image is lost but other data is fine
+      }
+    }
+  }
+
+  // Phase 3: Update AsyncStorage + rehydrate Zustand
   const persistPayload = JSON.stringify({
     state: { cards, activeCardId },
     version: 0,
   });
-  AsyncStorage.setItem('vector-storage', persistPayload);
+  await AsyncStorage.setItem('vector-storage', persistPayload);
 
-  // Rehydrate Zustand
   useStore.setState({ cards, activeCardId });
   useStore.getState()._hydrateSqlite();
 }

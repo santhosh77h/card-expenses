@@ -10,6 +10,8 @@ import * as dbEnrich from '../db/enrichments';
 import * as dbUsage from '../db/monthlyUsage';
 import * as dbFileHashes from '../db/fileHashes';
 import * as dbLabels from '../db/labels';
+import * as dbSavedFilters from '../db/savedFilters';
+import * as dbSmartRules from '../db/smartMerchantRules';
 import { generateCSV } from '../utils/api';
 import { syncWidgetData } from '../utils/widgetBridge';
 import { getDb } from '../db';
@@ -193,6 +195,8 @@ interface AppState {
   enrichments: Record<string, TransactionEnrichment>;
   labels: dbLabels.Label[];
   transactionLabels: Record<string, string[]>; // txnId → labelId[]
+  savedMerchantFilters: dbSavedFilters.SavedMerchantFilter[];
+  smartMerchantRules: dbSmartRules.SmartMerchantRule[];
   isPremium: boolean;
   isAuthenticated: boolean;
   appleUserId: string | null;
@@ -237,6 +241,12 @@ interface AppState {
   deleteLabel: (id: string) => void;
   addLabelToTransaction: (txnId: string, labelId: string) => void;
   removeLabelFromTransaction: (txnId: string, labelId: string) => void;
+  addSmartMerchantRule: (rule: dbSmartRules.SmartMerchantRule) => void;
+  updateSmartMerchantRule: (id: string, updates: Partial<Pick<dbSmartRules.SmartMerchantRule, 'name' | 'conditions' | 'logic' | 'category' | 'categoryColor' | 'categoryIcon' | 'enabled'>>) => void;
+  deleteSmartMerchantRule: (id: string) => void;
+  addSavedMerchantFilter: (filter: dbSavedFilters.SavedMerchantFilter) => void;
+  updateSavedMerchantFilter: (id: string, updates: Partial<Pick<dbSavedFilters.SavedMerchantFilter, 'name' | 'merchants'>>) => void;
+  deleteSavedMerchantFilter: (id: string) => void;
   updateStatementTransaction: (
     cardId: string,
     statementId: string,
@@ -270,6 +280,8 @@ export const useStore = create<AppState>()(
       enrichments: {},
       labels: [],
       transactionLabels: {},
+      savedMerchantFilters: [],
+      smartMerchantRules: [],
       isPremium: false,
       isAuthenticated: false,
       appleUserId: null,
@@ -695,6 +707,80 @@ export const useStore = create<AppState>()(
         }));
       },
 
+      addSmartMerchantRule: (rule) => {
+        try {
+          dbSmartRules.insertRule(rule);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to save rule.');
+          return;
+        }
+        set((state) => ({ smartMerchantRules: [rule, ...state.smartMerchantRules] }));
+      },
+
+      updateSmartMerchantRule: (id, updates) => {
+        try {
+          dbSmartRules.updateRule(id, updates);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to update rule.');
+          return;
+        }
+        set((state) => ({
+          smartMerchantRules: state.smartMerchantRules.map((r) =>
+            r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r,
+          ),
+        }));
+      },
+
+      deleteSmartMerchantRule: (id) => {
+        try {
+          dbSmartRules.deleteRule(id);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to delete rule.');
+          return;
+        }
+        set((state) => ({
+          smartMerchantRules: state.smartMerchantRules.filter((r) => r.id !== id),
+        }));
+      },
+
+      addSavedMerchantFilter: (filter) => {
+        try {
+          dbSavedFilters.insertFilter(filter);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to save filter.');
+          return;
+        }
+        set((state) => ({
+          savedMerchantFilters: [filter, ...state.savedMerchantFilters],
+        }));
+      },
+
+      updateSavedMerchantFilter: (id, updates) => {
+        try {
+          dbSavedFilters.updateFilter(id, updates);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to update filter.');
+          return;
+        }
+        set((state) => ({
+          savedMerchantFilters: state.savedMerchantFilters.map((f) =>
+            f.id === id ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f,
+          ),
+        }));
+      },
+
+      deleteSavedMerchantFilter: (id) => {
+        try {
+          dbSavedFilters.deleteFilter(id);
+        } catch (e: any) {
+          Alert.alert('Error', e?.message || 'Failed to delete filter.');
+          return;
+        }
+        set((state) => ({
+          savedMerchantFilters: state.savedMerchantFilters.filter((f) => f.id !== id),
+        }));
+      },
+
       updateStatementTransaction: (cardId, statementId, txnId, updates) => {
         try {
           dbTxns.updateTransaction(txnId, updates);
@@ -918,6 +1004,8 @@ export const useStore = create<AppState>()(
         const db = getDb();
         db.executeSync('BEGIN');
         try {
+          db.executeSync('DELETE FROM smart_merchant_rules');
+          db.executeSync('DELETE FROM saved_merchant_filters');
           db.executeSync('DELETE FROM transaction_labels');
           db.executeSync('DELETE FROM labels');
           db.executeSync('DELETE FROM file_hashes');
@@ -941,6 +1029,8 @@ export const useStore = create<AppState>()(
           enrichments: {},
           labels: [],
           transactionLabels: {},
+          savedMerchantFilters: [],
+          smartMerchantRules: [],
           uploadsThisMonth: 0,
         });
         _syncWidgets();
@@ -971,10 +1061,16 @@ export const useStore = create<AppState>()(
         let transactionLabels: Record<string, string[]> = {};
         try { transactionLabels = dbLabels.getAllTransactionLabels(); } catch (e) { console.error('Hydrate transactionLabels failed:', e); }
 
+        let savedMerchantFilters: dbSavedFilters.SavedMerchantFilter[] = [];
+        try { savedMerchantFilters = dbSavedFilters.getAllFilters(); } catch (e) { console.error('Hydrate savedMerchantFilters failed:', e); }
+
+        let smartMerchantRules: dbSmartRules.SmartMerchantRule[] = [];
+        try { smartMerchantRules = dbSmartRules.getAllRules(); } catch (e) { console.error('Hydrate smartMerchantRules failed:', e); }
+
         let licenseInfo: LicenseInfo | undefined;
         try { licenseInfo = getLicenseInfo(); } catch (e) { console.error('Hydrate licenseInfo failed:', e); }
 
-        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth, labels, transactionLabels, ...(licenseInfo ? { licenseInfo } : {}) });
+        set({ manualTransactions, statements, enrichments, monthlyUsage, uploadsThisMonth, labels, transactionLabels, savedMerchantFilters, smartMerchantRules, ...(licenseInfo ? { licenseInfo } : {}) });
         _syncWidgets();
       },
 

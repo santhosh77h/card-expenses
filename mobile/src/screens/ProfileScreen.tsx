@@ -308,6 +308,15 @@ export default function ProfileScreen() {
           colors={colors}
           styles={styles}
         />
+        <View style={styles.itemDivider} />
+        <GroupedMenuItem
+          icon="shopping-bag"
+          title="Merchants"
+          subtitle="Spending by merchant"
+          onPress={() => (navigation as any).navigate('MerchantInsights')}
+          colors={colors}
+          styles={styles}
+        />
       </View>
 
       {/* ================================================================ */}
