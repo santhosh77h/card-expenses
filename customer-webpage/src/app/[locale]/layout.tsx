@@ -94,20 +94,26 @@ export default async function LocaleLayout({
 
   const messages = await getMessages();
 
+  const isProduction = process.env.NODE_ENV === "production";
+
   return (
     <>
-      <Script
-        src="https://www.googletagmanager.com/gtag/js?id=G-R1K3YW8Q6G"
-        strategy="afterInteractive"
-      />
-      <Script id="google-analytics" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'G-R1K3YW8Q6G');
-        `}
-      </Script>
+      {isProduction && (
+        <>
+          <Script
+            src="https://www.googletagmanager.com/gtag/js?id=G-R1K3YW8Q6G"
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-R1K3YW8Q6G');
+            `}
+          </Script>
+        </>
+      )}
       <NextIntlClientProvider messages={messages}>
         <ThemeProvider
           attribute="class"

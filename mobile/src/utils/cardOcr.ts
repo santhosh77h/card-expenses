@@ -1,4 +1,4 @@
-import { recognizeText } from 'rn-mlkit-ocr';
+import TextRecognition from '@react-native-ml-kit/text-recognition';
 import type { ScannedCardInfo } from './api';
 
 // Keywords to exclude when scoring cardholder name candidates
@@ -147,7 +147,7 @@ function extractCardholderName(lines: string[]): string | null {
  * Everything runs on-device - no network call, no image leaves the phone.
  */
 export async function scanCardLocally(imageUri: string): Promise<ScannedCardInfo> {
-  const result = await recognizeText(imageUri);
+  const result = await TextRecognition.recognize(imageUri);
 
   // Flatten OCR blocks into lines of text
   const lines: string[] = [];

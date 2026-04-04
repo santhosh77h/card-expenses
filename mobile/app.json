@@ -58,15 +58,6 @@
             "deploymentTarget": "15.5"
           }
         }
-      ],
-      [
-        "rn-mlkit-ocr",
-        {
-          "ocrModels": [
-            "latin"
-          ],
-          "ocrUseBundled": true
-        }
       ]
     ],
     "extra": {
