@@ -15,7 +15,18 @@ from app.auth_deps import get_current_user
 from app.config import settings
 from app.parser import parse_pdf
 from app.rate_limiter import check_rate_limit
-from app.user_db import get_subscription, get_usage, increment_usage, get_credit_balance, use_credit
+from app.user_db import (
+    get_credit_balance,
+    get_subscription,
+    get_trial,
+    get_usage,
+    increment_trial_usage,
+    increment_usage,
+    is_subscription_active,
+    is_trial_active,
+    trial_parses_remaining,
+    use_credit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,41 +88,36 @@ async def parse_statement(
         )
 
     # Server-side usage enforcement
-    # Priority: subscription/trial allowance first, then purchased credits
-    apple_user_id = user["apple_user_id"]
-    subscription = get_subscription(apple_user_id)
-    usage = get_usage(apple_user_id)
-    credit_balance = get_credit_balance(apple_user_id)
+    # Priority: trial → subscription → credits
+    user_id = user["id"]
 
-    sub_active = subscription and subscription.get("status") == "active"
+    # 1. Check trial
+    trial = get_trial(user_id)
+    trial_active = is_trial_active(trial)
+    trial_remaining = trial_parses_remaining(trial) if trial_active else 0
 
-    # Check trial expiry (trial has a fixed end date)
-    if sub_active and subscription.get("plan") == "trial":
-        period_end = subscription.get("current_period_end")
-        if period_end:
-            from datetime import datetime, timezone
-            try:
-                end_dt = datetime.fromisoformat(period_end)
-                if end_dt.tzinfo is None:
-                    end_dt = end_dt.replace(tzinfo=timezone.utc)
-                if end_dt < datetime.now(timezone.utc):
-                    sub_active = False
-            except (ValueError, TypeError):
-                pass
-
+    # 2. Check subscription
+    subscription = get_subscription(user_id)
+    sub_active = is_subscription_active(subscription)
+    usage = get_usage(user_id)
     max_parses = subscription.get("max_parses", 0) if sub_active else 0
-    parses_used = usage.get("parses_used", 0)
-    sub_remaining = max(0, max_parses - parses_used)
+    sub_remaining = max(0, max_parses - usage.get("parses_used", 0))
 
+    # 3. Check credits
+    credit_balance = get_credit_balance(user_id)
+
+    # Determine debit source
     debit_type: Optional[str] = None
-    if sub_active and sub_remaining > 0:
+    if trial_active and trial_remaining > 0:
+        debit_type = "trial"
+    elif sub_active and sub_remaining > 0:
         debit_type = "subscription"
     elif credit_balance > 0:
         debit_type = "credit"
     else:
         raise HTTPException(
             status_code=403,
-            detail="No subscription allowance or credits available",
+            detail="No trial, subscription, or credits available",
         )
 
     result = await parse_pdf(file_bytes, password=password, filename=file.filename or "")
@@ -119,17 +125,25 @@ async def parse_statement(
     # Debit after successful parse
     remaining_info = {}
     try:
-        if debit_type == "subscription":
-            new_count = increment_usage(apple_user_id)
-            sub = get_subscription(apple_user_id)
+        if debit_type == "trial":
+            new_used = increment_trial_usage(user_id)
+            remaining_info = {
+                "debited": "trial",
+                "trial_remaining": max(0, (trial.get("max_parses", 0) if trial else 0) - new_used),
+                "subscription_remaining": sub_remaining,
+                "credit_balance": credit_balance,
+            }
+        elif debit_type == "subscription":
+            new_count = increment_usage(user_id)
+            sub = get_subscription(user_id)
             mp = sub.get("max_parses", 0) if sub else 0
             remaining_info = {
                 "debited": "subscription",
                 "subscription_remaining": max(0, mp - new_count),
-                "credit_balance": get_credit_balance(apple_user_id),
+                "credit_balance": get_credit_balance(user_id),
             }
         elif debit_type == "credit":
-            new_balance = use_credit(apple_user_id)
+            new_balance = use_credit(user_id)
             remaining_info = {
                 "debited": "credit",
                 "subscription_remaining": 0,

@@ -243,6 +243,7 @@
 		"blog": "Blog",
 		"privacy": "Datenschutz",
 		"terms": "Nutzungsbedingungen",
+		"contact": "Kontakt",
 		"copyright": "© {year} Vector Expense. Alle Rechte vorbehalten."
 	},
 	"privacy": {
@@ -416,5 +417,62 @@
 	},
 	"common": {
 		"downloadOnAppStore": "Im App Store herunterladen"
+	},
+	"contact": {
+		"metaTitle": "Kontakt — Vector Expense",
+		"metaDescription": "Kontaktieren Sie das Vector Expense Team. Teilen Sie Feedback, melden Sie Fehler oder stellen Sie Fragen.",
+		"backToHome": "Zurück zur Startseite",
+		"title": "Kontaktieren Sie uns",
+		"description": "Haben Sie Feedback, eine Frage oder einen Fehler gefunden? Wir freuen uns von Ihnen zu hören.",
+		"form": {
+			"name": "Name",
+			"namePlaceholder": "Ihr Name",
+			"email": "E-Mail",
+			"emailPlaceholder": "sie@beispiel.com",
+			"subject": "Betreff",
+			"subjectPlaceholder": "Wählen Sie ein Thema",
+			"message": "Nachricht",
+			"messagePlaceholder": "Teilen Sie uns mit, was Sie beschäftigt...",
+			"submit": "Nachricht senden",
+			"submitting": "Wird gesendet..."
+		},
+		"subjects": {
+			"feedback": "Feedback",
+			"bugReport": "Fehlerbericht",
+			"featureRequest": "Funktionswunsch",
+			"generalQuery": "Allgemeine Anfrage",
+			"other": "Sonstiges"
+		},
+		"validation": {
+			"nameRequired": "Name ist erforderlich",
+			"emailRequired": "E-Mail ist erforderlich",
+			"emailInvalid": "Bitte geben Sie eine gültige E-Mail ein",
+			"subjectRequired": "Bitte wählen Sie einen Betreff",
+			"messageRequired": "Nachricht ist erforderlich",
+			"messageMinLength": "Nachricht muss mindestens 10 Zeichen lang sein"
+		},
+		"success": {
+			"title": "Nachricht gesendet!",
+			"description": "Vielen Dank für Ihre Nachricht. Wir antworten innerhalb von 24 Stunden.",
+			"sendAnother": "Weitere Nachricht senden"
+		},
+		"error": {
+			"title": "Etwas ist schiefgelaufen",
+			"description": "Bitte versuchen Sie es erneut oder schreiben Sie uns direkt eine E-Mail.",
+			"retry": "Erneut versuchen"
+		},
+		"sidebar": {
+			"emailTitle": "Schreiben Sie uns direkt",
+			"responseTime": "Wir antworten in der Regel innerhalb von 24 Stunden.",
+			"socialTitle": "Folgen Sie uns"
+		}
+	},
+	"tryDemoModal": {
+		"title": "Starten Sie Ihre kostenlose Testversion",
+		"freeParses": "{count} kostenlose Abrechnungsanalysen",
+		"description": "Laden Sie die Kreditkartenabrechnung jeder Bank hoch und erhalten Sie sofortige KI-gestützte Ausgabeneinblicke. Kein Konto erforderlich, keine Kreditkarte nötig.",
+		"downloadCta": "Im App Store herunterladen",
+		"or": "oder",
+		"learnMore": "Mehr über die Funktionen erfahren"
 	}
 }

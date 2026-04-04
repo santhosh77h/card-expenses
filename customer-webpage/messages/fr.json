@@ -243,6 +243,7 @@
 		"blog": "Blog",
 		"privacy": "Confidentialité",
 		"terms": "Conditions",
+		"contact": "Contact",
 		"copyright": "© {year} Vector Expense. Tous droits réservés."
 	},
 	"privacy": {
@@ -416,5 +417,62 @@
 	},
 	"common": {
 		"downloadOnAppStore": "Télécharger sur l'App Store"
+	},
+	"contact": {
+		"metaTitle": "Contactez-nous — Vector Expense",
+		"metaDescription": "Contactez l'équipe Vector Expense. Partagez vos retours, signalez des bugs ou posez des questions.",
+		"backToHome": "Retour à l'accueil",
+		"title": "Contactez-nous",
+		"description": "Vous avez un retour, une question ou trouvé un bug ? Nous aimerions vous entendre.",
+		"form": {
+			"name": "Nom",
+			"namePlaceholder": "Votre nom",
+			"email": "E-mail",
+			"emailPlaceholder": "vous@exemple.com",
+			"subject": "Sujet",
+			"subjectPlaceholder": "Sélectionnez un sujet",
+			"message": "Message",
+			"messagePlaceholder": "Dites-nous ce que vous avez en tête...",
+			"submit": "Envoyer le message",
+			"submitting": "Envoi en cours..."
+		},
+		"subjects": {
+			"feedback": "Retour",
+			"bugReport": "Rapport de bug",
+			"featureRequest": "Demande de fonctionnalité",
+			"generalQuery": "Question générale",
+			"other": "Autre"
+		},
+		"validation": {
+			"nameRequired": "Le nom est requis",
+			"emailRequired": "L'e-mail est requis",
+			"emailInvalid": "Veuillez entrer un e-mail valide",
+			"subjectRequired": "Veuillez sélectionner un sujet",
+			"messageRequired": "Le message est requis",
+			"messageMinLength": "Le message doit contenir au moins 10 caractères"
+		},
+		"success": {
+			"title": "Message envoyé !",
+			"description": "Merci de nous avoir contactés. Nous vous répondrons dans les 24 heures.",
+			"sendAnother": "Envoyer un autre message"
+		},
+		"error": {
+			"title": "Une erreur est survenue",
+			"description": "Veuillez réessayer ou envoyez-nous un e-mail directement.",
+			"retry": "Réessayer"
+		},
+		"sidebar": {
+			"emailTitle": "Écrivez-nous directement",
+			"responseTime": "Nous répondons généralement dans les 24 heures.",
+			"socialTitle": "Suivez-nous"
+		}
+	},
+	"tryDemoModal": {
+		"title": "Commencez votre essai gratuit",
+		"freeParses": "{count} analyses de relevés gratuites",
+		"description": "Importez le relevé de carte de crédit de n'importe quelle banque et obtenez instantanément des informations sur vos dépenses grâce à l'IA. Aucun compte requis, aucune carte de crédit nécessaire.",
+		"downloadCta": "Télécharger sur l'App Store",
+		"or": "ou",
+		"learnMore": "En savoir plus sur les fonctionnalités"
 	}
 }

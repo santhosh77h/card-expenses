@@ -30,7 +30,7 @@ import CreditCardView from '../components/CreditCardView';
 import type { RootStackParamList } from '../navigation';
 import { BANK_TO_ISSUER, ISSUERS, NETWORKS, ISSUER_CURRENCY, normalizeNetwork, pickUnusedColor } from '../constants/cards';
 import { capture, AnalyticsEvents } from '../utils/analytics';
-import { checkUploadAllowed as licenseCheckUpload, syncAfterParse, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
+import { checkUploadAllowed as licenseCheckUpload, syncAfterParse, applyParseUsage, getLicenseInfo, refreshSubscriptionStatus } from '../utils/licensing';
 import { presentPaywall } from '../utils/revenueCat';
 import { signInAndAuthenticate, isAppleAuthAvailable } from '../utils/appleAuth';
 import { biometricGuard } from '../utils/biometricGuard';
@@ -356,8 +356,14 @@ export default function UploadScreen() {
 
 		addStatement(cardId, statement);
 
-		// Sync usage after successful parse (backend handles all deductions)
+		// Update usage after successful parse
 		if (cardId !== 'demo') {
+			// Instant local update from inline usage data
+			if (parsed.usage) {
+				applyParseUsage(parsed.usage);
+				useStore.getState()._refreshLicenseInfo();
+			}
+			// Background sync for full accuracy (server is source of truth)
 			syncAfterParse()
 				.then(() => useStore.getState()._refreshLicenseInfo())
 				.catch(() => {});

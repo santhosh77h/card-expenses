@@ -9,7 +9,10 @@ import { siteConfig } from "@/lib/config";
 import { motion } from "framer-motion";
 import { Globe, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TryDemoModal } from "@/components/try-demo-modal";
 import { useTranslations } from "next-intl";
+import { trackAppStoreClick, trackTryDemoClick } from "@/lib/analytics";
+import { useState } from "react";
 
 const fadeUp = (delay: number, y = 20) => ({
   initial: { opacity: 0, y },
@@ -20,9 +23,9 @@ const fadeUp = (delay: number, y = 20) => ({
 export function Hero() {
   const t = useTranslations("hero");
   const tc = useTranslations("common");
+  const [demoModalOpen, setDemoModalOpen] = useState(false);
 
   const trustSignals = [
-    { icon: ShieldCheck, label: t("trustNoAccount") },
     { icon: Lock, label: t("trustPrivacy") },
     { icon: Globe, label: t("trustAnyBank") },
   ];
@@ -66,7 +69,7 @@ export function Hero() {
               {...fadeUp(0.35)}
               className="mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-4"
             >
-              <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+              <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex-shrink-0" onClick={() => trackAppStoreClick("hero")}>
                 <img
                   src="/badges/download-black.svg"
                   alt={tc("downloadOnAppStore")}
@@ -81,10 +84,13 @@ export function Hero() {
               <Button
                 variant="outline"
                 size="lg"
-                asChild
                 className="rounded-full"
+                onClick={() => {
+                  trackTryDemoClick();
+                  setDemoModalOpen(true);
+                }}
               >
-                <a href="#feature-highlight">{t("tryDemo")}</a>
+                {t("tryDemo")}
               </Button>
             </motion.div>
 
@@ -149,6 +155,8 @@ export function Hero() {
           </div>
         </div>
       </div>
+
+      <TryDemoModal open={demoModalOpen} onOpenChange={setDemoModalOpen} />
     </Section>
   );
 }

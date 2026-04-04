@@ -15,6 +15,13 @@ export interface CardInfo {
 	currency?: string | null;
 }
 
+export interface ParseUsageInfo {
+	debited: 'trial' | 'subscription' | 'credit';
+	trial_remaining?: number;
+	subscription_remaining?: number;
+	credit_balance?: number;
+}
+
 export interface ParseResult {
 	transactions: Transaction[];
 	summary: StatementSummary;
@@ -23,6 +30,7 @@ export interface ParseResult {
 	card_info: CardInfo | null;
 	currency_detected?: string;
 	date_format_detected?: string;
+	usage?: ParseUsageInfo;
 }
 
 export async function parseStatement(fileUri: string, fileName: string, password?: string): Promise<ParseResult> {
@@ -654,6 +662,7 @@ function validateParseResult(data: any): ParseResult {
 		card_info: data.card_info ?? null,
 		currency_detected: data.currency_detected,
 		date_format_detected: data.date_format_detected,
+		usage: data.usage ?? undefined,
 	};
 }
 

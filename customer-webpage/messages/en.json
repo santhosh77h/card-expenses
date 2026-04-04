@@ -243,6 +243,7 @@
     "blog": "Blog",
     "privacy": "Privacy",
     "terms": "Terms",
+    "contact": "Contact",
     "copyright": "\u00a9 {year} Vector Expense. All rights reserved."
   },
   "privacy": {
@@ -416,5 +417,62 @@
   },
   "common": {
     "downloadOnAppStore": "Download on the App Store"
+  },
+  "contact": {
+    "metaTitle": "Contact Us — Vector Expense",
+    "metaDescription": "Get in touch with the Vector Expense team. Share feedback, report bugs, or ask questions.",
+    "backToHome": "Back to home",
+    "title": "Get in touch",
+    "description": "Have feedback, a question, or found a bug? We'd love to hear from you.",
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Your name",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "subject": "Subject",
+      "subjectPlaceholder": "Select a topic",
+      "message": "Message",
+      "messagePlaceholder": "Tell us what's on your mind...",
+      "submit": "Send message",
+      "submitting": "Sending..."
+    },
+    "subjects": {
+      "feedback": "Feedback",
+      "bugReport": "Bug Report",
+      "featureRequest": "Feature Request",
+      "generalQuery": "General Query",
+      "other": "Other"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email",
+      "subjectRequired": "Please select a subject",
+      "messageRequired": "Message is required",
+      "messageMinLength": "Message must be at least 10 characters"
+    },
+    "success": {
+      "title": "Message sent!",
+      "description": "Thanks for reaching out. We'll get back to you within 24 hours.",
+      "sendAnother": "Send another message"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "description": "Please try again or email us directly.",
+      "retry": "Try again"
+    },
+    "sidebar": {
+      "emailTitle": "Email us directly",
+      "responseTime": "We typically respond within 24 hours.",
+      "socialTitle": "Follow us"
+    }
+  },
+  "tryDemoModal": {
+    "title": "Start Your Free Trial",
+    "freeParses": "{count} Free Statement Parses",
+    "description": "Upload any bank's credit card statement and get instant AI-powered spending insights. No account required, no credit card needed.",
+    "downloadCta": "Download on App Store",
+    "or": "or",
+    "learnMore": "Learn more about features"
   }
 }

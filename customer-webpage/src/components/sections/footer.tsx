@@ -1,4 +1,5 @@
 import { Icons } from "@/components/icons";
+import { SocialLinks } from "@/components/social-links";
 import { siteConfig } from "@/lib/config";
 import { getTranslations } from "next-intl/server";
 
@@ -15,32 +16,7 @@ export async function Footer() {
           </h2>
         </div>
 
-        <div className="flex gap-x-3">
-          <a
-            href={siteConfig.links.instagram}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-5 w-5 items-center justify-center text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground"
-          >
-            <Icons.instagram className="fill-current" />
-          </a>
-          <a
-            href={siteConfig.links.twitter}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-5 w-5 items-center justify-center text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground"
-          >
-            <Icons.twitter className="fill-current" />
-          </a>
-          <a
-            href={siteConfig.links.linkedin}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-5 w-5 items-center justify-center text-muted-foreground transition-all duration-100 ease-linear hover:text-foreground"
-          >
-            <Icons.linkedin className="fill-current" />
-          </a>
-        </div>
+        <SocialLinks />
       </div>
       <div className="flex flex-col justify-between gap-y-5 md:flex-row md:items-center">
         <ul className="flex flex-col gap-x-5 gap-y-2 text-muted-foreground md:flex-row md:items-center">

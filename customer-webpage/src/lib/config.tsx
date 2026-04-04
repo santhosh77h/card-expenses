@@ -130,6 +130,7 @@ export const siteConfig = {
     { key: "blog", href: "/blog" },
     { key: "privacy", href: "/privacy" },
     { key: "terms", href: "/terms" },
+    { key: "contact", href: "/contact" },
   ],
   testimonials: [
     { key: "t1", name: "Priya Sharma", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=60" },

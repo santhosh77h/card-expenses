@@ -1,5 +1,6 @@
 import type { PostHog } from 'posthog-react-native';
 export { usePostHog } from 'posthog-react-native';
+import analytics from '@react-native-firebase/analytics';
 
 // ---------------------------------------------------------------------------
 // Event name constants - single source of truth
@@ -44,7 +45,7 @@ export const AnalyticsEvents = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Imperative capture for non-React contexts (store actions, utils)
+// PostHog — imperative client for non-React contexts
 // ---------------------------------------------------------------------------
 
 let _client: PostHog | undefined;
@@ -53,9 +54,78 @@ export function setPostHogClient(client: PostHog) {
   _client = client;
 }
 
+// ---------------------------------------------------------------------------
+// Google Analytics — initialization
+// ---------------------------------------------------------------------------
+
+let _gaReady = false;
+
+export async function initGoogleAnalytics() {
+  try {
+    await analytics().setAnalyticsCollectionEnabled(true);
+    _gaReady = true;
+    if (__DEV__) console.log('[GA4] Analytics collection enabled');
+  } catch (e: any) {
+    console.warn('[GA4] Failed to initialize:', e?.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Unified capture — dispatches to both PostHog and GA4
+// ---------------------------------------------------------------------------
+
 export function capture(event: string, properties?: Record<string, string | number | boolean>) {
   if (__DEV__) {
-    console.log('[PostHog] capture:', event, properties ?? '', _client ? '(client ready)' : '(NO CLIENT)');
+    console.log('[Analytics] capture:', event, properties ?? '');
   }
+
+  // PostHog
   _client?.capture(event, properties);
+
+  // Google Analytics (GA4)
+  if (_gaReady) {
+    analytics().logEvent(event, properties).catch((e) => {
+      if (__DEV__) console.warn('[GA4] logEvent failed:', e?.message);
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GA4 screen tracking — call from navigation state change
+// ---------------------------------------------------------------------------
+
+export async function logScreenView(screenName: string, screenClass?: string) {
+  if (_gaReady) {
+    try {
+      await analytics().logScreenView({ screen_name: screenName, screen_class: screenClass ?? screenName });
+    } catch (e: any) {
+      if (__DEV__) console.warn('[GA4] logScreenView failed:', e?.message);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GA4 user properties — call after auth or subscription changes
+// ---------------------------------------------------------------------------
+
+export async function setUserProperties(props: Record<string, string | null>) {
+  if (_gaReady) {
+    try {
+      for (const [key, value] of Object.entries(props)) {
+        await analytics().setUserProperty(key, value);
+      }
+    } catch (e: any) {
+      if (__DEV__) console.warn('[GA4] setUserProperty failed:', e?.message);
+    }
+  }
+}
+
+export async function setUserId(userId: string | null) {
+  if (_gaReady) {
+    try {
+      await analytics().setUserId(userId);
+    } catch (e: any) {
+      if (__DEV__) console.warn('[GA4] setUserId failed:', e?.message);
+    }
+  }
 }

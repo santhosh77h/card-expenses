@@ -24,6 +24,7 @@ from app.dashboard_routes import router as dashboard_router
 from app.exceptions import register_exception_handlers
 from app.mongo import close_mongo
 from app.rate_limiter import close_redis
+from app.contact import init_contact_db, router as contact_router
 from app.routes import router
 from app.subscription_routes import router as subscription_router
 from app.user_db import init_user_db
@@ -82,6 +83,7 @@ async def lifespan(app: FastAPI):
     init_dashboard_db()
     init_blog_db()
     init_user_db()
+    init_contact_db()
 
     # Start blog scheduler
     scheduler_task = asyncio.create_task(_blog_scheduler())
@@ -123,6 +125,7 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(router)
+    app.include_router(contact_router)
     app.include_router(admin_router)
     app.include_router(auth_router)
     app.include_router(subscription_router)

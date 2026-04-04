@@ -12,6 +12,7 @@ import { siteConfig } from "@/lib/config";
 import { Link } from "@/i18n/navigation";
 import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { trackAppStoreClick } from "@/lib/analytics";
 
 export function MobileDrawer() {
   const tc = useTranslations("common");
@@ -35,7 +36,7 @@ export function MobileDrawer() {
           </div>
         </DrawerHeader>
         <DrawerFooter>
-          <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex justify-center">
+          <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex justify-center" onClick={() => trackAppStoreClick("mobile_drawer")}>
             <img
               src="/badges/download-black.svg"
               alt={tc("downloadOnAppStore")}

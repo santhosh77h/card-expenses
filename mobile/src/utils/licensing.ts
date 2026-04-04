@@ -9,6 +9,8 @@ import { capture } from './analytics';
 // ---------------------------------------------------------------------------
 
 export const SUB_MONTHLY_PARSES = 4;
+export const TRIAL_MAX_PARSES = 15;
+export const TRIAL_DAYS = 15;
 
 // Meta table keys
 const META_SUB_ACTIVE = 'sub_active';
@@ -16,6 +18,12 @@ const META_SUB_PLAN_TYPE = 'sub_plan_type';
 const META_SUB_ALLOWANCE_REMAINING = 'sub_allowance_remaining';
 const META_SUB_ALLOWANCE_RESET_DATE = 'sub_allowance_reset_date';
 const META_CREDIT_BALANCE = 'credit_balance';
+
+// Trial-specific meta keys
+const META_TRIAL_ACTIVE = 'trial_active';
+const META_TRIAL_REMAINING = 'trial_remaining';
+const META_TRIAL_MAX_PARSES = 'trial_max_parses';
+const META_TRIAL_EXPIRY_DATE = 'trial_expiry_date';
 
 // RevenueCat subscriber attribute key for credit balance
 const RC_ATTR_CREDIT_BALANCE = 'credit_balance';
@@ -31,6 +39,7 @@ export interface LicenseInfo {
   trialRemaining: number;
   trialExpired: boolean;
   trialExpiryDate: string | null;
+  trialMaxParses: number;
   subscriptionActive: boolean;
   subAllowanceRemaining: number;
   subPlanType: 'monthly' | 'yearly' | 'trial' | null;
@@ -51,36 +60,43 @@ export interface CheckResult {
 // ---------------------------------------------------------------------------
 
 export function getLicenseInfo(): LicenseInfo {
+  // Trial (separate from subscription now)
+  const trialActive = getMeta(META_TRIAL_ACTIVE) === '1';
+  const trialRemaining = getMetaInt(META_TRIAL_REMAINING);
+  const trialExpiryDate = getMeta(META_TRIAL_EXPIRY_DATE);
+  const trialMaxParses = getMetaInt(META_TRIAL_MAX_PARSES, TRIAL_MAX_PARSES);
+  const trialExpired = !trialActive || trialRemaining <= 0;
+
+  // Subscription (paid plans only)
   const subscriptionActive = getMeta(META_SUB_ACTIVE) === '1';
   const subAllowanceRemaining = subscriptionActive ? getMetaInt(META_SUB_ALLOWANCE_REMAINING) : 0;
   const subPlanTypeRaw = getMeta(META_SUB_PLAN_TYPE);
-  const subPlanType = (subPlanTypeRaw === 'monthly' || subPlanTypeRaw === 'yearly' || subPlanTypeRaw === 'trial')
-    ? subPlanTypeRaw as 'monthly' | 'yearly' | 'trial'
-    : null;
+  const subPlanType = (subPlanTypeRaw === 'monthly' || subPlanTypeRaw === 'yearly')
+    ? subPlanTypeRaw as 'monthly' | 'yearly'
+    : trialActive
+      ? 'trial' as const
+      : null;
 
   const creditBalance = getMetaInt(META_CREDIT_BALANCE);
 
-  const isTrial = subPlanType === 'trial';
-  const trialRemaining = isTrial ? subAllowanceRemaining : 0;
-  const trialExpired = isTrial ? subAllowanceRemaining <= 0 : true;
-
-  // Determine active tier
+  // Determine active tier (priority: trial → subscription → credits)
   let tier: Tier = 'none';
-  if (isTrial && subAllowanceRemaining > 0) {
+  if (trialActive && trialRemaining > 0) {
     tier = 'trial';
-  } else if (subscriptionActive && !isTrial && subAllowanceRemaining > 0) {
+  } else if (subscriptionActive && subAllowanceRemaining > 0) {
     tier = 'subscription';
   } else if (creditBalance > 0) {
     tier = 'credits';
   }
 
-  const totalAvailable = subAllowanceRemaining + creditBalance;
+  const totalAvailable = (trialActive ? trialRemaining : 0) + subAllowanceRemaining + creditBalance;
 
   return {
     tier,
     trialRemaining,
     trialExpired,
-    trialExpiryDate: null,
+    trialExpiryDate,
+    trialMaxParses,
     subscriptionActive,
     subAllowanceRemaining,
     subPlanType,
@@ -98,23 +114,23 @@ export function checkUploadAllowed(): CheckResult {
 
   const info = getLicenseInfo();
 
-  // Trial with remaining parses
-  if (info.subPlanType === 'trial' && info.subAllowanceRemaining > 0) {
+  // Trial with remaining parses (priority 1)
+  if (!info.trialExpired && info.trialRemaining > 0) {
     return { allowed: true, tier: 'trial' };
   }
 
-  // Active subscription with remaining allowance
-  if (info.subscriptionActive && info.subPlanType !== 'trial' && info.subAllowanceRemaining > 0) {
+  // Active subscription with remaining allowance (priority 2)
+  if (info.subscriptionActive && info.subAllowanceRemaining > 0) {
     return { allowed: true, tier: 'subscription' };
   }
 
-  // Credit balance available
+  // Credit balance available (priority 3)
   if (info.creditBalance > 0) {
     return { allowed: true, tier: 'credits' };
   }
 
   // Subscriber but exhausted monthly parses — nudge top-up
-  if (info.subscriptionActive && info.subPlanType !== 'trial') {
+  if (info.subscriptionActive) {
     return {
       allowed: false,
       reason: 'You\u2019ve used all 4 parses this month. Purchase credits to continue.',
@@ -130,6 +146,25 @@ export function checkUploadAllowed(): CheckResult {
     showPaywall: true,
     showTopUp: false,
   };
+}
+
+// ---------------------------------------------------------------------------
+// applyParseUsage — instant local update from the parse response's usage info
+// ---------------------------------------------------------------------------
+
+export function applyParseUsage(usage: { debited: string; trial_remaining?: number; subscription_remaining?: number; credit_balance?: number }): void {
+  if (usage.debited === 'trial' && typeof usage.trial_remaining === 'number') {
+    setMetaInt(META_TRIAL_REMAINING, usage.trial_remaining);
+    if (usage.trial_remaining <= 0) {
+      setMeta(META_TRIAL_ACTIVE, '0');
+    }
+  }
+  if (typeof usage.subscription_remaining === 'number') {
+    setMetaInt(META_SUB_ALLOWANCE_REMAINING, usage.subscription_remaining);
+  }
+  if (typeof usage.credit_balance === 'number') {
+    setMetaInt(META_CREDIT_BALANCE, usage.credit_balance);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -163,8 +198,21 @@ export async function syncLicenseFromServer(): Promise<boolean> {
     if (!response.ok) return false;
 
     const data = await response.json();
-    const { subscription, usage, credits } = data;
+    const { trial, subscription, usage, credits } = data;
 
+    // Sync trial (separate from subscription)
+    if (trial && trial.active) {
+      setMeta(META_TRIAL_ACTIVE, '1');
+      setMetaInt(META_TRIAL_REMAINING, trial.parses_remaining ?? 0);
+      setMetaInt(META_TRIAL_MAX_PARSES, trial.max_parses ?? TRIAL_MAX_PARSES);
+      setMeta(META_TRIAL_EXPIRY_DATE, trial.expires_at ?? '');
+    } else {
+      setMeta(META_TRIAL_ACTIVE, '0');
+      setMetaInt(META_TRIAL_REMAINING, 0);
+      setMeta(META_TRIAL_EXPIRY_DATE, trial?.expires_at ?? '');
+    }
+
+    // Sync paid subscription (not trial)
     if (subscription?.status === 'active') {
       setMeta(META_SUB_ACTIVE, '1');
       setMeta(META_SUB_PLAN_TYPE, subscription.plan ?? 'monthly');

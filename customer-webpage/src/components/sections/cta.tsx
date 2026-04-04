@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { useTranslations } from "next-intl";
+import { trackCtaClick } from "@/lib/analytics";
 
 export function CTA() {
   const t = useTranslations("cta");
@@ -36,6 +37,7 @@ export function CTA() {
               </p>
               <a
                 href="#"
+                onClick={() => trackCtaClick("bottom_cta")}
                 className={cn(
                   buttonVariants({
                     size: "lg",

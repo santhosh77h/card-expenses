@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { NavigationContainer, DefaultTheme, NavigatorScreenParams, LinkingOptions } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NavigationContainer, DefaultTheme, NavigatorScreenParams, LinkingOptions, NavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import Constants from 'expo-constants';
 import { useColors, useIsDark } from '../hooks/useColors';
 import { useStore } from '../store';
-import { setPostHogClient } from '../utils/analytics';
+import { setPostHogClient, initGoogleAnalytics, logScreenView } from '../utils/analytics';
 import HomeScreen from '../screens/HomeScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import UploadScreen from '../screens/UploadScreen';
@@ -22,7 +22,12 @@ import AddCardScreen from '../screens/AddCardScreen';
 import AskScreen from '../screens/AskScreen';
 import StatementDiffScreen from '../screens/StatementDiffScreen';
 import LabelsScreen from '../screens/LabelsScreen';
+import MerchantInsightsScreen from '../screens/MerchantInsightsScreen';
 import CreditTopUpScreen from '../screens/CreditTopUpScreen';
+import WebViewScreen from '../screens/WebViewScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
+import TransactionDetailSheet from '../screens/TransactionDetailSheet';
+import EditTransactionScreen from '../screens/EditTransactionScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import type { ParseResult } from '../utils/api';
 
@@ -37,7 +42,12 @@ export type RootStackParamList = {
   Ask: undefined;
   StatementDiff: { statementId: string; cardId: string; newParsed: ParseResult };
   Labels: undefined;
+  MerchantInsights: undefined;
   CreditTopUp: undefined;
+  WebViewPage: { url: string; title: string };
+  TransactionDetail: { transaction: import('../store').Transaction; cardId?: string };
+  EditTransaction: { transactionId: string };
+  Feedback: undefined;
 };
 
 export type TabParamList = {
@@ -129,6 +139,27 @@ export default function Navigation() {
   const isDark = useIsDark();
   const hasSeenOnboarding = useStore((s) => s.hasSeenOnboarding);
   const [showOnboarding, setShowOnboarding] = useState(!hasSeenOnboarding);
+
+  // Initialize Google Analytics on mount
+  useEffect(() => {
+    initGoogleAnalytics();
+  }, []);
+
+  // GA4 screen tracking
+  const routeNameRef = useRef<string | undefined>();
+  const getActiveRouteName = useCallback((state: NavigationState | undefined): string | undefined => {
+    if (!state) return undefined;
+    const route = state.routes[state.index];
+    if (route.state) return getActiveRouteName(route.state as NavigationState);
+    return route.name;
+  }, []);
+  const onNavigationStateChange = useCallback((state: NavigationState | undefined) => {
+    const currentRouteName = getActiveRouteName(state);
+    if (currentRouteName && currentRouteName !== routeNameRef.current) {
+      logScreenView(currentRouteName);
+      routeNameRef.current = currentRouteName;
+    }
+  }, [getActiveRouteName]);
 
   const navTheme = useMemo(() => ({
     ...DefaultTheme,
@@ -237,12 +268,61 @@ export default function Navigation() {
         }}
       />
       <Stack.Screen
+        name="MerchantInsights"
+        component={MerchantInsightsScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Merchants',
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
         name="CreditTopUp"
         component={CreditTopUpScreen}
         options={{
           headerShown: false,
           presentation: 'modal',
         }}
+      />
+      <Stack.Screen
+        name="TransactionDetail"
+        component={TransactionDetailSheet}
+        options={{
+          headerShown: true,
+          headerTitle: 'Transaction',
+          presentation: 'formSheet',
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="EditTransaction"
+        component={EditTransactionScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Edit Transaction',
+          presentation: 'formSheet',
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="Feedback"
+        component={FeedbackScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Help & Feedback',
+          presentation: 'formSheet',
+          ...headerOptions,
+        }}
+      />
+      <Stack.Screen
+        name="WebViewPage"
+        component={WebViewScreen}
+        options={({ route }) => ({
+          headerShown: true,
+          headerTitle: route.params.title,
+          presentation: 'formSheet',
+          ...headerOptions,
+        })}
       />
     </Stack.Navigator>
   );
@@ -252,7 +332,12 @@ export default function Navigation() {
   }
 
   return (
-    <NavigationContainer theme={navTheme} linking={linking}>
+    <NavigationContainer
+      theme={navTheme}
+      linking={linking}
+      onStateChange={onNavigationStateChange}
+      onReady={() => { routeNameRef.current = 'Home'; }}
+    >
       {posthogApiKey ? (
         <PostHogProvider
           apiKey={posthogApiKey}

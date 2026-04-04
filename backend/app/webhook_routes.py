@@ -81,13 +81,15 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
         event_type, app_user_id, product_id,
     )
 
-    # Ensure user exists
-    find_or_create_user(app_user_id)
+    # Ensure user exists and resolve internal user_id
+    user = find_or_create_user(app_user_id)
+    user_id = user["id"]
 
     if event_type == "INITIAL_PURCHASE":
         plan = _parse_plan(product_id)
         upsert_subscription(
-            app_user_id,
+            user_id,
+            apple_user_id=app_user_id,
             plan=plan,
             product_id=product_id,
             status="active",
@@ -99,7 +101,8 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
     elif event_type == "RENEWAL":
         plan = _parse_plan(product_id)
         upsert_subscription(
-            app_user_id,
+            user_id,
+            apple_user_id=app_user_id,
             plan=plan,
             product_id=product_id,
             status="active",
@@ -108,22 +111,24 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
             current_period_end=_ms_to_iso(event.get("expiration_at_ms")),
         )
         # Reset usage for the new billing period
-        reset_usage(app_user_id)
+        reset_usage(user_id)
 
     elif event_type == "CANCELLATION":
         # Subscription still active until period end, just mark cancelled
-        upsert_subscription(app_user_id, status="cancelled")
+        upsert_subscription(user_id, apple_user_id=app_user_id, status="cancelled")
 
     elif event_type == "EXPIRATION":
         upsert_subscription(
-            app_user_id,
+            user_id,
+            apple_user_id=app_user_id,
             status="expired",
             max_parses=0,
         )
 
     elif event_type == "REFUND":
         upsert_subscription(
-            app_user_id,
+            user_id,
+            apple_user_id=app_user_id,
             status="refunded",
             max_parses=0,
         )
@@ -131,7 +136,8 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
     elif event_type == "PRODUCT_CHANGE":
         plan = _parse_plan(product_id)
         upsert_subscription(
-            app_user_id,
+            user_id,
+            apple_user_id=app_user_id,
             plan=plan,
             product_id=product_id,
             max_parses=_plan_max_parses(plan),
@@ -140,10 +146,10 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
     elif event_type == "NON_RENEWING_PURCHASE":
         # Consumable credit purchase — add credits to user balance
         credit_count = _product_credits(product_id)
-        add_credits(app_user_id, credit_count, product_id=product_id)
+        add_credits(user_id, credit_count, apple_user_id=app_user_id, product_id=product_id)
 
     elif event_type == "BILLING_ISSUE":
-        logger.warning("[webhook] Billing issue for user %s", app_user_id)
+        logger.warning("[webhook] Billing issue for user %s (user_id=%s)", app_user_id, user_id)
         # No state change — RevenueCat handles grace periods
 
     else:

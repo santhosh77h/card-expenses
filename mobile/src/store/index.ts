@@ -279,6 +279,7 @@ export const useStore = create<AppState>()(
         trialRemaining: 0,
         trialExpired: true,
         trialExpiryDate: null,
+        trialMaxParses: 15,
         subscriptionActive: false,
         subAllowanceRemaining: 0,
         subPlanType: null,

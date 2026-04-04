@@ -98,6 +98,14 @@ export function getOriginalTransaction(id: string): Transaction | null {
   return rowToTransaction(result.rows[0]);
 }
 
+export function getTransactionsByMerchant(description: string, excludeId: string, limit: number = 10): Transaction[] {
+  const result = getDb().executeSync(
+    `${MERGE_SELECT} WHERE LOWER(TRIM(t.description)) = LOWER(TRIM(?)) AND t.id != ? ORDER BY date DESC LIMIT ?`,
+    [description, excludeId, limit],
+  );
+  return result.rows.map(rowToTransaction);
+}
+
 export function getTotalTransactionCount(): number {
   const result = getDb().executeSync(`SELECT COUNT(*) as cnt FROM transactions`);
   return (result.rows[0]?.cnt as number) ?? 0;

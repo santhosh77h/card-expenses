@@ -282,11 +282,74 @@ export default function LabelsScreen() {
     return (
       <View style={styles.container}>
         {labels.length === 0 ? (
-          <EmptyState
-            icon="tag"
-            title="No labels yet"
-            subtitle="Tap + to create a label and group related spending"
-          />
+          <ScrollView
+            contentContainerStyle={styles.emptyContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* ── Visual showcase: example label chips ── */}
+            <View style={styles.emptyChipCloud}>
+              {[
+                { icon: 'navigation' as const, name: 'Dubai Trip', color: '#22D3EE' },
+                { icon: 'briefcase' as const, name: 'Office Supplies', color: '#A78BFA' },
+                { icon: 'repeat' as const, name: 'Monthly Bills', color: '#FFB547' },
+                { icon: 'shopping-cart' as const, name: 'Groceries', color: '#4ADE80' },
+              ].map((example, i) => (
+                <View
+                  key={example.name}
+                  style={[
+                    styles.emptyChip,
+                    { backgroundColor: example.color + '14', borderColor: example.color + '30' },
+                    i === 0 && { transform: [{ rotate: '-2deg' }] },
+                    i === 1 && { transform: [{ rotate: '1.5deg' }], marginTop: -6 },
+                    i === 2 && { transform: [{ rotate: '-1deg' }] },
+                    i === 3 && { transform: [{ rotate: '2deg' }], marginTop: -4 },
+                  ]}
+                >
+                  <Feather name={example.icon} size={14} color={example.color} />
+                  <Text style={[styles.emptyChipText, { color: example.color }]}>
+                    {example.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* ��─ Headline ── */}
+            <Text style={styles.emptyHeadline}>
+              Organize spending{'\n'}your way
+            </Text>
+
+            {/* ── Supporting text ── */}
+            <Text style={styles.emptyBody}>
+              Labels let you group transactions across cards and statements — perfect for tracking
+              project budgets, trips, or recurring costs.
+            </Text>
+
+            {/* ── Use-case hints ── */}
+            <View style={styles.emptyHints}>
+              {[
+                { icon: 'globe' as const, text: 'Track a trip like "Japan 2025" across all cards' },
+                { icon: 'briefcase' as const, text: 'Separate work expenses for easy reimbursement' },
+                { icon: 'pie-chart' as const, text: 'Compare spending across projects over time' },
+              ].map((hint) => (
+                <View key={hint.text} style={styles.emptyHintRow}>
+                  <View style={styles.emptyHintIcon}>
+                    <Feather name={hint.icon} size={15} color={colors.accent} />
+                  </View>
+                  <Text style={styles.emptyHintText}>{hint.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* ── CTA button ── */}
+            <TouchableOpacity
+              style={styles.emptyCta}
+              activeOpacity={0.8}
+              onPress={() => setShowCreateModal(true)}
+            >
+              <Feather name="plus" size={18} color={colors.textOnAccent} />
+              <Text style={styles.emptyCtaText}>Create Your First Label</Text>
+            </TouchableOpacity>
+          </ScrollView>
         ) : (
           <FlatList
             data={labels}
@@ -723,6 +786,93 @@ const createStyles = (colors: ThemeColors) =>
     list: {
       paddingHorizontal: spacing.lg,
       paddingBottom: 40,
+    },
+
+    // ── Empty state ──
+    emptyContainer: {
+      flexGrow: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xxl,
+      paddingBottom: 60,
+    },
+    emptyChipCloud: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.xxxl,
+      paddingHorizontal: spacing.lg,
+    },
+    emptyChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+    },
+    emptyChipText: {
+      fontSize: fontSize.sm,
+      fontWeight: '600',
+    },
+    emptyHeadline: {
+      color: colors.textPrimary,
+      fontSize: fontSize.hero,
+      fontWeight: '700',
+      textAlign: 'center',
+      lineHeight: 38,
+      letterSpacing: -0.5,
+      marginBottom: spacing.md,
+    },
+    emptyBody: {
+      color: colors.textSecondary,
+      fontSize: fontSize.md,
+      lineHeight: 22,
+      textAlign: 'center',
+      maxWidth: 320,
+      marginBottom: spacing.xxl,
+    },
+    emptyHints: {
+      width: '100%',
+      gap: spacing.lg,
+      marginBottom: spacing.xxxl,
+    },
+    emptyHintRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
+    emptyHintIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.accent + '14',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    emptyHintText: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontSize: fontSize.sm,
+      lineHeight: 20,
+    },
+    emptyCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: colors.accent,
+      paddingHorizontal: spacing.xxl,
+      paddingVertical: spacing.lg,
+      borderRadius: borderRadius.full,
+    },
+    emptyCtaText: {
+      color: colors.textOnAccent,
+      fontSize: fontSize.md,
+      fontWeight: '700',
     },
 
     // Subtitle below header

@@ -243,6 +243,7 @@
 		"blog": "ब्लॉग",
 		"privacy": "गोपनीयता",
 		"terms": "नियम",
+		"contact": "संपर्क करें",
 		"copyright": "© {year} Vector Expense. सर्वाधिकार सुरक्षित।"
 	},
 	"privacy": {
@@ -416,5 +417,62 @@
 	},
 	"common": {
 		"downloadOnAppStore": "App Store पर डाउनलोड करें"
+	},
+	"contact": {
+		"metaTitle": "संपर्क करें — Vector Expense",
+		"metaDescription": "Vector Expense टीम से संपर्क करें। प्रतिक्रिया साझा करें, बग रिपोर्ट करें, या प्रश्न पूछें।",
+		"backToHome": "होम पर वापस जाएं",
+		"title": "संपर्क करें",
+		"description": "प्रतिक्रिया, प्रश्न, या कोई बग मिला? हम आपसे सुनना चाहेंगे।",
+		"form": {
+			"name": "नाम",
+			"namePlaceholder": "आपका नाम",
+			"email": "ईमेल",
+			"emailPlaceholder": "you@example.com",
+			"subject": "विषय",
+			"subjectPlaceholder": "एक विषय चुनें",
+			"message": "संदेश",
+			"messagePlaceholder": "हमें बताएं आपके मन में क्या है...",
+			"submit": "संदेश भेजें",
+			"submitting": "भेज रहे हैं..."
+		},
+		"subjects": {
+			"feedback": "प्रतिक्रिया",
+			"bugReport": "बग रिपोर्ट",
+			"featureRequest": "फीचर अनुरोध",
+			"generalQuery": "सामान्य प्रश्न",
+			"other": "अन्य"
+		},
+		"validation": {
+			"nameRequired": "नाम आवश्यक है",
+			"emailRequired": "ईमेल आवश्यक है",
+			"emailInvalid": "कृपया एक मान्य ईमेल दर्ज करें",
+			"subjectRequired": "कृपया एक विषय चुनें",
+			"messageRequired": "संदेश आवश्यक है",
+			"messageMinLength": "संदेश कम से कम 10 अक्षरों का होना चाहिए"
+		},
+		"success": {
+			"title": "संदेश भेजा गया!",
+			"description": "संपर्क करने के लिए धन्यवाद। हम 24 घंटे के भीतर जवाब देंगे।",
+			"sendAnother": "एक और संदेश भेजें"
+		},
+		"error": {
+			"title": "कुछ गलत हो गया",
+			"description": "कृपया पुनः प्रयास करें या हमें सीधे ईमेल करें।",
+			"retry": "पुनः प्रयास करें"
+		},
+		"sidebar": {
+			"emailTitle": "सीधे ईमेल करें",
+			"responseTime": "हम आमतौर पर 24 घंटे के भीतर जवाब देते हैं।",
+			"socialTitle": "हमें फॉलो करें"
+		}
+	},
+	"tryDemoModal": {
+		"title": "अपना मुफ़्त ट्रायल शुरू करें",
+		"freeParses": "{count} मुफ़्त स्टेटमेंट पार्स",
+		"description": "किसी भी बैंक का क्रेडिट कार्ड स्टेटमेंट अपलोड करें और तुरंत AI-संचालित खर्च की जानकारी पाएं। कोई खाता आवश्यक नहीं, कोई क्रेडिट कार्ड नहीं चाहिए।",
+		"downloadCta": "App Store से डाउनलोड करें",
+		"or": "या",
+		"learnMore": "विशेषताओं के बारे में और जानें"
 	}
 }

@@ -77,6 +77,13 @@ class Settings(BaseSettings):
     # --- HMAC Request Signing ---
     HMAC_SECRET: str = ""
 
+    # --- SMTP (Contact Form) ---
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    CONTACT_RECIPIENT_EMAIL: str = "support@vectorexpense.com"
+
     # --- LangSmith ---
     LANGCHAIN_TRACING_V2: bool = False
     LANGCHAIN_API_KEY: str = ""

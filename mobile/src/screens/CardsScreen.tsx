@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing, borderRadius, fontSize, formatCurrency, CURRENCY_CONFIG, CurrencyCode } from '../theme';
 import type { ThemeColors } from '../theme';
@@ -97,6 +98,7 @@ function AnalyticsView({
 }) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation<any>();
 
   const currencyArg = activeCurrencies.length > 1 ? effectiveCurrency : undefined;
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -295,7 +297,17 @@ function AnalyticsView({
       {/* 6. Top Merchants */}
       {merchants.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top merchants by spend</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.sectionTitle}>Top merchants by spend</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MerchantInsights')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={{ color: colors.accent, fontSize: fontSize.sm, fontWeight: '500' }}>
+                See all
+              </Text>
+            </TouchableOpacity>
+          </View>
           {merchants.map((m, idx) => (
             <View key={m.name} style={[styles.merchantRow, idx === merchants.length - 1 && { marginBottom: 0 }]}>
               <View style={[styles.merchantAvatar, { borderColor: m.color + '40' }]}>

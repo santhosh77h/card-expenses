@@ -9,10 +9,20 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from app.config import settings
+from app.user_db import (
+    find_user_by_email,
+    get_credit_balance,
+    get_subscription,
+    get_trial,
+    get_usage,
+    is_subscription_active,
+    is_trial_active,
+    trial_parses_remaining,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,3 +95,80 @@ async def admin_logout():
     """Admin logout — stateless JWT, so this is a no-op on the backend.
     The frontend clears the cookie."""
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Admin dependency
+# ---------------------------------------------------------------------------
+
+def require_admin(authorization: str = Header(...)) -> dict:
+    """Extract and verify admin Bearer token."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    token = authorization.removeprefix("Bearer ").strip()
+    return verify_admin_token(token)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/admin/user/lookup?email=...
+# ---------------------------------------------------------------------------
+
+@router.get("/user/lookup")
+async def admin_user_lookup(
+    email: str = Query(..., description="User email to look up"),
+    _admin: dict = Depends(require_admin),
+):
+    """Look up a user by email and return their trial, subscription, usage, and credits."""
+    user = find_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="No user found with that email")
+
+    user_id = user["id"]
+
+    # Trial
+    trial = get_trial(user_id)
+    trial_active = is_trial_active(trial)
+    t_remaining = trial_parses_remaining(trial) if trial_active else 0
+
+    # Subscription
+    subscription = get_subscription(user_id)
+    sub_active = is_subscription_active(subscription)
+    usage = get_usage(user_id)
+    parses_used = usage.get("parses_used", 0)
+    max_parses = subscription.get("max_parses", 0) if sub_active else 0
+    sub_remaining = max(0, max_parses - parses_used)
+
+    # Credits
+    credit_balance = get_credit_balance(user_id)
+
+    return {
+        "user": {
+            "id": user_id,
+            "apple_user_id": user["apple_user_id"],
+            "email": user.get("email"),
+            "email_verified": user.get("email_verified", False),
+            "created_at": user.get("created_at"),
+        },
+        "trial": {
+            "active": trial_active,
+            "max_parses": trial.get("max_parses", 0),
+            "parses_used": trial.get("parses_used", 0),
+            "parses_remaining": t_remaining,
+            "expires_at": trial.get("expires_at") or trial.get("current_period_end"),
+        } if trial else None,
+        "subscription": {
+            "plan": subscription["plan"],
+            "status": subscription["status"] if sub_active else "expired",
+            "max_parses": subscription["max_parses"],
+            "current_period_start": subscription.get("current_period_start"),
+            "current_period_end": subscription.get("current_period_end"),
+        } if subscription else None,
+        "usage": {
+            "month": usage["month"],
+            "parses_used": parses_used,
+            "parses_remaining": sub_remaining,
+        },
+        "credits": {
+            "balance": credit_balance,
+        },
+    }

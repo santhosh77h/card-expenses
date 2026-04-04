@@ -25,7 +25,7 @@ import type { ThemeColors } from '../theme';
 import { useColors } from '../hooks/useColors';
 import { useStore, Transaction, CreditCard } from '../store';
 import { EmptyState, PrimaryButton } from '../components/ui';
-import TransactionDetailModal from '../components/TransactionDetailModal';
+// TransactionDetailModal removed — using navigation-based formSheet instead
 import SpendingCalendar from '../components/SpendingCalendar';
 import type { RootStackParamList, TabParamList } from '../navigation';
 
@@ -52,8 +52,7 @@ export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, manualTransactions, enrichments, defaultCurrency, updateManualTransaction } = useStore();
-  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  const { cards, manualTransactions, enrichments, defaultCurrency } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [cardFilter, setCardFilter] = useState<string | null>(null);
@@ -206,16 +205,6 @@ export default function TransactionsScreen() {
         return { date, totals, data };
       });
   }, [filteredTransactions, cardMap, defaultCurrency]);
-
-  const selectedIdx = selectedTxn
-    ? filteredTransactions.findIndex((t) => t.id === selectedTxn.id)
-    : -1;
-  const handlePrev = selectedIdx > 0
-    ? () => setSelectedTxn(filteredTransactions[selectedIdx - 1])
-    : undefined;
-  const handleNext = selectedIdx >= 0 && selectedIdx < filteredTransactions.length - 1
-    ? () => setSelectedTxn(filteredTransactions[selectedIdx + 1])
-    : undefined;
 
   // Month-scoped totals (unaffected by day/search/category filters)
   const monthTotals = useMemo(() => {
@@ -568,7 +557,7 @@ export default function TransactionsScreen() {
                         idx === section.data.length - 1 && { borderBottomWidth: 0 },
                       ]}
                       activeOpacity={0.7}
-                      onPress={() => setSelectedTxn(txn)}
+                      onPress={() => navigation.navigate('TransactionDetail', { transaction: txn, cardId: txn.cardId })}
                     >
                       {/* Category icon */}
                       <View style={[styles.txnIcon, { backgroundColor: txn.category_color + '20' }]}>
@@ -741,19 +730,6 @@ export default function TransactionsScreen() {
         </TouchableOpacity>
       </Modal>
 
-      <TransactionDetailModal
-        visible={!!selectedTxn}
-        transaction={selectedTxn}
-        onClose={() => setSelectedTxn(null)}
-        card={selectedTxn?.cardId ? cardMap[selectedTxn.cardId] : undefined}
-        isManual
-        onPrev={handlePrev}
-        onNext={handleNext}
-        onUpdateTransaction={(txnId, updates) => {
-          updateManualTransaction(txnId, updates);
-          setSelectedTxn((prev) => prev ? { ...prev, ...updates } : null);
-        }}
-      />
     </View>
   );
 }

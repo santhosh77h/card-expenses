@@ -1,7 +1,7 @@
 """
-User, subscription, usage, and refresh-token storage in MongoDB.
+User, subscription, usage, trial, and refresh-token storage in MongoDB.
 
-Collections: users, subscriptions, usage, refresh_tokens.
+Collections: users, subscriptions, usage, refresh_tokens, credits, trials.
 """
 
 import logging
@@ -34,6 +34,47 @@ def _plan_max_parses(plan: str | None) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Subscription / trial helpers
+# ---------------------------------------------------------------------------
+
+def is_subscription_active(subscription: dict | None) -> bool:
+    """Check if a paid subscription is active. Does NOT handle trial logic."""
+    if not subscription:
+        return False
+    return subscription.get("status") == "active"
+
+
+def is_trial_active(trial: dict | None) -> bool:
+    """Check if a trial is active: not expired by time AND has parses remaining."""
+    if not trial:
+        return False
+
+    max_parses = trial.get("max_parses", 0)
+    parses_used = trial.get("parses_used", 0)
+    if parses_used >= max_parses:
+        return False
+
+    expires_at = trial.get("expires_at") or trial.get("current_period_end")
+    if not expires_at:
+        return False
+
+    try:
+        end_dt = datetime.fromisoformat(expires_at)
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
+        return end_dt > datetime.now(timezone.utc)
+    except (ValueError, TypeError):
+        return False
+
+
+def trial_parses_remaining(trial: dict | None) -> int:
+    """Return the number of trial parses remaining (0 if no trial or inactive)."""
+    if not trial:
+        return 0
+    return max(0, trial.get("max_parses", 0) - trial.get("parses_used", 0))
+
+
+# ---------------------------------------------------------------------------
 # Collection accessors
 # ---------------------------------------------------------------------------
 
@@ -57,6 +98,10 @@ def _credits():
     return get_db()["credits"]
 
 
+def _trials():
+    return get_db()["trials"]
+
+
 # ---------------------------------------------------------------------------
 # Initialisation (call at app startup)
 # ---------------------------------------------------------------------------
@@ -64,20 +109,79 @@ def _credits():
 def init_user_db() -> None:
     """Create indexes for all user-related collections."""
     _users().create_index("apple_user_id", unique=True)
+    _users().create_index("email", sparse=True)
 
+    # New user_id indexes (primary query key going forward)
+    _subscriptions().create_index("user_id", unique=True)
+    _usage().create_index(
+        [("user_id", 1), ("month", 1)],
+        unique=True,
+    )
+    _credits().create_index("user_id", unique=True)
+    _refresh_tokens().create_index("user_id")
+    _trials().create_index("user_id", unique=True)
+
+    # Keep legacy apple_user_id indexes for backward compat during migration
     _subscriptions().create_index("apple_user_id", unique=True)
-
     _usage().create_index(
         [("apple_user_id", 1), ("month", 1)],
         unique=True,
     )
-
+    _credits().create_index("apple_user_id", unique=True)
     _refresh_tokens().create_index("apple_user_id")
+
     _refresh_tokens().create_index("expires_at", expireAfterSeconds=0)  # TTL index
 
-    _credits().create_index("apple_user_id", unique=True)
-
     logger.info("[user_db] Indexes created (MongoDB)")
+
+    # Backfill user_id on existing docs that only have apple_user_id
+    _migrate_add_user_ids()
+
+
+def _migrate_add_user_ids() -> None:
+    """
+    One-time backfill: for each user, find their docs in other collections
+    by apple_user_id and add the user_id field where missing.
+    """
+    users_without_migration = list(_users().find({}))
+    if not users_without_migration:
+        return
+
+    migrated = 0
+    for user in users_without_migration:
+        user_id = user["_id"]
+        apple_uid = user["apple_user_id"]
+
+        # Subscriptions
+        result = _subscriptions().update_many(
+            {"apple_user_id": apple_uid, "user_id": {"$exists": False}},
+            {"$set": {"user_id": user_id}},
+        )
+        migrated += result.modified_count
+
+        # Usage
+        result = _usage().update_many(
+            {"apple_user_id": apple_uid, "user_id": {"$exists": False}},
+            {"$set": {"user_id": user_id}},
+        )
+        migrated += result.modified_count
+
+        # Credits
+        result = _credits().update_many(
+            {"apple_user_id": apple_uid, "user_id": {"$exists": False}},
+            {"$set": {"user_id": user_id}},
+        )
+        migrated += result.modified_count
+
+        # Refresh tokens
+        result = _refresh_tokens().update_many(
+            {"apple_user_id": apple_uid, "user_id": {"$exists": False}},
+            {"$set": {"user_id": user_id}},
+        )
+        migrated += result.modified_count
+
+    if migrated:
+        logger.info("[user_db] Backfill migration: added user_id to %d docs", migrated)
 
 
 # ---------------------------------------------------------------------------
@@ -92,49 +196,15 @@ def find_or_create_user(
     """Upsert a user by apple_user_id. Returns the user dict (with 'id')."""
     now = datetime.now(timezone.utc).isoformat()
 
+    # Only update email/email_verified when non-None to avoid overwriting
+    # a saved email with None on repeat Apple sign-ins (Apple only provides
+    # email on the first authorization).
+    set_fields: dict = {"updated_at": now}
+    if email is not None:
+        set_fields["email"] = email
+        set_fields["email_verified"] = email_verified
+
     result = _users().find_one_and_update(
-        {"apple_user_id": apple_user_id},
-        {
-            "$setOnInsert": {
-                "_id": nanoid(),
-                "apple_user_id": apple_user_id,
-                "created_at": now,
-            },
-            "$set": {
-                "email": email,
-                "email_verified": email_verified,
-                "updated_at": now,
-            },
-        },
-        upsert=True,
-        return_document=True,
-    )
-    return doc_to_dict(result)
-
-
-# ---------------------------------------------------------------------------
-# Subscriptions
-# ---------------------------------------------------------------------------
-
-def get_subscription(apple_user_id: str) -> Optional[dict]:
-    """Get the subscription for a user, or None."""
-    doc = _subscriptions().find_one({"apple_user_id": apple_user_id})
-    return doc_to_dict(doc)
-
-
-def upsert_subscription(apple_user_id: str, **fields) -> dict:
-    """
-    Create or update a subscription for the given user.
-
-    Accepted fields: plan, product_id, status, max_parses,
-    current_period_start, current_period_end.
-    """
-    now = datetime.now(timezone.utc).isoformat()
-
-    set_fields = {k: v for k, v in fields.items() if v is not None}
-    set_fields["updated_at"] = now
-
-    result = _subscriptions().find_one_and_update(
         {"apple_user_id": apple_user_id},
         {
             "$setOnInsert": {
@@ -150,27 +220,128 @@ def upsert_subscription(apple_user_id: str, **fields) -> dict:
     return doc_to_dict(result)
 
 
-def grant_trial_if_needed(apple_user_id: str) -> Optional[dict]:
-    """
-    Grant a free trial (15 parses / 15 days) if the user has no subscription.
-    Returns the subscription doc if trial was granted, or None if user already has one.
-    """
-    existing = get_subscription(apple_user_id)
-    if existing:
-        return None  # Already has a subscription (trial, active, expired, etc.)
+def find_user_by_email(email: str) -> Optional[dict]:
+    """Look up a user by email address. Returns the user dict or None."""
+    doc = _users().find_one({"email": email})
+    return doc_to_dict(doc) if doc else None
 
+
+# ---------------------------------------------------------------------------
+# Trials
+# ---------------------------------------------------------------------------
+
+def get_trial(user_id: str) -> Optional[dict]:
+    """
+    Get the trial for a user.
+
+    Checks the trials collection first, then falls back to checking
+    subscriptions for legacy plan="trial" docs.
+    """
+    doc = _trials().find_one({"user_id": user_id})
+    if doc:
+        return doc_to_dict(doc)
+
+    # Legacy fallback: trial stored in subscriptions collection
+    legacy = _subscriptions().find_one({"user_id": user_id, "plan": "trial"})
+    if legacy:
+        return doc_to_dict(legacy)
+
+    return None
+
+
+def grant_trial(user_id: str, apple_user_id: str) -> dict:
+    """Create a trial doc in the trials collection."""
     now = datetime.now(timezone.utc)
     trial_end = now + timedelta(days=TRIAL_DAYS)
 
-    return upsert_subscription(
-        apple_user_id,
-        plan="trial",
-        product_id="trial",
-        status="active",
-        max_parses=TRIAL_MAX_PARSES,
-        current_period_start=now.isoformat(),
-        current_period_end=trial_end.isoformat(),
+    doc = {
+        "_id": nanoid(),
+        "user_id": user_id,
+        "apple_user_id": apple_user_id,
+        "max_parses": TRIAL_MAX_PARSES,
+        "parses_used": 0,
+        "starts_at": now.isoformat(),
+        "expires_at": trial_end.isoformat(),
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    _trials().insert_one(doc)
+    return doc_to_dict(doc)
+
+
+def grant_trial_if_needed(user_id: str, apple_user_id: str) -> Optional[dict]:
+    """
+    Grant a free trial (15 parses / 15 days) if the user has no trial and no subscription.
+    Returns the trial doc if granted, or None.
+    """
+    # Check trials collection
+    existing_trial = _trials().find_one({"user_id": user_id})
+    if existing_trial:
+        return None
+
+    # Check subscriptions (paid or legacy trial)
+    existing_sub = _subscriptions().find_one({"user_id": user_id})
+    if existing_sub:
+        return None
+
+    return grant_trial(user_id, apple_user_id)
+
+
+def increment_trial_usage(user_id: str) -> int:
+    """Atomically increment parses_used on the trial doc. Returns the new count."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    result = _trials().find_one_and_update(
+        {"user_id": user_id},
+        {
+            "$inc": {"parses_used": 1},
+            "$set": {"updated_at": now},
+        },
+        return_document=True,
     )
+    if not result:
+        raise ValueError("No trial found for user")
+
+    return result["parses_used"]
+
+
+# ---------------------------------------------------------------------------
+# Subscriptions
+# ---------------------------------------------------------------------------
+
+def get_subscription(user_id: str) -> Optional[dict]:
+    """Get the subscription for a user, or None."""
+    doc = _subscriptions().find_one({"user_id": user_id})
+    return doc_to_dict(doc)
+
+
+def upsert_subscription(user_id: str, apple_user_id: str, **fields) -> dict:
+    """
+    Create or update a subscription for the given user.
+
+    Accepted fields: plan, product_id, status, max_parses,
+    current_period_start, current_period_end.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+
+    set_fields = {k: v for k, v in fields.items() if v is not None}
+    set_fields["updated_at"] = now
+
+    result = _subscriptions().find_one_and_update(
+        {"user_id": user_id},
+        {
+            "$setOnInsert": {
+                "_id": nanoid(),
+                "user_id": user_id,
+                "apple_user_id": apple_user_id,
+                "created_at": now,
+            },
+            "$set": set_fields,
+        },
+        upsert=True,
+        return_document=True,
+    )
+    return doc_to_dict(result)
 
 
 # ---------------------------------------------------------------------------
@@ -181,17 +352,17 @@ def _current_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
-def get_usage(apple_user_id: str, month: Optional[str] = None) -> dict:
+def get_usage(user_id: str, month: Optional[str] = None) -> dict:
     """Get usage for a given month (defaults to current). Creates if missing."""
     month = month or _current_month()
     now = datetime.now(timezone.utc).isoformat()
 
     result = _usage().find_one_and_update(
-        {"apple_user_id": apple_user_id, "month": month},
+        {"user_id": user_id, "month": month},
         {
             "$setOnInsert": {
                 "_id": nanoid(),
-                "apple_user_id": apple_user_id,
+                "user_id": user_id,
                 "month": month,
                 "parses_used": 0,
             },
@@ -203,17 +374,17 @@ def get_usage(apple_user_id: str, month: Optional[str] = None) -> dict:
     return doc_to_dict(result)
 
 
-def increment_usage(apple_user_id: str, month: Optional[str] = None) -> int:
+def increment_usage(user_id: str, month: Optional[str] = None) -> int:
     """Increment parses_used for a month. Returns the new count."""
     month = month or _current_month()
     now = datetime.now(timezone.utc).isoformat()
 
     result = _usage().find_one_and_update(
-        {"apple_user_id": apple_user_id, "month": month},
+        {"user_id": user_id, "month": month},
         {
             "$setOnInsert": {
                 "_id": nanoid(),
-                "apple_user_id": apple_user_id,
+                "user_id": user_id,
                 "month": month,
             },
             "$inc": {"parses_used": 1},
@@ -225,13 +396,13 @@ def increment_usage(apple_user_id: str, month: Optional[str] = None) -> int:
     return result["parses_used"]
 
 
-def reset_usage(apple_user_id: str, month: Optional[str] = None) -> None:
+def reset_usage(user_id: str, month: Optional[str] = None) -> None:
     """Reset parses_used to 0 for a given month."""
     month = month or _current_month()
     now = datetime.now(timezone.utc).isoformat()
 
     _usage().update_one(
-        {"apple_user_id": apple_user_id, "month": month},
+        {"user_id": user_id, "month": month},
         {"$set": {"parses_used": 0, "updated_at": now}},
     )
 
@@ -256,17 +427,17 @@ def _product_credits(product_id: str | None) -> int:
     return CREDIT_PRODUCT_MAP.get(product_id, DEFAULT_CREDITS)
 
 
-def get_credit_balance(apple_user_id: str) -> int:
+def get_credit_balance(user_id: str) -> int:
     """Get the current credit balance for a user. Returns 0 if none."""
-    doc = _credits().find_one({"apple_user_id": apple_user_id})
+    doc = _credits().find_one({"user_id": user_id})
     if not doc:
         return 0
     return doc.get("balance", 0)
 
 
-def get_credit_info(apple_user_id: str) -> dict:
+def get_credit_info(user_id: str) -> dict:
     """Get credit balance and purchase history for a user."""
-    doc = _credits().find_one({"apple_user_id": apple_user_id})
+    doc = _credits().find_one({"user_id": user_id})
     if not doc:
         return {"balance": 0, "history": []}
     history = doc.get("history", [])
@@ -279,15 +450,16 @@ def get_credit_info(apple_user_id: str) -> dict:
     }
 
 
-def add_credits(apple_user_id: str, amount: int, product_id: str | None = None) -> int:
+def add_credits(user_id: str, amount: int, apple_user_id: str = "", product_id: str | None = None) -> int:
     """Add credits to a user's balance. Returns the new balance."""
     now = datetime.now(timezone.utc).isoformat()
 
     result = _credits().find_one_and_update(
-        {"apple_user_id": apple_user_id},
+        {"user_id": user_id},
         {
             "$setOnInsert": {
                 "_id": nanoid(),
+                "user_id": user_id,
                 "apple_user_id": apple_user_id,
                 "created_at": now,
             },
@@ -306,20 +478,20 @@ def add_credits(apple_user_id: str, amount: int, product_id: str | None = None) 
         return_document=True,
     )
     new_balance = result.get("balance", 0)
-    logger.info("[user_db] Credits +%d for %s (product=%s, new_balance=%d)", amount, apple_user_id, product_id, new_balance)
+    logger.info("[user_db] Credits +%d for user_id=%s (product=%s, new_balance=%d)", amount, user_id, product_id, new_balance)
     return new_balance
 
 
-def use_credit(apple_user_id: str) -> int:
+def use_credit(user_id: str) -> int:
     """Decrement one credit. Returns the new balance. Raises ValueError if balance is 0."""
     now = datetime.now(timezone.utc).isoformat()
 
-    doc = _credits().find_one({"apple_user_id": apple_user_id})
+    doc = _credits().find_one({"user_id": user_id})
     if not doc or doc.get("balance", 0) <= 0:
         raise ValueError("No credits available")
 
     result = _credits().find_one_and_update(
-        {"apple_user_id": apple_user_id, "balance": {"$gt": 0}},
+        {"user_id": user_id, "balance": {"$gt": 0}},
         {
             "$inc": {"balance": -1},
             "$set": {"updated_at": now},
@@ -337,7 +509,7 @@ def use_credit(apple_user_id: str) -> int:
         raise ValueError("No credits available")
 
     new_balance = result.get("balance", 0)
-    logger.info("[user_db] Credit used for %s (new_balance=%d)", apple_user_id, new_balance)
+    logger.info("[user_db] Credit used for user_id=%s (new_balance=%d)", user_id, new_balance)
     return new_balance
 
 
@@ -347,6 +519,7 @@ def use_credit(apple_user_id: str) -> int:
 
 def store_refresh_token(
     token_hash: str,
+    user_id: str,
     apple_user_id: str,
     expires_at: Optional[datetime] = None,
 ) -> None:
@@ -356,6 +529,7 @@ def store_refresh_token(
 
     _refresh_tokens().insert_one({
         "_id": token_hash,
+        "user_id": user_id,
         "apple_user_id": apple_user_id,
         "expires_at": expires_at,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -388,8 +562,8 @@ def delete_refresh_token(token_hash: str) -> None:
     _refresh_tokens().delete_one({"_id": token_hash})
 
 
-def delete_refresh_tokens(apple_user_id: str) -> None:
+def delete_refresh_tokens(user_id: str) -> None:
     """Delete ALL refresh tokens for a user (logout / revocation)."""
-    result = _refresh_tokens().delete_many({"apple_user_id": apple_user_id})
+    result = _refresh_tokens().delete_many({"user_id": user_id})
     if result.deleted_count:
-        logger.info("[user_db] Deleted %d refresh tokens for %s", result.deleted_count, apple_user_id)
+        logger.info("[user_db] Deleted %d refresh tokens for user_id=%s", result.deleted_count, user_id)

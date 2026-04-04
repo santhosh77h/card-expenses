@@ -12,7 +12,7 @@ import jwt as pyjwt
 from fastapi import Header, HTTPException
 
 from app.jwt_utils import decode_access_token
-from app.user_db import find_or_create_user, get_subscription
+from app.user_db import find_or_create_user, get_subscription, get_trial, is_trial_active, trial_parses_remaining
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,11 @@ async def get_current_user(authorization: str = Header(default="")) -> dict:
         raise HTTPException(status_code=401, detail="Token missing 'sub' claim")
 
     user = find_or_create_user(apple_user_id)
-    user["subscription"] = get_subscription(apple_user_id)
+    user["subscription"] = get_subscription(user["id"])
+    trial = get_trial(user["id"])
+    user["trial"] = trial
+    user["trial_active"] = is_trial_active(trial)
+    user["trial_remaining"] = trial_parses_remaining(trial) if user["trial_active"] else 0
     return user
 
 
@@ -73,5 +77,9 @@ async def get_optional_user(authorization: str = Header(default="")) -> Optional
         return None
 
     user = find_or_create_user(apple_user_id)
-    user["subscription"] = get_subscription(apple_user_id)
+    user["subscription"] = get_subscription(user["id"])
+    trial = get_trial(user["id"])
+    user["trial"] = trial
+    user["trial_active"] = is_trial_active(trial)
+    user["trial_remaining"] = trial_parses_remaining(trial) if user["trial_active"] else 0
     return user

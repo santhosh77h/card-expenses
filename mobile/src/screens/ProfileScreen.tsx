@@ -1,17 +1,18 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { spacing, borderRadius, fontSize, formatCurrency, formatDate, dateFormatForCurrency, CurrencyCode, CURRENCY_CONFIG, SUPPORTED_CURRENCIES } from '../theme';
 import type { ThemeColors, ThemeMode } from '../theme';
 import { useColors } from '../hooks/useColors';
 import { useStore, StatementData } from '../store';
-import { Card, Badge, SectionHeader } from '../components/ui';
+import { ProgressBar } from '../components/ui';
 import { presentPaywall } from '../utils/revenueCat';
 import { signInAndAuthenticate, signOut as authSignOut, isAppleAuthAvailable } from '../utils/appleAuth';
-import { refreshSubscriptionStatus } from '../utils/licensing';
+import { refreshSubscriptionStatus, SUB_MONTHLY_PARSES, TRIAL_MAX_PARSES } from '../utils/licensing';
 import Purchases from 'react-native-purchases';
 let LocalAuthentication: typeof import('expo-local-authentication') | null = null;
 try {
@@ -25,15 +26,48 @@ import { getTotalTransactionCount } from '../db/transactions';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function handleUpgradeFlow() {
+  const store = useStore.getState();
+  if (!store.isAuthenticated) {
+    try {
+      const available = await isAppleAuthAvailable();
+      if (available) {
+        const session = await signInAndAuthenticate();
+        store._setAuthenticated(true, session.appleUserId);
+      }
+    } catch (e: any) {
+      console.log('[ProfileScreen] Apple auth skipped:', e?.message);
+    }
+  }
+  const purchased = await presentPaywall();
+  if (purchased) {
+    await refreshSubscriptionStatus();
+    useStore.getState()._refreshLicenseInfo();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main Screen
+// ---------------------------------------------------------------------------
+
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { cards, statements, manualTransactions, isPremium, isAuthenticated, appleUserId, licenseInfo, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency, biometricLockEnabled, setBiometricLockEnabled } = useStore();
+  const {
+    cards, statements, manualTransactions, isPremium, isAuthenticated,
+    licenseInfo, themeMode, setThemeMode, defaultCurrency, setDefaultCurrency,
+    biometricLockEnabled, setBiometricLockEnabled,
+  } = useStore();
   const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
 
-  // Check biometric availability on mount
   useMemo(() => {
     if (!LocalAuthentication) { setBiometricAvailable(false); return; }
     LocalAuthentication.hasHardwareAsync().then((hw) => {
@@ -48,7 +82,6 @@ export default function ProfileScreen() {
       setBiometricLockEnabled(false);
       return;
     }
-    // Verify biometric before enabling
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Verify to enable app lock',
       fallbackLabel: 'Use passcode',
@@ -64,7 +97,6 @@ export default function ProfileScreen() {
     () => Object.values(statements).reduce((sum, arr) => sum + arr.length, 0),
     [statements],
   );
-
   const txnCount = useMemo(() => getTotalTransactionCount(), [statements, manualTransactions]);
 
   const allStatements = useMemo(() => {
@@ -75,247 +107,277 @@ export default function ProfileScreen() {
         result.push({ ...stmt, cardNickname: card.nickname, cardCurrency: card.currency ?? defaultCurrency });
       }
     }
-    result.sort(
-      (a, b) => new Date(b.parsedAt).getTime() - new Date(a.parsedAt).getTime()
-    );
+    result.sort((a, b) => new Date(b.parsedAt).getTime() - new Date(a.parsedAt).getTime());
     return result;
   }, [cards, statements]);
 
+  // Subscription display helpers
+  const parsesUsed = SUB_MONTHLY_PARSES - licenseInfo.subAllowanceRemaining;
+  const usageProgress = parsesUsed / SUB_MONTHLY_PARSES;
+
+  // Trial display helpers
+  const trialMaxParses = licenseInfo.trialMaxParses || TRIAL_MAX_PARSES;
+  const trialUsed = trialMaxParses - licenseInfo.trialRemaining;
+  const trialProgress = trialUsed / trialMaxParses;
+  const trialDaysLeft = useMemo(() => {
+    if (!licenseInfo.trialExpiryDate) return null;
+    const expiry = new Date(licenseInfo.trialExpiryDate);
+    const now = new Date();
+    const diff = expiry.getTime() - now.getTime();
+    if (diff <= 0) return 0;
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }, [licenseInfo.trialExpiryDate]);
+
+  const tierBadgeText = licenseInfo.tier === 'trial'
+    ? 'Trial'
+    : isPremium
+      ? `Pro${licenseInfo.subPlanType === 'monthly' ? ' \u00B7 Monthly' : licenseInfo.subPlanType === 'yearly' ? ' \u00B7 Yearly' : ''}`
+      : licenseInfo.creditBalance > 0
+        ? 'Credits'
+        : null;
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header / Branding */}
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={styles.brand}>VECTOR</Text>
-        <Text style={styles.tagline}>Your Money. Directed.</Text>
-        <View style={styles.badgeRow}>
-          {licenseInfo.tier === 'trial' ? (
-            <View style={{ alignItems: 'center', gap: spacing.xs }}>
-              <Badge text="TRIAL" color={colors.warning} />
-              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
-                {licenseInfo.trialRemaining} statement{licenseInfo.trialRemaining !== 1 ? 's' : ''} remaining
-              </Text>
+      <View style={{ height: insets.top + 10 }} />
+
+      {/* ================================================================ */}
+      {/* HERO PROFILE CARD                                                */}
+      {/* ================================================================ */}
+      <View style={styles.heroCard}>
+        {/* Top row: avatar + info + badge */}
+        <View style={styles.heroTop}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>V</Text>
+          </View>
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroName}>Vector Account</Text>
+            <Text style={styles.heroEmail}>Your Money. Directed.</Text>
+          </View>
+          {tierBadgeText && (
+            <View style={styles.proBadge}>
+              {isPremium && <Text style={styles.proBadgeStar}>{'\u2605'}</Text>}
+              <Text style={styles.proBadgeText}>{tierBadgeText}</Text>
             </View>
-          ) : isPremium ? (
-            <View style={{ alignItems: 'center', gap: spacing.xs }}>
-              <Badge text="PRO" color={colors.accent} />
-              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
-                {licenseInfo.subAllowanceRemaining} of 4 parses this month
-              </Text>
-              {licenseInfo.creditBalance > 0 && (
-                <Text style={{ color: colors.accent, fontSize: fontSize.xs, fontWeight: '600', lineHeight: 16 }}>
-                  + {licenseInfo.creditBalance} purchased credit{licenseInfo.creditBalance !== 1 ? 's' : ''}
+          )}
+        </View>
+
+        {/* Stats row inside hero */}
+        <View style={styles.heroDivider} />
+        <View style={styles.heroStats}>
+          <View style={styles.hstat}>
+            <Text style={styles.hstatNum}>{cards.length}</Text>
+            <Text style={styles.hstatLabel}>Cards</Text>
+          </View>
+          <View style={styles.hstatDivider} />
+          <View style={styles.hstat}>
+            <Text style={styles.hstatNum}>{statementCount}</Text>
+            <Text style={styles.hstatLabel}>Statements</Text>
+          </View>
+          <View style={styles.hstatDivider} />
+          <View style={styles.hstat}>
+            <Text style={styles.hstatNum}>{txnCount}</Text>
+            <Text style={styles.hstatLabel}>Transactions</Text>
+          </View>
+        </View>
+
+        {/* Subscription / Usage area */}
+        <View style={styles.heroDivider} />
+
+        {licenseInfo.tier === 'trial' ? (
+          /* ---- Trial ---- */
+          <View>
+            <View style={styles.trialHeader}>
+              <View style={styles.trialBadge}>
+                <Feather name="clock" size={10} color={colors.accent} />
+                <Text style={styles.trialBadgeText}>FREE TRIAL</Text>
+              </View>
+              {trialDaysLeft !== null && (
+                <Text style={styles.trialExpiry}>
+                  {trialDaysLeft > 0 ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left` : 'Expires today'}
                 </Text>
               )}
             </View>
-          ) : licenseInfo.creditBalance > 0 ? (
-            <View style={{ alignItems: 'center', gap: spacing.xs }}>
-              <Badge text="PAY-AS-YOU-GO" color={colors.textSecondary} />
-              <Text style={{ color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16 }}>
-                {licenseInfo.creditBalance} credit{licenseInfo.creditBalance !== 1 ? 's' : ''} remaining
-              </Text>
+            <View style={styles.trialStats}>
+              <View style={styles.trialStat}>
+                <Text style={styles.trialStatNum}>{licenseInfo.trialRemaining}</Text>
+                <Text style={styles.trialStatLabel}>parses left</Text>
+              </View>
+              <View style={styles.trialStatDivider} />
+              <View style={styles.trialStat}>
+                <Text style={styles.trialStatNum}>{trialUsed}</Text>
+                <Text style={styles.trialStatLabel}>used</Text>
+              </View>
+              <View style={styles.trialStatDivider} />
+              <View style={styles.trialStat}>
+                <Text style={styles.trialStatNum}>{trialMaxParses}</Text>
+                <Text style={styles.trialStatLabel}>total</Text>
+              </View>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.upgradeBtn}
-              onPress={async () => {
-                capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_header' });
-                // Try Apple auth first, but don't block paywall if it fails
-                if (!isAuthenticated) {
-                  try {
-                    const available = await isAppleAuthAvailable();
-                    if (available) {
-                      const session = await signInAndAuthenticate();
-                      useStore.getState()._setAuthenticated(true, session.appleUserId);
-                    }
-                  } catch (e: any) {
-                    // User cancelled or auth unavailable — still show paywall
-                    console.log('[ProfileScreen] Apple auth skipped:', e?.message);
-                  }
-                }
-                const purchased = await presentPaywall();
-                if (purchased) {
-                  await refreshSubscriptionStatus();
-                  useStore.getState()._refreshLicenseInfo();
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <Feather name="zap" size={14} color={colors.warning} style={{ marginRight: spacing.xs }} />
-              <Text style={styles.upgradeBtnText}>Upgrade to Pro</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            <ProgressBar
+              progress={trialProgress}
+              height={4}
+              style={{ marginTop: spacing.sm }}
+            />
+            <Text style={styles.trialFooter}>
+              {licenseInfo.trialRemaining} of {trialMaxParses} parses remaining
+              {trialDaysLeft !== null && trialDaysLeft > 0 ? ` \u00B7 expires in ${trialDaysLeft}d` : ''}
+            </Text>
+          </View>
+        ) : isPremium ? (
+          /* ---- Active Subscription ---- */
+          <View>
+            <View style={styles.usageRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.usageTitle}>Monthly parses</Text>
+                <Text style={styles.usageVal}>
+                  <Text style={{ color: colors.accent }}>{parsesUsed}</Text> of {SUB_MONTHLY_PARSES} used
+                </Text>
+              </View>
+              {licenseInfo.creditBalance > 0 && (
+                <View style={styles.creditTag}>
+                  <Text style={styles.creditTagText}>+{licenseInfo.creditBalance} credits</Text>
+                </View>
+              )}
+            </View>
+            <ProgressBar
+              progress={usageProgress}
+              height={4}
+              style={{ marginTop: spacing.sm }}
+            />
+          </View>
+        ) : (
+          /* ---- No Subscription ---- */
+          <View>
+            <View style={styles.subscriptionBanner}>
+              <Text style={styles.subscriptionTitle}>Get Vector Pro</Text>
+              <Text style={styles.subscriptionDesc}>
+                Monthly or Yearly plan {'\u00B7'} {SUB_MONTHLY_PARSES} parses/month {'\u00B7'} Full analytics
+              </Text>
+              <TouchableOpacity
+                style={styles.subscribeCta}
+                onPress={() => {
+                  capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_hero' });
+                  handleUpgradeFlow();
+                }}
+                activeOpacity={0.7}
+              >
+                <Feather name="zap" size={14} color={colors.textOnAccent} />
+                <Text style={styles.subscribeCtaText}>Subscribe</Text>
+              </TouchableOpacity>
+            </View>
+            {licenseInfo.creditBalance > 0 && (
+              <View style={styles.usageRow}>
+                <Text style={styles.usageTitle}>Credits available</Text>
+                <View style={styles.creditTag}>
+                  <Text style={styles.creditTagText}>{licenseInfo.creditBalance} credits</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
-      {/* Quick Stats */}
-      <Card style={styles.statsCard}>
-        <View style={styles.statsRow}>
-          <StatColumn label="Cards" value={String(cards.length)} />
-          <View style={styles.statsDivider} />
-          <StatColumn label="Statements" value={String(statementCount)} />
-          <View style={styles.statsDivider} />
-          <StatColumn label="Transactions" value={String(txnCount)} />
-        </View>
-      </Card>
-
-      {/* Menu Items */}
-      <View style={styles.menuSection}>
-        <MenuItem
+      {/* ================================================================ */}
+      {/* TOOLS                                                            */}
+      {/* ================================================================ */}
+      <Text style={styles.sectionLabel}>Tools</Text>
+      <View style={styles.surfaceCard}>
+        <GroupedMenuItem
           icon="message-circle"
-          label="Ask Vector"
-          subtitle="Query your expenses with AI"
-          iconColor={colors.accent}
+          title="Ask Vector"
+          subtitle="Natural language queries"
           onPress={() => navigation.navigate('Ask')}
+          colors={colors}
+          styles={styles}
         />
-        <MenuItem
+        <View style={styles.itemDivider} />
+        <GroupedMenuItem
           icon="credit-card"
-          label="My Cards"
+          title="My Cards"
           subtitle={`${cards.length} card${cards.length !== 1 ? 's' : ''}`}
           onPress={() => navigation.navigate('CardList')}
+          colors={colors}
+          styles={styles}
         />
-        <MenuItem
+        <View style={styles.itemDivider} />
+        <GroupedMenuItem
           icon="tag"
-          label="Labels"
-          subtitle="Group transactions by trip, project, etc."
+          title="Labels"
+          subtitle="Group by trip or project"
           onPress={() => (navigation as any).navigate('Labels')}
+          colors={colors}
+          styles={styles}
         />
-        <MenuItem
-          icon="database"
-          label="Data & Backup"
-          subtitle="Export or restore your data"
-          onPress={() => navigation.navigate('Backup')}
-        />
+      </View>
+
+      {/* ================================================================ */}
+      {/* ACCOUNT                                                          */}
+      {/* ================================================================ */}
+      <Text style={styles.sectionLabel}>Account</Text>
+      <View style={styles.surfaceCard}>
         {(isPremium || licenseInfo.creditBalance > 0 || (licenseInfo.tier === 'none' && licenseInfo.trialExpired)) && (
-          <MenuItem
-            icon="plus-circle"
-            label="Buy Credits"
-            subtitle={licenseInfo.creditBalance > 0 ? `${licenseInfo.creditBalance} credit${licenseInfo.creditBalance !== 1 ? 's' : ''} remaining` : 'Top up your balance'}
-            iconColor={colors.accent}
-            onPress={() => navigation.navigate('CreditTopUp')}
-          />
-        )}
-        {!isPremium && licenseInfo.tier !== 'trial' && licenseInfo.creditBalance === 0 && (
-          <MenuItem
-            icon="zap"
-            label="Upgrade to Pro"
-            subtitle="Unlock all features"
-            iconColor={colors.warning}
-            onPress={async () => {
-              capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' });
-              if (!isAuthenticated) {
-                try {
-                  const available = await isAppleAuthAvailable();
-                  if (available) {
-                    const session = await signInAndAuthenticate();
-                    useStore.getState()._setAuthenticated(true, session.appleUserId);
-                  }
-                } catch (e: any) {
-                  console.log('[ProfileScreen] Apple auth skipped:', e?.message);
-                }
-              }
-              const purchased = await presentPaywall();
-              if (purchased) {
-                await refreshSubscriptionStatus();
-                useStore.getState()._refreshLicenseInfo();
-              }
-            }}
-          />
-        )}
-      </View>
-
-      {/* Appearance */}
-      <View style={styles.appearanceSection}>
-        <Text style={styles.appearanceTitle}>Appearance</Text>
-        <View style={styles.themePicker}>
-          {([
-            { mode: 'light' as ThemeMode, icon: 'sun' as const, label: 'Light' },
-            { mode: 'dark' as ThemeMode, icon: 'moon' as const, label: 'Dark' },
-            { mode: 'system' as ThemeMode, icon: 'smartphone' as const, label: 'Auto' },
-          ]).map(({ mode, icon, label }) => {
-            const isActive = themeMode === mode;
-            return (
-              <TouchableOpacity
-                key={mode}
-                style={[styles.themeOption, isActive && styles.themeOptionActive]}
-                onPress={() => setThemeMode(mode)}
-                activeOpacity={0.7}
-              >
-                <Feather name={icon} size={16} color={isActive ? colors.accent : colors.textMuted} />
-                <Text style={[styles.themeOptionText, isActive && styles.themeOptionTextActive]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Currency */}
-      <View style={styles.appearanceSection}>
-        <Text style={styles.appearanceTitle}>Currency</Text>
-        <View style={styles.themePicker}>
-          {SUPPORTED_CURRENCIES.map((code) => {
-            const isActive = defaultCurrency === code;
-            return (
-              <TouchableOpacity
-                key={code}
-                style={[styles.themeOption, isActive && styles.themeOptionActive]}
-                onPress={() => setDefaultCurrency(code)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.currencySymbol, isActive && styles.themeOptionTextActive]}>
-                  {CURRENCY_CONFIG[code].symbol}
-                </Text>
-                <Text style={[styles.themeOptionText, isActive && styles.themeOptionTextActive]}>
-                  {code}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Security */}
-      {biometricAvailable && (
-        <View style={styles.appearanceSection}>
-          <Text style={styles.appearanceTitle}>Security</Text>
-          <TouchableOpacity
-            style={styles.biometricRow}
-            onPress={handleBiometricToggle}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.biometricIcon, biometricLockEnabled && styles.biometricIconActive]}>
-              <Feather name="lock" size={16} color={biometricLockEnabled ? colors.accent : colors.textMuted} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.biometricLabel}>App Lock</Text>
-              <Text style={styles.biometricDesc}>
-                Require Face ID / fingerprint to open the app
-              </Text>
-            </View>
-            <View style={[styles.toggle, biometricLockEnabled && styles.toggleActive]}>
-              <View style={[styles.toggleKnob, biometricLockEnabled && styles.toggleKnobActive]} />
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Account */}
-      <View style={styles.appearanceSection}>
-        <Text style={styles.appearanceTitle}>Account</Text>
-        {isAuthenticated ? (
           <>
-            <View style={styles.biometricRow}>
-              <View style={[styles.biometricIcon, styles.biometricIconActive]}>
-                <Feather name="check-circle" size={16} color={colors.accent} />
+            <GroupedMenuItem
+              icon="star"
+              title="Buy credits"
+              subtitle={licenseInfo.creditBalance > 0 ? `${licenseInfo.creditBalance} remaining` : 'Top up your balance'}
+              badge={licenseInfo.creditBalance > 0 ? String(licenseInfo.creditBalance) : undefined}
+              onPress={() => navigation.navigate('CreditTopUp')}
+              colors={colors}
+              styles={styles}
+            />
+            <View style={styles.itemDivider} />
+          </>
+        )}
+        {!isPremium && (
+          <>
+            <GroupedMenuItem
+              icon="zap"
+              title="Upgrade plan"
+              subtitle="Unlimited uploads & analytics"
+              onPress={() => {
+                capture(AnalyticsEvents.UPGRADE_TAPPED, { source: 'profile_menu' });
+                handleUpgradeFlow();
+              }}
+              colors={colors}
+              styles={styles}
+            />
+            <View style={styles.itemDivider} />
+          </>
+        )}
+        {biometricAvailable && (
+          <>
+            <TouchableOpacity style={styles.listItem} onPress={handleBiometricToggle} activeOpacity={0.7}>
+              <View style={styles.iconBox}>
+                <Feather name="lock" size={18} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.biometricLabel}>Signed In</Text>
-                <Text style={styles.biometricDesc}>Apple ID linked</Text>
+                <Text style={styles.itemTitle}>Security & privacy</Text>
+                <Text style={styles.itemSub}>Biometrics, data controls</Text>
+              </View>
+              <View style={[styles.toggle, biometricLockEnabled && styles.toggleActive]}>
+                <View style={[styles.toggleKnob, biometricLockEnabled && styles.toggleKnobActive]} />
+              </View>
+            </TouchableOpacity>
+            <View style={styles.itemDivider} />
+          </>
+        )}
+        {isAuthenticated ? (
+          <>
+            <View style={styles.listItem}>
+              <View style={styles.iconBox}>
+                <Feather name="check-circle" size={18} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemTitle}>Signed in</Text>
+                <Text style={styles.itemSub}>Apple ID linked</Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={styles.biometricRow}
+            <View style={styles.itemDivider} />
+            <GroupedMenuItem
+              icon="refresh-cw"
+              title="Restore purchases"
+              subtitle="Recover subscriptions from another device"
               onPress={async () => {
                 try {
                   await Purchases.restorePurchases();
@@ -326,19 +388,13 @@ export default function ProfileScreen() {
                   Alert.alert('Error', 'Could not restore purchases. Please try again.');
                 }
               }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.biometricIcon}>
-                <Feather name="refresh-cw" size={16} color={colors.textMuted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.biometricLabel}>Restore Purchases</Text>
-                <Text style={styles.biometricDesc}>Recover subscriptions from another device</Text>
-              </View>
-            </TouchableOpacity>
+              colors={colors}
+              styles={styles}
+            />
+            <View style={styles.itemDivider} />
             <TouchableOpacity
-              style={styles.biometricRow}
-              onPress={async () => {
+              style={styles.listItem}
+              onPress={() => {
                 Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
                   { text: 'Cancel', style: 'cancel' },
                   {
@@ -353,17 +409,17 @@ export default function ProfileScreen() {
               }}
               activeOpacity={0.7}
             >
-              <View style={styles.biometricIcon}>
-                <Feather name="log-out" size={16} color={colors.debit} />
+              <View style={styles.iconBox}>
+                <Feather name="log-out" size={18} color={colors.debit} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.biometricLabel, { color: colors.debit }]}>Sign Out</Text>
-              </View>
+              <Text style={[styles.itemTitle, { color: colors.debit }]}>Sign out</Text>
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity
-            style={styles.biometricRow}
+          <GroupedMenuItem
+            icon="user"
+            title="Sign in with Apple"
+            subtitle="Sync subscription across devices"
             onPress={async () => {
               try {
                 const session = await signInAndAuthenticate();
@@ -376,141 +432,212 @@ export default function ProfileScreen() {
                 }
               }
             }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.biometricIcon}>
-              <Feather name="user" size={16} color={colors.textMuted} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.biometricLabel}>Sign in with Apple</Text>
-              <Text style={styles.biometricDesc}>Sync subscription across devices</Text>
-            </View>
-          </TouchableOpacity>
+            colors={colors}
+            styles={styles}
+          />
         )}
       </View>
 
-      {/* Recent Statements */}
-      {allStatements.length > 0 && (
-        <View style={{ marginTop: spacing.sm }}>
-          <SectionHeader title="Recent Statements" />
-          {allStatements.slice(0, 5).map((stmt) => (
-            <TouchableOpacity
-              key={stmt.id}
-              style={styles.statementRow}
-              onPress={() =>
-                navigation.navigate('Analysis', {
-                  statementId: stmt.id,
-                  cardId: stmt.cardId,
-                })
-              }
-            >
-              <View style={styles.statementIcon}>
-                <Feather name="file-text" size={20} color={colors.accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.statementCard}>{stmt.cardNickname}</Text>
-                <Text style={styles.statementDate}>
-                  {formatDate(stmt.summary.statement_period.from ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))} to{' '}
-                  {formatDate(stmt.summary.statement_period.to ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.statementAmount}>
-                  {formatCurrency(stmt.summary.net, stmt.cardCurrency)}
-                </Text>
-                <Text style={styles.statementCount}>
-                  {stmt.summary.total_transactions} txns
-                </Text>
-              </View>
-              <Feather
-                name="chevron-right"
-                size={16}
-                color={colors.textMuted}
-                style={{ marginLeft: spacing.sm }}
-              />
-            </TouchableOpacity>
-          ))}
+      {/* ================================================================ */}
+      {/* PREFERENCES                                                      */}
+      {/* ================================================================ */}
+      <Text style={styles.sectionLabel}>Preferences</Text>
+      <View style={styles.surfaceCard}>
+        <View style={styles.pickerSection}>
+          <Text style={styles.pickerLabel}>Appearance</Text>
+          <View style={styles.themePicker}>
+            {([
+              { mode: 'light' as ThemeMode, icon: 'sun' as const, label: 'Light' },
+              { mode: 'dark' as ThemeMode, icon: 'moon' as const, label: 'Dark' },
+              { mode: 'system' as ThemeMode, icon: 'smartphone' as const, label: 'Auto' },
+            ]).map(({ mode, icon, label }) => {
+              const isActive = themeMode === mode;
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  style={[styles.themeOption, isActive && styles.themeOptionActive]}
+                  onPress={() => setThemeMode(mode)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name={icon} size={14} color={isActive ? colors.accent : colors.textMuted} />
+                  <Text style={[styles.themeOptionText, isActive && { color: colors.accent, fontWeight: '600' }]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
+        <View style={styles.itemDividerFull} />
+        <View style={styles.pickerSection}>
+          <Text style={styles.pickerLabel}>Currency</Text>
+          <View style={styles.themePicker}>
+            {SUPPORTED_CURRENCIES.map((code) => {
+              const isActive = defaultCurrency === code;
+              return (
+                <TouchableOpacity
+                  key={code}
+                  style={[styles.themeOption, isActive && styles.themeOptionActive]}
+                  onPress={() => setDefaultCurrency(code)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.currencySymbol, isActive && { color: colors.accent }]}>
+                    {CURRENCY_CONFIG[code].symbol}
+                  </Text>
+                  <Text style={[styles.themeOptionText, isActive && { color: colors.accent, fontWeight: '600' }]}>
+                    {code}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+
+      {/* ================================================================ */}
+      {/* DATA                                                             */}
+      {/* ================================================================ */}
+      <Text style={styles.sectionLabel}>Data</Text>
+      <View style={styles.surfaceCard}>
+        <GroupedMenuItem
+          icon="upload"
+          title="Backup & export"
+          subtitle="Encrypted JSON, CSV"
+          onPress={() => navigation.navigate('Backup')}
+          colors={colors}
+          styles={styles}
+        />
+        <View style={styles.itemDivider} />
+        <GroupedMenuItem
+          icon="clock"
+          title="Demo mode"
+          subtitle="Try with sample data"
+          onPress={() => navigation.navigate('Upload' as any)}
+          colors={colors}
+          styles={styles}
+        />
+      </View>
+
+      {/* ================================================================ */}
+      {/* RECENT STATEMENTS                                                */}
+      {/* ================================================================ */}
+      {allStatements.length > 0 && (
+        <>
+          <Text style={styles.sectionLabel}>Recent statements</Text>
+          <View style={styles.surfaceCard}>
+            {allStatements.slice(0, 5).map((stmt, idx) => (
+              <React.Fragment key={stmt.id}>
+                {idx > 0 && <View style={styles.itemDivider} />}
+                <TouchableOpacity
+                  style={styles.statementItem}
+                  onPress={() => navigation.navigate('Analysis', { statementId: stmt.id, cardId: stmt.cardId })}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.iconBox}>
+                    <Feather name="file-text" size={18} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemTitle}>{stmt.cardNickname}</Text>
+                    <Text style={styles.itemSub}>
+                      {formatDate(stmt.summary.statement_period.from ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))} to{' '}
+                      {formatDate(stmt.summary.statement_period.to ?? '', stmt.dateFormat ?? dateFormatForCurrency(stmt.cardCurrency))}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', marginRight: spacing.xs }}>
+                    <Text style={[styles.itemTitle, { color: colors.debit }]}>
+                      {formatCurrency(stmt.summary.net, stmt.cardCurrency)}
+                    </Text>
+                    <Text style={styles.itemSub}>{stmt.summary.total_transactions} txns</Text>
+                  </View>
+                  <Text style={styles.chevron}>{'\u203A'}</Text>
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+          </View>
+        </>
       )}
 
-      {/* About */}
-      <Card style={styles.aboutCard}>
-        <View style={styles.aboutRow}>
-          <Feather name="info" size={16} color={colors.textMuted} />
-          <Text style={styles.aboutLabel}>Version</Text>
-          <Text style={styles.aboutValue}>1.0.0</Text>
-        </View>
-        <View style={styles.aboutDivider} />
-        <View style={styles.privacyRow}>
-          <Feather name="shield" size={14} color={colors.textMuted} style={{ marginRight: spacing.sm }} />
-          <Text style={styles.privacyText}>
-            Your data stays on your device. Vector never uploads your financial information.
-          </Text>
-        </View>
-        <View style={styles.aboutDivider} />
-        <View style={styles.legalLinks}>
-          <TouchableOpacity onPress={() => Linking.openURL('https://vectorexpense.com/privacy')} activeOpacity={0.7}>
-            <Text style={styles.legalLink}>Privacy Policy</Text>
+      {/* ================================================================ */}
+      {/* ABOUT — plain list, lowest visual weight                         */}
+      {/* ================================================================ */}
+      <Text style={styles.sectionLabel}>About</Text>
+      <View style={styles.surfaceCard}>
+        <View style={styles.aboutList}>
+          <TouchableOpacity
+            style={styles.aboutItem}
+            onPress={() => navigation.navigate('Feedback')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.aboutLabel}>Help & feedback</Text>
+            <Text style={styles.aboutChevron}>{'\u203A'}</Text>
           </TouchableOpacity>
-          <Text style={styles.legalSeparator}>{'\u00B7'}</Text>
-          <TouchableOpacity onPress={() => Linking.openURL('https://vectorexpense.com/terms')} activeOpacity={0.7}>
-            <Text style={styles.legalLink}>Terms of Use</Text>
+          <TouchableOpacity
+            style={styles.aboutItem}
+            onPress={() => navigation.navigate('WebViewPage', { url: 'https://vectorexpense.com/privacy', title: 'Privacy Policy' })}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.aboutLabel}>Privacy policy</Text>
+            <Text style={styles.aboutChevron}>{'\u203A'}</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.aboutItem}
+            onPress={() => navigation.navigate('WebViewPage', { url: 'https://vectorexpense.com/terms', title: 'Terms of Use' })}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.aboutLabel}>Terms of use</Text>
+            <Text style={styles.aboutChevron}>{'\u203A'}</Text>
+          </TouchableOpacity>
+          <View style={[styles.aboutItem, { borderBottomWidth: 0 }]}>
+            <Text style={styles.aboutLabel}>Version</Text>
+            <Text style={styles.aboutVal}>{APP_VERSION}</Text>
+          </View>
         </View>
-      </Card>
+      </View>
 
-      <View style={{ height: 60 }} />
+      {/* Footer tagline */}
+      <Text style={styles.footerTagline}>Your Money. Directed.</Text>
+
+      <View style={{ height: insets.bottom + 40 }} />
     </ScrollView>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Stat column
+// Grouped menu item
 // ---------------------------------------------------------------------------
 
-function StatColumn({ label, value }: { label: string; value: string }) {
-  const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-
-  return (
-    <View style={styles.statCol}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Menu item row
-// ---------------------------------------------------------------------------
-
-function MenuItem({
+function GroupedMenuItem({
   icon,
-  label,
+  title,
   subtitle,
-  iconColor,
+  badge,
   onPress,
+  colors,
+  styles,
 }: {
   icon: keyof typeof Feather.glyphMap;
-  label: string;
+  title: string;
   subtitle: string;
-  iconColor?: string;
+  badge?: string;
   onPress: () => void;
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
 }) {
-  const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const resolvedIconColor = iconColor ?? colors.accent;
-
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.menuIcon, { backgroundColor: resolvedIconColor + '15' }]}>
-        <Feather name={icon} size={18} color={resolvedIconColor} />
+    <TouchableOpacity style={styles.listItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.iconBox}>
+        <Feather name={icon} size={18} color={colors.accent} />
       </View>
-      <View style={styles.menuContent}>
-        <Text style={styles.menuLabel}>{label}</Text>
-        <Text style={styles.menuSubtitle}>{subtitle}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.itemTitle}>{title}</Text>
+        <Text style={styles.itemSub}>{subtitle}</Text>
       </View>
-      <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      {badge && (
+        <View style={styles.badgePill}>
+          <Text style={styles.badgePillText}>{badge}</Text>
+        </View>
+      )}
+      <Text style={styles.chevron}>{'\u203A'}</Text>
     </TouchableOpacity>
   );
 }
@@ -524,124 +651,319 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    alignItems: 'center',
-    paddingBottom: spacing.xxl,
-  },
-  brand: {
-    color: colors.textPrimary,
-    fontSize: fontSize.hero,
-    fontWeight: '700',
-    letterSpacing: 4,
-    lineHeight: 40,
-  },
-  tagline: {
-    color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    letterSpacing: 1,
-    marginTop: spacing.xs,
-    lineHeight: 18,
-  },
-  badgeRow: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  upgradeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.warning + '15',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-  },
-  upgradeBtnText: {
-    color: colors.warning,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  statsCard: {
-    marginHorizontal: spacing.lg,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    color: colors.textPrimary,
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
-    lineHeight: 28,
-  },
-  statLabel: {
-    color: colors.textSecondary,
-    fontSize: fontSize.xs,
-    marginTop: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    lineHeight: 16,
-  },
-  statsDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: colors.border,
-  },
-  menuSection: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  // Hero card
+  heroCard: {
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.md,
+    borderRadius: 24,
     padding: spacing.lg,
-    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.accent + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
-  menuContent: {
+  avatarText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  heroInfo: {
     flex: 1,
   },
-  menuLabel: {
+  heroName: {
+    fontSize: 15,
+    fontWeight: '500',
     color: colors.textPrimary,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
+    marginBottom: 4,
   },
-  menuSubtitle: {
+  heroEmail: {
+    fontSize: 11,
     color: colors.textSecondary,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
   },
-  appearanceSection: {
-    paddingHorizontal: spacing.lg,
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.accent + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  proBadgeStar: {
+    fontSize: 10,
+    color: colors.accent,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.3,
+  },
+  heroDivider: {
+    height: 0.5,
+    backgroundColor: colors.border,
+    marginHorizontal: -spacing.lg,
     marginBottom: spacing.md,
   },
-  appearanceTitle: {
+  heroStats: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
+  hstat: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  hstatNum: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.accent,
+    lineHeight: 24,
+    marginBottom: 2,
+  },
+  hstatLabel: {
+    fontSize: 10,
     color: colors.textSecondary,
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+  },
+  hstatDivider: {
+    width: 0.5,
+    backgroundColor: colors.border,
+    marginVertical: 4,
+  },
+
+  // Trial section
+  trialHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  trialBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.accent + '15',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  trialBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.accent,
     letterSpacing: 0.5,
+  },
+  trialExpiry: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  trialStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trialStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  trialStatNum: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.accent,
+    lineHeight: 22,
+  },
+  trialStatLabel: {
+    fontSize: 9,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  trialStatDivider: {
+    width: 0.5,
+    height: 24,
+    backgroundColor: colors.border,
+  },
+  trialFooter: {
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+
+  // Usage / subscription
+  usageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  usageTitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  usageVal: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  creditTag: {
+    backgroundColor: colors.accent + '20',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  creditTagText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.accent,
+  },
+
+  // Subscription banner (no-plan state)
+  subscriptionBanner: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  subscriptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  subscriptionDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
     lineHeight: 16,
+  },
+  subscribeCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: 20,
+  },
+  subscribeCtaText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textOnAccent,
+  },
+
+  // Section label — MD3 sentence case
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    letterSpacing: 0.1,
+  },
+
+  // Grouped surface card
+  surfaceCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+
+  // List item inside grouped card
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: 14,
+    height: 56,
+  },
+  statementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: 14,
+    minHeight: 68,
+    paddingVertical: spacing.sm,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.accent + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemTitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    marginBottom: 1,
+  },
+  itemSub: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  chevron: {
+    fontSize: 16,
+    color: colors.textMuted,
+    marginLeft: 2,
+  },
+  itemDivider: {
+    height: 0.5,
+    backgroundColor: colors.border,
+    marginLeft: 54,
+    marginRight: 14,
+  },
+  itemDividerFull: {
+    height: 0.5,
+    backgroundColor: colors.border,
+  },
+
+  // Badge pill
+  badgePill: {
+    backgroundColor: colors.accent + '20',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 4,
+  },
+  badgePillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+
+  // Picker sections (appearance / currency)
+  pickerSection: {
+    paddingHorizontal: 14,
+    paddingVertical: spacing.md,
+  },
+  pickerLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   themePicker: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: borderRadius.md,
     padding: spacing.xs,
     gap: spacing.xs,
   },
@@ -651,59 +973,24 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: borderRadius.sm,
   },
   themeOptionActive: {
     backgroundColor: colors.accent + '20',
   },
   themeOptionText: {
     color: colors.textMuted,
-    fontSize: fontSize.sm,
+    fontSize: 12,
     fontWeight: '500',
-    lineHeight: 18,
-  },
-  themeOptionTextActive: {
-    color: colors.accent,
-    fontWeight: '600',
   },
   currencySymbol: {
     color: colors.textMuted,
-    fontSize: fontSize.lg,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 22,
   },
-  biometricRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-  },
-  biometricIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  biometricIconActive: {
-    backgroundColor: colors.accent + '20',
-  },
-  biometricLabel: {
-    color: colors.textPrimary,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  biometricDesc: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
-  },
+
+  // Toggle
   toggle: {
     width: 48,
     height: 28,
@@ -725,95 +1012,38 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.background,
     alignSelf: 'flex-end',
   },
-  statementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
+
+  // About — plain list, lowest weight
+  aboutList: {
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.xs,
+  },
+  aboutItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
   },
-  statementIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  statementCard: {
-    color: colors.textPrimary,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  statementDate: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  statementAmount: {
-    color: colors.debit,
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  statementCount: {
-    color: colors.textMuted,
-    fontSize: fontSize.xs,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  aboutCard: {
-    marginHorizontal: spacing.lg,
-  },
-  aboutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   aboutLabel: {
+    fontSize: 12,
     color: colors.textSecondary,
-    fontSize: fontSize.md,
-    flex: 1,
-    lineHeight: 20,
   },
-  aboutValue: {
+  aboutVal: {
+    fontSize: 12,
     color: colors.textMuted,
-    fontSize: fontSize.md,
-    lineHeight: 20,
   },
-  aboutDivider: {
-    height: 1,
-    backgroundColor: colors.surfaceElevated,
-    marginVertical: spacing.md,
-  },
-  privacyRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  privacyText: {
+  aboutChevron: {
+    fontSize: 14,
     color: colors.textMuted,
-    fontSize: fontSize.xs,
-    fontWeight: '400',
-    flex: 1,
-    lineHeight: 18,
   },
-  legalLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  legalLink: {
-    color: colors.accent,
-    fontSize: fontSize.xs,
-    fontWeight: '500',
-  },
-  legalSeparator: {
+
+  // Footer
+  footerTagline: {
+    textAlign: 'center',
+    fontSize: 10,
     color: colors.textMuted,
-    fontSize: fontSize.xs,
+    paddingVertical: spacing.md,
   },
 });

@@ -49,6 +49,7 @@ interface AuthResponse {
 export async function signInWithApple(): Promise<{
 	identityToken: string;
 	user: string;
+	email: string | null;
 }> {
 	const AppleAuth = getAppleAuth();
 	const credential = await AppleAuth.signInAsync({
@@ -64,6 +65,7 @@ export async function signInWithApple(): Promise<{
 	return {
 		identityToken: credential.identityToken,
 		user: credential.user,
+		email: credential.email ?? null,
 	};
 }
 
@@ -74,6 +76,7 @@ export async function signInWithApple(): Promise<{
 async function authenticateWithBackend(
 	identityToken: string,
 	userId: string,
+	email?: string | null,
 ): Promise<AuthResponse> {
 	const response = await fetch(`${API_URL}/auth/apple`, {
 		method: 'POST',
@@ -81,6 +84,7 @@ async function authenticateWithBackend(
 		body: JSON.stringify({
 			identity_token: identityToken,
 			user_id: userId,
+			...(email ? { email } : {}),
 		}),
 	});
 
@@ -155,8 +159,8 @@ async function clearSession(): Promise<void> {
  * Full orchestrated flow: Apple auth → backend verify → RC logIn → save session.
  */
 export async function signInAndAuthenticate(): Promise<AuthSession> {
-	const { identityToken, user } = await signInWithApple();
-	const authResponse = await authenticateWithBackend(identityToken, user);
+	const { identityToken, user, email } = await signInWithApple();
+	const authResponse = await authenticateWithBackend(identityToken, user, email);
 
 	const session: AuthSession = {
 		accessToken: authResponse.access_token,

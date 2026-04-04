@@ -243,6 +243,7 @@
 		"blog": "Blog",
 		"privacy": "Privacidad",
 		"terms": "Términos",
+		"contact": "Contacto",
 		"copyright": "© {year} Vector Expense. Todos los derechos reservados."
 	},
 	"privacy": {
@@ -416,5 +417,62 @@
 	},
 	"common": {
 		"downloadOnAppStore": "Descargar en el App Store"
+	},
+	"contact": {
+		"metaTitle": "Contáctanos — Vector Expense",
+		"metaDescription": "Ponte en contacto con el equipo de Vector Expense. Comparte comentarios, reporta errores o haz preguntas.",
+		"backToHome": "Volver al inicio",
+		"title": "Contáctanos",
+		"description": "¿Tienes comentarios, una pregunta o encontraste un error? Nos encantaría saber de ti.",
+		"form": {
+			"name": "Nombre",
+			"namePlaceholder": "Tu nombre",
+			"email": "Correo electrónico",
+			"emailPlaceholder": "tu@ejemplo.com",
+			"subject": "Asunto",
+			"subjectPlaceholder": "Selecciona un tema",
+			"message": "Mensaje",
+			"messagePlaceholder": "Cuéntanos lo que piensas...",
+			"submit": "Enviar mensaje",
+			"submitting": "Enviando..."
+		},
+		"subjects": {
+			"feedback": "Comentarios",
+			"bugReport": "Reporte de error",
+			"featureRequest": "Solicitud de función",
+			"generalQuery": "Consulta general",
+			"other": "Otro"
+		},
+		"validation": {
+			"nameRequired": "El nombre es obligatorio",
+			"emailRequired": "El correo es obligatorio",
+			"emailInvalid": "Ingresa un correo válido",
+			"subjectRequired": "Selecciona un asunto",
+			"messageRequired": "El mensaje es obligatorio",
+			"messageMinLength": "El mensaje debe tener al menos 10 caracteres"
+		},
+		"success": {
+			"title": "¡Mensaje enviado!",
+			"description": "Gracias por contactarnos. Te responderemos en 24 horas.",
+			"sendAnother": "Enviar otro mensaje"
+		},
+		"error": {
+			"title": "Algo salió mal",
+			"description": "Intenta de nuevo o envíanos un correo directamente.",
+			"retry": "Intentar de nuevo"
+		},
+		"sidebar": {
+			"emailTitle": "Escríbenos directamente",
+			"responseTime": "Normalmente respondemos en 24 horas.",
+			"socialTitle": "Síguenos"
+		}
+	},
+	"tryDemoModal": {
+		"title": "Comienza tu prueba gratuita",
+		"freeParses": "{count} análisis de estados gratuitos",
+		"description": "Sube el estado de tarjeta de crédito de cualquier banco y obtén información de gastos con IA al instante. Sin cuenta necesaria, sin tarjeta de crédito.",
+		"downloadCta": "Descargar en App Store",
+		"or": "o",
+		"learnMore": "Conoce más sobre las funciones"
 	}
 }

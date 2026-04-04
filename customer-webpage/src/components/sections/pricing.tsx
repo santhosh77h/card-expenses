@@ -7,6 +7,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { CheckIcon, ChevronRightIcon, Sparkles, Zap } from "lucide-react";
 import { useRef } from "react";
 import { useTranslations } from "next-intl";
+import { trackPricingPlanClick } from "@/lib/analytics";
 
 export function Pricing() {
   const t = useTranslations("pricing");
@@ -110,6 +111,7 @@ export function Pricing() {
               variant="default"
               size="sm"
               className="rounded-full text-white"
+              onClick={() => trackPricingPlanClick(plan.key)}
             >
               {t("startFreeTrial")}
               <ChevronRightIcon className="w-4 h-4 ml-1" />

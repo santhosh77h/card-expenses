@@ -9,6 +9,7 @@ import { AnimatePresence, motion, useAnimation } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { trackAppStoreClick } from "@/lib/analytics";
 
 export function Header() {
   const tc = useTranslations("common");
@@ -71,7 +72,7 @@ export function Header() {
               <span className="font-bold text-xl">{siteConfig.name}</span>
             </Link>
             <div className="hidden lg:block">
-              <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+              <a href={siteConfig.links.appStore} target="_blank" rel="noopener noreferrer" className="flex-shrink-0" onClick={() => trackAppStoreClick("header")}>
                 <img
                   src="/badges/download-black.svg"
                   alt={tc("downloadOnAppStore")}
